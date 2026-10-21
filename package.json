@@ -1,0 +1,14 @@
+{
+  "name": "@anthonyshort/skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal agent skills for Codex, Pi and Claude Code",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  }
+}
