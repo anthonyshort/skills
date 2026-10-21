@@ -1,7 +1,8 @@
 # Skills
 
 Personal agent skills for Codex, Pi and Claude Code. The initial collection contains
-15 code-quality skills and `writing-voice`, extracted from `anthonyshort/pi-config`.
+15 code-quality skills and `writing-voice`, extracted from `anthonyshort/pi-config`,
+plus a sanitised `galaxy-review` profile.
 
 ## Layout
 
@@ -78,6 +79,45 @@ compatibility symlinks at `home/.pi/agent/skills/code-quality` and
 review-bot paths working; clone this repository alongside pi-config to retain them.
 The original uncommitted `review/SKILL.md` edits were preserved during extraction.
 Only the writing-voice relative links changed to fit the flat layout.
+
+## Work-review profile
+
+`galaxy-review` contains personal review preferences and questions for discovering
+context in an authorised checkout. It retains useful file paths as navigation hints,
+but omits captured internal API behaviour, backend architecture and migration plans.
+The original technical reference files were not copied into this repository.
+
+The detailed original remains in pi-config at
+`home/.pi/agent/skills/galaxy/galaxy-review`. The review bot continues to use that
+explicit path. The shareable version is not linked on the original workstation,
+so its installation does not change the bot's selected profile. Running the linking
+script later will expose both versions; use an explicit path when selecting one.
+
+Private source facts gathered during a review belong in the authorised review
+workspace, not in this repository. This audit is a content inspection, not an
+employer disclosure approval. Review new work-specific additions before publishing.
+
+### Sanitisation record
+
+Kept the generic review coordinator, selective review categories, writing voice,
+report templates, coverage/provenance rules, merge-confidence and submission
+preferences, and selected repository file paths as lookup hints.
+
+Replaced the original technical checklists with questions to answer from the
+current checkout. Specifically removed these captured assertions:
+
+- Which store-effect APIs supersede older helpers and how their scheduler/scopes work.
+- Which history mechanism is replacing another, and registration/startup/injection behaviour.
+- Prescribed ownership and data-flow rules between domain clients, stores and compute.
+- Named internal subscription/cache APIs and their particular dependency contracts.
+- Internal resource-hook types, batching and loading contracts.
+- Named backend/query/error abstractions and product-specific agent-tool direction.
+- Assumptions about the installed domain-client and network test harnesses.
+
+These facts remain in the detailed original. The shareable profile asks reviewers
+to verify them locally rather than treating a captured implementation or plan as
+a portable rule. No credentials, customer/employee records, private URLs or actual
+PR/RFC excerpts were found in the inspected original.
 
 ## Format and installation references
 
