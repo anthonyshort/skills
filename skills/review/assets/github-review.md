@@ -17,7 +17,7 @@ Keep the issue, impact and recommended action visible. Put longer evidence in a 
 
 ## Review body
 
-{{ Briefly explain whether the change solves the intended problem and is ready to merge. Include important conclusions about system fit, simplicity and correctness. Keep the report's uncertainty and limits. }}
+{{ Briefly explain whether the change solves the intended problem and is ready to merge. Include important conclusions about system fit, simplicity, readability and correctness. Keep the report's uncertainty and limits. }}
 
 ### Required fixes
 

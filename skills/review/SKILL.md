@@ -15,6 +15,7 @@ The output is a report that evaluates the change against a few different metrics
 - The change fits the intended long-term architectural direction.
 - The change is the simplest and smallest change to solve the problem.
 - The change has simple, elegant, and consistent APIs.
+- The code is clear and easy to maintain.
 - The change works correctly.
 
 ## Rules
@@ -71,6 +72,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 #### Subagent best practices
 
 - **Give each agent a clear brief**: Include its question, review scope, research findings, relevant project instructions and exact guidance paths.
+- **Ask agents to use relevant skills**: Tell each subagent to look for and use available skills that would help with its task.
 - **Keep context focused**: Give agents what they need for their task. Report templates and writing voice belong to the parent.
 - **Use parallel work after research**: Once Step 2 is complete, independent review tasks can run together within the available agent limit.
 - **Group work by review question**: Avoid creating an agent for every file or skill. Use a subagent to answer each review question below.
@@ -81,7 +83,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 
 - **Look beyond the diff**: Check real callers, code ownership and similar implementations when they affect the conclusion.
 - **Understand what must stay the same**: Establish the behaviour that alternatives must preserve before recommending a simpler design.
-- **Ask only when the answer matters**: Ask about missing requirements or direction when they could change the assessment. Continue other review work while waiting.
+- **Ask only when the answer matters**: Ask about missing requirements or direction when they could change the assessment. Explain the alternatives, their effects and your recommendation when a choice needs input. Continue other review work while waiting.
 - **Follow the risk**: Spend more time on behaviour with a high cost of failure, complex dependencies or weak test coverage. Give simpler changes a lighter review.
 
 #### Q: Should we build this?
@@ -122,8 +124,13 @@ Some things you should look for:
 - Is this duplicating some existing logic
 - Is there any unnecessary tight coupling? Could we decouple things using common patterns like an adapter pattern, plugin pattern, event emitters, or dependency injection?
 
+- **Dependency direction**: Check that imports respect ownership and system boundaries. Look for cycles and dependencies that tie unrelated parts of the system together.
+- **Prevent similar bugs**: Look for architectural changes that could prevent a class of bugs. Explain the benefit and cost separately from the immediate fix.
+
 ##### Verification checklist
 
+- [ ] **Dependency direction**: Check imports against system boundaries and identify cycles or unclear ownership.
+- [ ] **Bug prevention**: Assess whether a supported architectural change could prevent similar bugs. State when no such change is supported.
 - [ ] **System fit**: Assess ownership, dependency boundaries and consistency with established patterns, citing comparable implementations.
 - [ ] **Reuse and coupling**: Identify duplicated behaviour, misplaced responsibilities or unnecessary coupling, with concrete consequences.
 - [ ] **Direction**: Assess alignment with documented architectural direction and migration state; distinguish this from personal preference.
@@ -151,7 +158,7 @@ Some things to look for:
 
 ##### Verification checklist
 
-- [ ] **Complexity assessment**: Identify unnecessary abstractions, indirection, dependencies or unrelated changes, explaining the cost they introduce.
+- [ ] **Complexity assessment**: Count concepts, not just lines. Consider the responsibilities, abstractions and dependencies introduced by the change. Identify unnecessary complexity and explain its cost.
 - [ ] **Simplifications**: Propose concrete removals or substitutions, showing how they preserve the required behaviour.
 - [ ] **Scope assessment**: Recommend keeping the PR together or splitting it; where splitting helps, identify independently reviewable changes and their dependencies.
 - [ ] **Recommendation**: State whether the implementation is reasonably minimal, including any complexity justified by the requirements.
@@ -165,6 +172,27 @@ Return a **simplicity assessment** containing:
 3. **Justified complexity**: Any complexity that should remain because of a concrete requirement or constraint.
 4. **PR scope**: Keep together or split, with a rationale. If splitting is recommended, name the independently reviewable changes, their dependencies and a viable order.
 
+#### Q: Is this code clear and easy to maintain?
+
+Review how easy the code is to read and navigate. Recommend changes that make purpose and ownership clearer. Distinguish project conventions from personal preferences.
+
+##### Verification checklist
+
+- [ ] **Names**: Check that files, folders, functions and variables clearly describe their purpose.
+- [ ] **File organisation**: Check that files are placed intentionally and the folder hierarchy makes ownership clear. Avoid unnecessary nesting or fragmentation.
+- [ ] **Readability**: Look for confusing control flow, nesting and indirection.
+- [ ] **Comments**: Check that comments explain intent or surprising behaviour and follow project conventions.
+- [ ] **Formatting**: Check consistency with the project's style and formatting rules.
+
+##### Deliverable
+
+Return a **readability assessment** containing:
+
+1. **Verdict**: Clear and easy to maintain, or improvements recommended, with a short reason.
+2. **Names and placement**: Explain any unclear names, misplaced files or folder structures that hide ownership. Include source locations and concrete alternatives.
+3. **Readability and style**: Identify code, comments or formatting that make the change harder to understand. Distinguish broken conventions from preferences.
+4. **Recommended changes**: Explain what each change would make clearer or simpler. State when no improvements are supported.
+
 #### Q: Is this implementation correct?
 
 You want to make sure the implementation is correct. Be comprehensive here and trace code callers and look for issues.
@@ -174,13 +202,18 @@ You want to make sure the implementation is correct. Be comprehensive here and t
 - Does this code follow the best practices?
 - Do the lint, test, format, and typechecking tasks pass?
 - Can you follow the callers and confirm that surrounding code won't break?
-- Do passing tests can encode the implementation's mistake?
+- Do tests use the right inputs and expect the correct outputs?
 
 ##### Verification checklist
 
 - [ ] **Behaviour verification**: Trace important success and failure paths through real callers, recording expected behaviour and supporting evidence.
 - [ ] **Findings**: Report defects with their trigger, consequence, source location and a reproduction or code trace.
-- [ ] **Test coverage**: Assess whether tests establish the intended behaviour independently of the implementation, identifying meaningful regression gaps.
+- [ ] **Counterexamples**: Try inputs and boundary cases that could expose incorrect behaviour in the changed logic.
+- [ ] **Test correctness**: Verify that tests use the right inputs and assert the intended outputs. Check expected values, fixtures and mocks independently of the implementation. Passing tests can encode a bug by expecting the wrong result or testing the wrong behaviour.
+- [ ] **Test coverage**: Identify meaningful gaps in regression coverage.
+- [ ] **Root cause**: Trace bugs to their source and check that the fix addresses the cause rather than hiding a symptom.
+- [ ] **Runtime wiring**: Check inputs, configuration and connections that could compile but fail at runtime.
+- [ ] **CI coverage**: Confirm new tests actually run in CI and generated files are checked for missing or outdated output.
 - [ ] **Validation results**: Record the lint, test, format and typechecking commands run, their results, and any blocked or skipped checks.
 - [ ] **Confidence and gaps**: State what was verified, what remains uncertain and how those gaps affect the assessment.
 
@@ -190,7 +223,7 @@ Return a **correctness assessment** containing:
 
 1. **Verdict**: No defects found within the verified scope, defects found, or insufficient evidence, with a short rationale. Passing checks alone do not establish correctness.
 2. **Verified behaviour**: The success and failure paths traced, their callers, expected outcomes and evidence.
-3. **Findings**: Supported defects and unresolved questions using the finding fields specified in “Create the review report”. Explicitly state when no defects were found.
+3. **Findings**: Supported defects and unresolved questions with locations, triggers, effects, evidence and recommended actions. Explicitly state when no defects were found.
 4. **Validation results**: A table of exact commands, results and relevant failure details. Include checks not run and why.
 5. **Coverage gaps**: Missing regression coverage, unverified behaviour and the effect of these gaps on confidence.
 
@@ -215,7 +248,7 @@ The parent agent combines the research report and all Step 3 assessments into on
 2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Note anything you could not verify.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
-5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough and works correctly. Say whether the PR should be split. Separate required fixes, suggestions and wider improvements.
+5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough, is easy to maintain and works correctly. Say whether the PR should be split. Separate required fixes, suggestions and wider improvements.
 6. **Write the report**: Use [the review report template](assets/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
 
 #### Deliverable
@@ -251,23 +284,3 @@ Run this step only when the user requests staging or publishing a review on the 
 #### Deliverable
 
 A pending or submitted GitHub review on the target PR, as requested. Return its link and status.
-
-## Reference files and skills
-
-There are a number of skills and reference files that can be used by subagents while they are reviewing code. This table should be passed to subagents.
-
-| Change or risk | Select for its owner |
-| --- | --- |
-| Interactions, ownership, state/effects, shared patterns, APIs or migrations | [Design review](../design-review/SKILL.md) |
-| React components, hooks, JSX | [React](../react-best-practices/SKILL.md) |
-| TypeScript or JavaScript logic | [TypeScript](../typescript-best-practices/SKILL.md) |
-| CSS | [CSS](../css-best-practices/SKILL.md) |
-| tRPC procedures or clients | [tRPC](../trpc-best-practices/SKILL.md) |
-| Valtio stores | [Valtio](../valtio-best-practices/SKILL.md) |
-| HTML, browser APIs, web tooling | [Web development](../web-development-best-practices/SKILL.md) |
-| New modules, moved responsibilities, dependencies, reuse or abstractions | [Architecture](../architecture-best-practices/SKILL.md) |
-| Function/module APIs, hooks, events, plugins, HTTP contracts, compatibility or retries | [API design](../api-design-best-practices/SKILL.md) |
-| Failure propagation, recovery, logging or multi-step updates | [Error handling](../error-handling-best-practices/SKILL.md) |
-| Hot paths, repeated work, resource growth or background lifecycle | [Performance](../performance-best-practices/SKILL.md) |
-| Permissions, trust boundaries, data exposure, resource access, logs, analytics or telemetry | [Security](../security-best-practices/SKILL.md) |
-| Tests, changed behaviour, regressions, acceptance rules or integration paths | [Testing](../testing-best-practices/SKILL.md) |

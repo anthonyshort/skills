@@ -29,6 +29,7 @@
 | Product | {{ Does this solve the right user task? Supported alternative, missing intent or N/A reason. }} |
 | Direction | {{ Alignment with supplied direction and actual adoption; unknown where unsupported. }} |
 | Design | {{ Simplicity, consistency, ownership and API usability; justified complexity and supported simplifications; no supported redesign is a valid result. }} |
+| Readability | {{ Names, file placement, clear ownership, readable code, comments and formatting. Separate project conventions from preferences. }} |
 | Correctness | {{ Expected behaviour, defects and verification limits. }} |
 
 {{ Use the caller's severity definitions if supplied. Otherwise use P0 for show-stopping failures such as crashes, leaks or blocking performance problems. Use P1 for wrong success-path behaviour or an approach that needs substantial revision. Use P2 for potential issues and rare edge cases. Base severity on evidence of impact and likelihood. Keep questions distinct from confirmed defects. Preferences and future opportunities are not blockers on their own. }}
@@ -74,7 +75,7 @@
 
 ## Consolidation record
 
-{{ List the research report and each of the four review assessments, their source paths and completion status. Identify failed, cancelled or missing inputs and the resulting coverage gaps. Record guidance actually used with its version and result if not already captured in checklist coverage. }}
+{{ List the research report and each Step 3 assessment, their source paths and completion status. Identify failed, cancelled or missing inputs and the resulting coverage gaps. Record guidance actually used with its version and result if not already captured in checklist coverage. }}
 
 {{ Briefly record material overlaps merged, contradictions resolved and conclusions excluded, with reasons and evidence. Link concerns already raised in PR comments and explain their disposition. If a contradiction remains unresolved, link the corresponding question or verification gap. Do not copy worker reports here. }}
 
