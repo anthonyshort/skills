@@ -16,13 +16,13 @@ This personal profile overrides the generic review's repository-policy loading a
 - Ignore Galaxy's repository review-policy and rule-compliance instructions, including its repository `galaxy-review` skill, required `/code-review` or thermo-nuclear reviews, and blanket requirements to read `rules/`. Do not bulk-load those files or add their compliance checklists. Retain global instructions and operational constraints needed to run commands safely.
 - Gather targeted behavioural and architectural facts from current code, tests, linked product/RFC context and relevant documentation. Package instructions may explain API mechanics; extract those facts without importing their review policies. Already injected repository text cannot be unloaded, but it must not drive this review's policy or cause further bulk reads.
 - Give this scope override to the context subagent and every reviewer. The context brief should be concise and sourced, with references for deeper investigation rather than copied rule files. Choose technology skills from the personal generic review workflow, not from repository mandates.
-- Galaxy has a repository skill with the same name, which may win normal project skill discovery. Identify this personal skill as `/home/anthonyshort/.pi/agent/skills/galaxy/galaxy-review/SKILL.md` when invoking or delegating this review; record its full source path in the output and do not silently substitute the repository skill.
+- Galaxy has a repository skill with the same name, which may win normal project skill discovery. Identify this personal skill by the exact resolved path to this `SKILL.md` when invoking or delegating this review; record its full source path in the output and do not silently substitute the repository skill.
 - Preview testing is disabled for this profile. Do not invoke `galaxy-preview-testing`, discover preview URLs or attempt browser authentication as part of this review, including through inherited generic guidance. Assess UI behaviour through code and relevant automated checks; report browser behaviour as unverified when that limits a conclusion. Preview access is not a required completion check.
 - No dependency installation for reviews: apply the generic review's environment constraints before context gathering and pass them to every subagent. Do not create or copy `node_modules`, run package installs or fetch missing tools, including in scratch directories or new worktrees. Use existing dependencies for practical checks; otherwise inspect source, tests and CI and report checks that could not run. Keep review scratch work under `~/.cache/pi/reviews/` or a user-specified workspace, not `/tmp`.
 
 ## Invoke the generic coordinator once
 
-On invocation, run [review](../../code-quality/review/SKILL.md) **once** with the profile below. Do not run a second Galaxy orchestration workflow, gather a duplicate research brief or spawn agents from this wrapper. The generic coordinator owns context gathering, the completed-context gate, concern selection, delegation, verification and synthesis. Reading its skill alone is not completion.
+On invocation, run [review](../review/SKILL.md) **once** with the profile below. Do not run a second Galaxy orchestration workflow, gather a duplicate research brief or spawn agents from this wrapper. The generic coordinator owns context gathering, the completed-context gate, concern selection, delegation, verification and synthesis. Reading its skill alone is not completion.
 
 | Profile field | Value |
 | --- | --- |
@@ -30,7 +30,7 @@ On invocation, run [review](../../code-quality/review/SKILL.md) **once** with th
 | Context requirements | Current API adoption, domain/host ownership, supplied product/RFC context and stack direction; use current code for behaviour and supplied product context or RFCs for intent. |
 | Conditional guidance table | The table below; select all affected categories and assign their exact reference paths. |
 | Output reference | [review output](references/review-output.md), overriding the generic report layout at synthesis. |
-| Voice path | [writing voice](../../writing-voice/SKILL.md), for the main agent at synthesis only. |
+| Voice path | [writing voice](../writing-voice/SKILL.md), for the main agent at synthesis only. |
 | Operational checks | Scope/direction, generated-code CI and completion checks below. |
 
 A completed, integrated brief supplied by the parent satisfies the context gate for delegates; do not repeat context research. Otherwise the generic coordinator obtains and integrates the context subagent's final factual brief before correctness, design or test-quality review, resolves review-critical gaps, and records any unavailable-delegation self-gathered fallback. Do not infer completion from launching an agent or receiving an intermediate message.

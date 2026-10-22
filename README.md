@@ -2,7 +2,7 @@
 
 Personal agent skills for Codex, Pi and Claude Code. The initial collection contains
 15 code-quality skills and `writing-voice`, extracted from `anthonyshort/pi-config`,
-plus the original `galaxy-review` profile copied from pi-config.
+plus the `galaxy-review` profile migrated from pi-config.
 
 ## Layout
 
@@ -75,21 +75,26 @@ Claude Code need their own discovery links or `npx skills` installation.
 
 The source is now this repository. On the original workstation, pi-config retains
 compatibility symlinks at `home/.pi/agent/skills/code-quality` and
-`home/.pi/agent/skills/writing-voice`. They keep existing personal profiles and
+`home/.pi/agent/skills/writing-voice` and
+`home/.pi/agent/skills/galaxy/galaxy-review`. They keep existing personal profiles and
 review-bot paths working; clone this repository alongside pi-config to retain them.
 The original uncommitted `review/SKILL.md` edits were preserved during extraction.
-Only the writing-voice relative links changed to fit the flat layout.
+Cross-skill links use the flat layout. Galaxy profile delegation uses the resolved
+skill path so the profile can be installed outside the original home directory.
 
 ## Work-review profile
 
-`galaxy-review` is copied unchanged from pi-config, including its technical
-references and current personal preferences. Its original paths and relative links
-are retained for now; links to generic skills assume the pi-config directory layout.
-The standalone copy therefore needs path adjustments before use outside that layout.
+`galaxy-review` retains the complete technical references and personal preferences
+from pi-config. Its cross-skill links use this repository's layout. The old
+`~/.pi/agent/skills/galaxy/galaxy-review` path is a compatibility symlink to
+`skills/galaxy-review` here, so the review bot and local agents use the same source.
+Edit this checkout to update the skills; do not maintain a second copy in pi-config.
 
-The original remains in pi-config at
-`home/.pi/agent/skills/galaxy/galaxy-review`, and the review bot continues to use
-that explicit path. This copy is not linked on the original workstation.
+Local edits, including uncommitted edits, are visible through the symlinks without
+reinstalling. New sessions read the updated files; reload an existing agent session
+if it has already loaded the old instructions. Remote GitHub changes require a
+`git pull` in this checkout. Restart the automation bot after sandbox configuration
+changes; ordinary skill text edits do not need a bot restart.
 
 ## Format and installation references
 
