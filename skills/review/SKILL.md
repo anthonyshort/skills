@@ -64,11 +64,25 @@ Read the final report and resolve review-critical information for correctness. T
 
 ### Step 3: Code review
 
-To perform the review **you will use subagents to explore various dimensions of the change**. Will will examine this change from a high-level first and work our way down. For each subagent assign clear scope, context, guidance, and checks.
+Use subagents to explore the review questions below. Each subagent must return the named assessment, including checklist results, evidence and reasons for any N/A or blocked checks. The parent agent saves these assessments in the review artefact directory and uses them to create the final report.
 
-You should use a subagent to answer each of these questions:
+Use this guidance to plan the review. Adapt it to the change and investigate other risks when needed. These are not exhaustive checklists.
 
-Each subagent must return the named assessment below, including verification checklist outcomes with evidence and reasons for any N/A or blocked checks. The main agent saves these assessments in the review artefact directory and uses them to produce the final report. These are review results, not implementation plans; do not manufacture findings to fill a section.
+#### Subagent best practices
+
+- **Give each agent a clear brief**: Include its question, review scope, research findings, relevant project instructions and exact guidance paths.
+- **Keep context focused**: Give agents what they need for their task. Report templates and writing voice belong to the parent.
+- **Use parallel work after research**: Once Step 2 is complete, independent review tasks can run together within the available agent limit.
+- **Group work by review question**: Avoid creating an agent for every file or skill. Use a subagent to answer each review question below.
+- **Let agents reach their own conclusions**: Describe the question and relevant context without steering the agent towards a preferred finding.
+- **Follow up when needed**: Ask agents to investigate weak evidence, unanswered questions or newly discovered risks.
+
+#### Review best practices
+
+- **Look beyond the diff**: Check real callers, code ownership and similar implementations when they affect the conclusion.
+- **Understand what must stay the same**: Establish the behaviour that alternatives must preserve before recommending a simpler design.
+- **Ask only when the answer matters**: Ask about missing requirements or direction when they could change the assessment. Continue other review work while waiting.
+- **Follow the risk**: Spend more time on behaviour with a high cost of failure, complex dependencies or weak test coverage. Give simpler changes a lighter review.
 
 #### Q: Should we build this?
 
@@ -180,57 +194,63 @@ Return a **correctness assessment** containing:
 4. **Validation results**: A table of exact commands, results and relevant failure details. Include checks not run and why.
 5. **Coverage gaps**: Missing regression coverage, unverified behaviour and the effect of these gaps on confidence.
 
-### Step 4: Consolidate the review report
+### Step 4: Create the final review report
 
-The parent agent owns this phase. Take the research report and all four Step 3 assessments and consolidate them into **one self-contained Markdown review report** at `<review artefact directory>/review-report.md`, using [the review report template](assets/review-report.md). Read [review output guidance](references/review-output.md) and any supplied profile output reference at this point. A supplied profile may change the layout, but must preserve the evidence, assessments and verification gaps required here.
+The parent agent combines the research report and all Step 3 assessments into one final review report.
 
-The report must be understandable without opening the worker reports. Include the relevant research, evidence and conclusions in the report itself; links to sources and supporting artefacts supplement that content.
+#### Rules for a good report
 
-#### Consolidation
+- The report must make sense without opening the worker reports.
+- Include the research, evidence and conclusions needed to understand the review.
+- Do not just copy findings from the subagent reports. Use their evidence to reach your own conclusions.
+- Back up important claims with code locations, requirements or check results.
+- Separate bugs, existing conventions, personal preferences and open questions.
+- Keep wider improvements separate from required fixes. A possible future change is not a reason to block the PR.
+- Say what is uncertain and what was not checked. Missing evidence does not mean a check passed.
+- Do not invent findings or praise to fill the template. Remove empty finding sections.
 
-1. **Account for inputs**: Read the research report and every assigned assessment. Wait for outstanding workers; if a worker failed or was cancelled, record its missing coverage explicitly. Do not treat a missing assessment as a pass.
-2. **Reconcile evidence**: Verify material claims against source code, callers, requirements and recorded validation. Resolve contradictory conclusions through evidence; where that is not possible, preserve the uncertainty as a question or verification gap.
-3. **Combine findings**: Merge overlapping findings into one account of the trigger, consequence and recommended action. Preserve distinct consequences and supporting evidence. Identify concerns already raised in existing PR comments and link them rather than proposing duplicate comments.
-4. **Form the assessment**: Give the parent's judgement on product fit, architectural direction, design and correctness. Incorporate the simplicity assessment into design and PR scope. Distinguish current failures, established conventions, preferences, documented direction and open questions. Keep opportunity scope separate from defect severity.
-5. **Write the report**: Populate the template with the consolidated conclusions, research context, checklist outcomes and validation results. Use the finding severity guidance below. Keep supported wider opportunities visible with migration cost and a feasible first step. State when no supported defects or redesign were found; omit empty finding sections.
-6. **Check completeness**: Ensure every material worker conclusion is represented, merged, or explicitly excluded with a reason in the consolidation record. Check that verdicts match the findings and verification limits, all selected checks are accounted for, and the report contains no unresolved template placeholders.
+#### Create the report
+
+1. **Read the inputs**: Read the research report and every Step 3 assessment. Wait for agents that are still working. Note any failed or missing assessments.
+2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Note anything you could not verify.
+3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
+4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
+5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough and works correctly. Say whether the PR should be split. Separate required fixes, suggestions and wider improvements.
+6. **Write the report**: Use [the review report template](assets/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
 
 #### Deliverable
 
-Return the path to **one completed `review-report.md` file** containing:
-
-- **Scope and provenance**: Target, base and head revisions, reviewed changes, input assessments and selected guidance versions.
-- **Checklist coverage**: Evidence-backed outcomes for Step 3 verification checklists and every other selected checklist, including failures, N/A reasons and incomplete coverage.
-- **Research context**: The original problem, intended behaviour, relevant requirements, affected consumers and sources needed to understand the review.
-- **Consolidated assessment**: The parent's overall recommendation and supported judgements at all four levels, including simplicity, PR scope and material limits.
-- **Findings and opportunities**: Deduplicated, actionable findings with locations, triggers, consequences, evidence, recommendations and uncertainty; supported alternatives with preserved behaviour, affected consumers, complexity removed, migration cost and a feasible first step.
-- **Decisions and verification**: Established decisions, unresolved questions, exact validation commands and results, unverified behaviour and a concise record of reconciled or excluded conclusions.
-- **Inline comment drafts**: Proposed new comments with valid revision-specific diff anchors, or an explicit statement that none are proposed. Findings outside the diff remain in the report without invented anchors. Drafting does not authorise staging or submission.
+One completed `review-report.md` file saved in the review artefact directory. Fill in the [review report template](assets/review-report.md) and return the file path.
 
 #### This step is complete when:
 
-- [ ] All assigned review inputs are accounted for, with missing coverage explicitly identified.
-- [ ] Material claims have been checked and overlaps or contradictions reconciled, or recorded as unresolved.
-- [ ] The report contains the parent's assessment rather than a concatenation of worker reports.
-- [ ] The single report contains all required conclusions, evidence and verification limits without depending on worker reports for essential context.
-- [ ] Every selected checklist item has an outcome, and all template placeholders have been replaced or their optional sections removed.
+- [ ] All review inputs are included or noted as missing.
+- [ ] Important claims have been checked. Duplicate findings are merged. Disagreements are resolved or recorded as open questions.
+- [ ] The report gives the parent's conclusions instead of joining worker reports together.
+- [ ] The report contains enough background and evidence to make sense on its own, including what was not verified.
+- [ ] Every selected check has a result. All template placeholders are filled in or removed with their optional sections.
 - [ ] The report is saved and its path is returned to the user.
 
-#### Finding severity
+### Step 5: Publish the GitHub review (optional)
 
-Use this table to categorise findings:
+Run this step only when the user requests staging or publishing a review on the target PR.
 
-| Severity | Use for | Action |
-| --- | --- | --- |
-| P0 | Show-stopping failure: broken behaviour, a blocking performance problem, a leak, or a crash | Request changes when submission is authorised |
-| P1 | Wrong success-path behaviour, expensive work repeating after success, or an approach needing substantial revision | Address; a feature flag may limit impact |
-| P2 | Potential issues, rare edge cases, and unlikely retries | Recommend or ask a focused question |
+#### Rules
 
-- Cheap retries such as settling or status checks are not P1. Rare encode loops on empty/error paths remain P2; verify that expensive work actually repeats after success before assigning P1.
-- When safety depends on current callers, resolution, or data rather than a contract guarantee, raise a short P2 question naming the alternative. Do not drop it merely because today's path is safe.
-- Keep confirmed failures distinct from questions. Put P0 and P1 findings needing correction in Required fixes; reserve Suggestions for non-blocking recommendations. Put purely aesthetic preferences in a separate Nits section. Do not praise or invent findings for clean files.
-- Keep severity, evidence and assessment explicit in the saved report. Preserve impact and certainty in conversational comments without forcing a priority prefix. Honour caller-supplied severity conventions where they differ.
+- Use the final report as the source of findings.
+- Keep existing pending comments and avoid duplicates.
+- Staging leaves the review pending. Submit only when requested. Use the requested review status. Ask if the submission status is still unclear.
 
+#### Prepare and publish the review
+
+1. **Check the PR**: Read the current head, diff, review threads and any pending review. If the code has changed, check that the findings still apply.
+2. **Draft the review**: Fill in [the GitHub review template](assets/github-review.md). Use [writing-voice](../writing-voice/SKILL.md) for the body and inline comments. Apply any supplied profile's GitHub layout.
+3. **Stage or submit**: Recheck the head and comments before writing. Update stale findings or anchors, then take the requested action. If an action partly fails, check what was saved before retrying.
+4. **Return the result**: Return the review link and say whether the review is pending or submitted. Report any action that failed or remains incomplete.
+
+#### Deliverable
+
+A pending or submitted GitHub review on the target PR, as requested. Return its link and status.
 
 ## Reference files and skills
 
@@ -251,24 +271,3 @@ There are a number of skills and reference files that can be used by subagents w
 | Hot paths, repeated work, resource growth or background lifecycle | [Performance](../performance-best-practices/SKILL.md) |
 | Permissions, trust boundaries, data exposure, resource access, logs, analytics or telemetry | [Security](../security-best-practices/SKILL.md) |
 | Tests, changed behaviour, regressions, acceptance rules or integration paths | [Testing](../testing-best-practices/SKILL.md) |
-
-## Sub-agent best practices
-
-- Read [reviewer contract](references/reviewer-contract.md) before briefing workers. Supply its exact path, the final brief, scope, applicable project/operational constraints, profile overrides, assigned check categories and exact guidance paths. The scoped agents use replacement prompts with skills, extensions and conversation inheritance disabled; they do not automatically inherit project instructions. Include necessary constraints or exact relevant source paths explicitly rather than assuming ambient context. Include the relevant categories from [behaviour, design and build checks](references/review-checks.md). Keep runtime context narrow: do not inherit the whole conversation or send reporting templates/voice to workers. Respect available concurrency; do not launch one agent per skill or file. Do not invoke a multi-agent workflow tool unless the user explicitly requested that orchestration mechanism.
-
-Workers return findings, proposals, evidence and check outcomes; the main agent persists them. Wait for all assigned workers or explicitly report failed/cancelled/incomplete coverage. Verify important evidence and resolve contradictions instead of voting on confidence. Do not silently cap findings or default missing results to passed.
-
-### Four-level assessment
-
-| Level | Question |
-| --- | --- |
-| Product | Should we build this, or is there a better solution to the user's task? |
-| Direction | Does this align with the future direction and current migration state? |
-| Design | Is there a simpler design, and would these APIs be pleasant to use as a library? |
-| Correctness | Does the implementation work as expected? |
-
-These are lenses, not a required serial order or four mandatory agents. Establish the behaviour to preserve before recommending alternatives. Correctness and design workers can run concurrently after the research gate. Use [design review](../design-review/SKILL.md) for the design/product/direction method and the assigned [review checks](references/review-checks.md) for concrete correctness, ownership and build coverage.
-
-Inspect real callers, owners and analogous implementations beyond changed lines when they can affect the recommendation. Ask for missing direction only where it changes the judgement; continue independent work. Do not invent product requirements or require speculative future migrations. Keep wider architectural opportunities visible with migration cost and a feasible first step, separate from present defects and nits. No supported redesign is a valid result.
-
-At synthesis, read [review output](references/review-output.md), then the supplied profile output reference if any. Only the main agent loads report templates and the selected writing voice. Preserve profile layout precedence, evidence, severity, provenance and all selected checklist outcomes. Return a supported assessment at all four levels, not a concatenation of worker reports.
