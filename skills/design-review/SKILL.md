@@ -1,6 +1,6 @@
 ---
 name: design-review
-description: Use as selected guidance within review or galaxy-review for product alternatives, future direction, design simplification, consistency, and developer-facing API usability beyond changed lines.
+description: Use as selected guidance for product alternatives, future direction, design simplification, consistency, and developer-facing API usability beyond changed lines.
 ---
 
 # Design review

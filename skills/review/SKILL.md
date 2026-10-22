@@ -5,69 +5,218 @@ description: Review a PR, branch, diff, or codebase across product, direction, d
 
 # Review
 
-## Goal
+You are the reviewer for a code change. You will do research on the background behind the code and then perform a review of the code using subagents, skills, and reference files.
 
-Answer whether the change solves the right problem, fits the intended direction, has a simple design and usable APIs, and works correctly. This is the coordinator: invoking this skill is enough to run the whole workflow. Select and invoke the necessary agents and guidance; do not ask the user to run sub-skills manually.
+The output is a report that evaluates the change against a few different metrics.
 
-## Review environment
+## Goals
 
-Code review does not require dependency installation. Apply these constraints to the main agent, context researcher and every delegated reviewer, including when another skill or repository setup guide recommends installation:
+- The change solves the right problem.
+- The change fits the intended long-term architectural direction.
+- The change is the simplest and smallest change to solve the problem.
+- The change has simple, elegant, and consistent APIs.
+- The change works correctly.
 
-- Do not install, update or copy `node_modules`, bootstrap a workspace, or download missing toolchains/packages for a review. This includes automatic installs in a new checkout/worktree and implicit downloads through commands such as `npx`, `pnpm dlx` or Corepack. Dependency installation requires an explicit user request; a request to review or run checks is not that request.
-- Prefer the existing checkout, Git object reads and installed local tools. Run scoped checks only when their dependencies are already available and the command will not fetch packages. If dependencies are missing, continue source/test/CI inspection and record which checks could not run; do not install to close the gap or claim equivalent runtime verification.
-- Local build, test and typecheck execution is optional, not a review completion or approval requirement. Record unavailable local checks as environment limits, but do not lower merge confidence or withhold approval solely because they could not run. Any confidence reduction must identify a substantive finding or a specific unresolved behavioural question supported by source, tests or other evidence; missing local execution alone is not such a question.
-- Keep task-specific scratch files, logs and downloaded diffs in a named directory under `~/.cache/pi/reviews/`, or a user-specified workspace, rather than `/tmp`. Do not clone repositories, create review worktrees or redirect package caches into `/tmp`. Retain the useful research/report artifacts; remove only disposable files you created when they are no longer needed. Never clean unrelated agents' files.
-- Give these constraints explicitly in every subagent brief. Review-only worktrees do not need the normal post-creation install step; use `nwt` if an isolated checkout is needed and proceed without installing dependencies.
-- Keep reviewed code and documents unchanged unless edits are requested. Saving review artifacts does not authorise source changes. Stage or publish GitHub comments only when requested; staging is not submission.
+## Rules
 
-## Checklist
+- Do not perform code changes.
+- Only mark checklist items done after verifying.
+- Explain any N/A or blocked checks.
+- Separate current behaviour, accepted conventions, personal preferences and future direction.
+- Reading guidance or checklists alone does not complete checks.
+- Do not invent product requirements or require speculative future migrations.
+- Provide evidence for each claim of correctness and completion.
+- Use existing checkouts, Git objects and installed tools.
 
-Track status in task notes, not here. Mark done only after verifying; explain N/A and report blocked or unverified checks. Preserve every selected reference's checks in the coverage record.
+## Deliverable
 
-**Context-first gate**
+- Review report with findings, research, and an assessment.
 
-- [ ] **Completed context brief** - A dedicated context-gathering subagent has finished its sourced brief; record its location. If delegation is unavailable, gather context yourself first and record that limitation.
-- [ ] **Integrated context** - Read the final brief, resolve review-critical missing information, and record the gate as complete before any correctness, design or test-quality review, including your own.
+## How to perform a review
 
-**Scope and context**
+### Step 1: Setup
 
-- [ ] **Review scope** - Confirm the target and base; review all commits, not only the latest.
-- [ ] **Review environment** - Main and delegates use existing tools/dependencies, do not install packages, and keep review scratch work out of `/tmp`; report checks blocked by missing dependencies.
-- [ ] **Project instructions** - Read project rules and retain supplied guidance and voice.
-- [ ] **Intent and consumers** - Establish the goal and affected consumers from sources.
-- [ ] **Existing discussion** - Read review comments and unresolved threads before adding findings.
-- [ ] **Skill selection** - Load skills for the changed technologies and risks.
+The review should be done on a local branch. If the branch doesn't exist locally you should clone the repo and branch into a new temporary folder and install dependencies.
 
-**Delegation and coverage**
+Create a temporary folder that can be used to store review and research artefacts in a named directory `~/.cache/pi/reviews/`.
 
-- [ ] **Context research** - Complete the blocking context-first phase before launching review agents; give them the integrated brief and applicable guidance.
-- [ ] **Review coverage** - Split independent concerns without duplicating coverage.
-- [ ] **Reviewer briefs** - Assign clear scope, context, guidance, and checks.
-- [ ] **Delegate results** - Require evidence and completed, N/A, and open checks.
+You will need to confirm the review scope and make sure you're reviewing all commits and not just the latest.
 
-**Four-level assessment**
+#### This step is complete when:
+- [ ] There is a local copy of the code being reviewed.
+- [ ] Confirm the review scope.
+- [ ] There is a temporary folder for review artefacts.
 
-- [ ] **Product outcome** - Assess the user task and whether a simpler product solution could meet it; distinguish missing intent from evidence.
-- [ ] **Direction alignment** - Compare supplied direction with current adoption and justified intermediate states.
-- [ ] **Design assessment** - Assess simplicity, consistency and consumer API usability, including supported opportunities beyond the diff.
-- [ ] **Correctness assessment** - Complete the assigned behaviour, contract, test and build checks with evidence.
-- [ ] **Combined judgement** - Reconcile concerns, preserve wider opportunities and verification gaps, and apply the selected output guidance.
+### Step 2: Research
 
-## Guidance
+You'll start by assigning a sub-agent to use the [code-research](../code-research/SKILL.md) skill. You need to wait for this agent to finish before continuing. This should be saved to a file in the temporary directory.
 
-### Context-first gate
+You want to make sure you have a clear understanding of the problem being solved and intended behaviour of the change.
 
-1. Assign `Explore` a factual research task using the exact [code-research](../code-research/SKILL.md) path, target/base/head, supplied profile and the environment constraints above. Request scope, full diff, intent, consumers, ownership, comparable implementations, available APIs, product/RFC and rollout direction, existing comments, applicable rules and verification limits. Research gathers facts and questions, not review findings. Supply any connected source excerpts the agent cannot access; report unavailable sources.
-2. Wait for its completed final brief. Do not review or launch concern workers while research is running. The main agent saves the returned brief, reads it, resolves review-critical gaps and records completion and integration. A launch or progress message is not a completed brief. Read-only agents return their work; do not ask them to create documents.
-3. A completed and integrated brief supplied by a parent satisfies this gate. Do not spawn another context agent or redelegate without authorisation. If delegation is unavailable, gather and save the brief yourself first and report the limitation. Missing non-critical sources remain explicit limits.
+Read the final report and resolve review-critical information for correctness. This will help understand the non-functional requirements, intended design, and the problem that is being solved.
 
-### Scope and context
+#### This step is complete when:
+- [ ] **Research completed**: The subagent has completed the research report and written it to a file.
+- [ ] **Read research**: You have read the research report.
+- [ ] **Verify claims**: You have verified the claims in the research report and made any edits or corrections.
+- [ ] **Review scope**: Confirm the target and base; review all commits, not only the latest.
+- [ ] **Intent and consumers**: Establish the goal and affected consumers from sources.
 
-Read existing PR comments and the full requested comparison, not just the latest commit. Retain applicable project instructions unless the caller supplies an explicit review-policy scope override; never discard safety or operational constraints. Separate current behaviour, accepted conventions, personal preferences and future direction.
+### Step 3: Code review
 
-A wrapper such as Galaxy supplies a **profile**, not another workflow: repository/scope constraints, a conditional reference table, optional output reference and optional writing-voice path. Apply it before research, pass its constraints to every delegate and run this workflow once. The profile may replace output layout and repository-policy loading, not the research gate or evidence requirements. Do not rediscover a same-named project skill in place of an explicitly supplied personal path.
+To perform the review **you will use subagents to explore various dimensions of the change**. Will will examine this change from a high-level first and work our way down. For each subagent assign clear scope, context, guidance, and checks.
 
-Choose guidance from the table and profile triggers. Assign exact resolved paths to the owning worker; the main agent need not preload bodies it delegates. Cross-links are conditional recommendations, not a recursive load-all graph. Deduplicate paths, stop at irrelevant concerns, and record category exclusions with reasons. Reading guidance alone does not complete checks.
+You should use a subagent to answer each of these questions:
+
+Each subagent must return the named assessment below, including verification checklist outcomes with evidence and reasons for any N/A or blocked checks. The main agent saves these assessments in the review artefact directory and uses them to produce the final report. These are review results, not implementation plans; do not manufacture findings to fill a section.
+
+#### Q: Should we build this?
+
+We want to think if there is a better, simpler solution to the problem that allows users to perform this task. This is why we require the research to be completed first.
+
+- Does this change solve the original problem?
+- If this is an interaction change, is there a simpler way we could solve this? For example, rather than building some complex drag-and-drop system for a lesser used feature, this could just be a menu item.
+- Does this change conflict with any requirements discovered from the research?
+- Does this change conflict with any existing PRs or ongoing work?
+
+##### Verification checklist
+
+- [ ] **Problem fit**: Assess whether the change solves the original problem and satisfies the requirements established by research.
+- [ ] **Alternatives**: Identify a simpler way to meet the same user need, explain the trade-offs, or state that no supported alternative was found.
+- [ ] **Conflicts**: Identify conflicts with requirements or ongoing work, with sources; state any gaps in visibility.
+- [ ] **Recommendation**: Recommend proceeding, adjusting the approach, or reconsidering it, with supporting evidence.
+
+##### Deliverable
+
+Return a **product assessment** containing:
+
+1. **Verdict**: Proceed, adjust the approach, or reconsider, with a short rationale.
+2. **Problem and requirements**: The user need, relevant requirements and sources, and whether the change meets them.
+3. **Alternatives and conflicts**: Supported alternatives with trade-offs, and conflicts with requirements or ongoing work. Explicitly state when none were found or evidence is missing.
+4. **Recommended action**: Any concrete change to the approach, including the behaviour that must be preserved.
+
+#### Q: Does this code fit into the existing system?
+
+This is looking at the change in relation to the architecture of the codebase as a whole. We want to confirm that this change aligns with the future direction and current best practices in the code.
+
+You should use skills and reference files to help understand what you look for.
+
+Some things you should look for:
+
+- Does this change adhere to the latest best practices and patterns?
+- Is there a change we could make to this to fit into established patterns?
+- Is this duplicating some existing logic
+- Is there any unnecessary tight coupling? Could we decouple things using common patterns like an adapter pattern, plugin pattern, event emitters, or dependency injection?
+
+##### Verification checklist
+
+- [ ] **System fit**: Assess ownership, dependency boundaries and consistency with established patterns, citing comparable implementations.
+- [ ] **Reuse and coupling**: Identify duplicated behaviour, misplaced responsibilities or unnecessary coupling, with concrete consequences.
+- [ ] **Direction**: Assess alignment with documented architectural direction and migration state; distinguish this from personal preference.
+- [ ] **Recommendations**: Describe supported changes, affected consumers and migration cost; separate PR-scoped improvements from broader opportunities.
+
+##### Deliverable
+
+Return a **system fit assessment** containing:
+
+1. **Verdict**: Fits the existing system, fits with changes, or conflicts with the system, with a short rationale.
+2. **Ownership and dependencies**: Where the changed behaviour belongs, which consumers and boundaries it affects, and comparable implementations with source locations.
+3. **Conventions and direction**: Alignment or conflicts with established patterns and documented direction, clearly separated from preferences.
+4. **Recommended changes**: Concrete changes addressing duplication, coupling or misplaced responsibilities, with affected consumers, migration cost and a feasible first step. Label each as a PR-scoped improvement or broader opportunity; explicitly state when no changes are supported.
+
+#### Q: Is this the simplest solution?
+
+You should make sure this is the most minimal code needed to solve the problem. We ideally want PRs to be small and independent. If the PR is large (>500 LOC) we should consider splitting the PR.
+
+Some things to look for:
+
+- Are there unnecessary tests, comments, or code formatting changes?
+- Can we leverage existing functions, types, or other code instead of reinventing the wheel (when the cost of reuse is also low)
+- Is there a library we could use instead of rolling it ourselves?
+- Is this PR trying to do too much at once? Should it be split up?
+
+##### Verification checklist
+
+- [ ] **Complexity assessment**: Identify unnecessary abstractions, indirection, dependencies or unrelated changes, explaining the cost they introduce.
+- [ ] **Simplifications**: Propose concrete removals or substitutions, showing how they preserve the required behaviour.
+- [ ] **Scope assessment**: Recommend keeping the PR together or splitting it; where splitting helps, identify independently reviewable changes and their dependencies.
+- [ ] **Recommendation**: State whether the implementation is reasonably minimal, including any complexity justified by the requirements.
+
+##### Deliverable
+
+Return a **simplicity assessment** containing:
+
+1. **Verdict**: Reasonably minimal or simplification recommended, with a short rationale.
+2. **Proposed simplifications**: For each, identify the current code, the removal or substitution, the complexity removed and how required behaviour is preserved. Explicitly state when no supported simplifications were found.
+3. **Justified complexity**: Any complexity that should remain because of a concrete requirement or constraint.
+4. **PR scope**: Keep together or split, with a rationale. If splitting is recommended, name the independently reviewable changes, their dependencies and a viable order.
+
+#### Q: Is this implementation correct?
+
+You want to make sure the implementation is correct. Be comprehensive here and trace code callers and look for issues.
+
+- Are there test cases covering the important APIs?
+- Are there any bugs with the code?
+- Does this code follow the best practices?
+- Do the lint, test, format, and typechecking tasks pass?
+- Can you follow the callers and confirm that surrounding code won't break?
+- Do passing tests can encode the implementation's mistake?
+
+##### Verification checklist
+
+- [ ] **Behaviour verification**: Trace important success and failure paths through real callers, recording expected behaviour and supporting evidence.
+- [ ] **Findings**: Report defects with their trigger, consequence, source location and a reproduction or code trace.
+- [ ] **Test coverage**: Assess whether tests establish the intended behaviour independently of the implementation, identifying meaningful regression gaps.
+- [ ] **Validation results**: Record the lint, test, format and typechecking commands run, their results, and any blocked or skipped checks.
+- [ ] **Confidence and gaps**: State what was verified, what remains uncertain and how those gaps affect the assessment.
+
+##### Deliverable
+
+Return a **correctness assessment** containing:
+
+1. **Verdict**: No defects found within the verified scope, defects found, or insufficient evidence, with a short rationale. Passing checks alone do not establish correctness.
+2. **Verified behaviour**: The success and failure paths traced, their callers, expected outcomes and evidence.
+3. **Findings**: Supported defects and unresolved questions using the finding fields specified in “Create the review report”. Explicitly state when no defects were found.
+4. **Validation results**: A table of exact commands, results and relevant failure details. Include checks not run and why.
+5. **Coverage gaps**: Missing regression coverage, unverified behaviour and the effect of these gaps on confidence.
+
+### Create the review report
+
+Reconcile concerns, preserve wider opportunities and verification gaps, and apply the selected output guidance.
+
+Keep severity separate from scope: a broader design opportunity is not automatically a defect or blocker.
+
+Separate current failures, supported conventions, preferences, direction and questions.
+
+List each skill/reference actually used and the status/result.
+
+For each: source location, category (defect/convention/preference/question), severity, trigger, consequence, concrete evidence, recommendation and any limits. A source line outside the diff is valid evidence; do not invent an inline anchor. An empty list is valid.
+
+Label **PR-scoped improvement** or **broader opportunity** separately from severity.
+
+State evidence gaps or no supported redesign instead of manufacturing advice.
+
+For each design and direction opportunity: product/direction/design lens, current friction, alternative, before/after consumer usage where relevant, preserved behaviour, complexity removed, affected consumers, migration cost, feasible first step, and why this change is an opportunity. Label **PR-scoped improvement** or **broader opportunity** separately from severity. State evidence gaps or no supported redesign instead of manufacturing advice.
+
+#### Finding severity
+
+Use this table to categorise findings:
+
+| Severity | Use for | Action |
+| --- | --- | --- |
+| P0 | Show-stopping failure: broken behaviour, a blocking performance problem, a leak, or a crash | Request changes when submission is authorised |
+| P1 | Wrong success-path behaviour, expensive work repeating after success, or an approach needing substantial revision | Address; a feature flag may limit impact |
+| P2 | Potential issues, rare edge cases, and unlikely retries | Recommend or ask a focused question |
+
+- Cheap retries such as settling or status checks are not P1. Rare encode loops on empty/error paths remain P2; verify that expensive work actually repeats after success before assigning P1.
+- When safety depends on current callers, resolution, or data rather than a contract guarantee, raise a short P2 question naming the alternative. Do not drop it merely because today's path is safe.
+- Keep confirmed failures distinct from questions. Put P0 and P1 findings needing correction in Required fixes; reserve Suggestions for non-blocking recommendations. Put purely aesthetic preferences in a separate Nits section. Do not praise or invent findings for clean files.
+- Keep severity, evidence and assessment explicit in the saved report. Preserve impact and certainty in conversational comments without forcing a priority prefix. Honour caller-supplied severity conventions where they differ.
+
+
+## Reference files and skills
+
+There are a number of skills and reference files that can be used by subagents while they are reviewing code. This table should be passed to subagents.
 
 | Change or risk | Select for its owner |
 | --- | --- |
@@ -85,19 +234,9 @@ Choose guidance from the table and profile triggers. Assign exact resolved paths
 | Permissions, trust boundaries, data exposure, resource access, logs, analytics or telemetry | [Security](../security-best-practices/SKILL.md) |
 | Tests, changed behaviour, regressions, acceptance rules or integration paths | [Testing](../testing-best-practices/SKILL.md) |
 
-### Delegation and coverage
+## Sub-agent best practices
 
-After integrating research, create a short ownership table: concern, assigned files/consumers, agent, selected guidance and checklist categories. Identify a check by source path + category + label, with the source content hash or commit/dirty state as its version. One primary owner per check; deliberate second verification is labelled separately. Never count overlapping checks as independent proof.
-
-| Role | Assignment |
-| --- | --- |
-| `ConcernReview` | Behaviour/contracts and relevant risks such as testing, security or performance; combine overlapping skills around a behavioural boundary |
-| `DesignReview` | Product alternatives, direction, simplification, consistency and API usability across the PR and relevant surrounding systems |
-| Main agent | Research integration, coverage, cross-boundary correctness, conflict resolution, overall assessment and output |
-
-Use these agents automatically when the scope warrants them. A substantive design-triggering change gets a `DesignReview` pass; other independent concerns use `ConcernReview`. For a small cohesive change the main agent may perform the same passes, recording why delegation adds no value. Mechanical changes may exclude design with a scope reason; small size alone does not exclude API or design assessment. If named agents are unavailable, use an available read-only reviewer with the same contract; if all delegation is unavailable, do the passes yourself and report it.
-
-Read [reviewer contract](references/reviewer-contract.md) before briefing workers. Supply its exact path, the final brief, scope, applicable project/operational constraints, profile overrides, assigned check categories and exact guidance paths. The scoped agents use replacement prompts with skills, extensions and conversation inheritance disabled; they do not automatically inherit project instructions. Include necessary constraints or exact relevant source paths explicitly rather than assuming ambient context. Include the relevant categories from [behaviour, design and build checks](references/review-checks.md). Keep runtime context narrow: do not inherit the whole conversation or send reporting templates/voice to workers. Respect available concurrency; do not launch one agent per skill or file. Do not invoke a multi-agent workflow tool unless the user explicitly requested that orchestration mechanism.
+- Read [reviewer contract](references/reviewer-contract.md) before briefing workers. Supply its exact path, the final brief, scope, applicable project/operational constraints, profile overrides, assigned check categories and exact guidance paths. The scoped agents use replacement prompts with skills, extensions and conversation inheritance disabled; they do not automatically inherit project instructions. Include necessary constraints or exact relevant source paths explicitly rather than assuming ambient context. Include the relevant categories from [behaviour, design and build checks](references/review-checks.md). Keep runtime context narrow: do not inherit the whole conversation or send reporting templates/voice to workers. Respect available concurrency; do not launch one agent per skill or file. Do not invoke a multi-agent workflow tool unless the user explicitly requested that orchestration mechanism.
 
 Workers return findings, proposals, evidence and check outcomes; the main agent persists them. Wait for all assigned workers or explicitly report failed/cancelled/incomplete coverage. Verify important evidence and resolve contradictions instead of voting on confidence. Do not silently cap findings or default missing results to passed.
 
