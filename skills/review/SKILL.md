@@ -180,23 +180,41 @@ Return a **correctness assessment** containing:
 4. **Validation results**: A table of exact commands, results and relevant failure details. Include checks not run and why.
 5. **Coverage gaps**: Missing regression coverage, unverified behaviour and the effect of these gaps on confidence.
 
-### Create the review report
+### Step 4: Consolidate the review report
 
-Reconcile concerns, preserve wider opportunities and verification gaps, and apply the selected output guidance.
+The parent agent owns this phase. Take the research report and all four Step 3 assessments and consolidate them into **one self-contained Markdown review report** at `<review artefact directory>/review-report.md`, using [the review report template](assets/review-report.md). Read [review output guidance](references/review-output.md) and any supplied profile output reference at this point. A supplied profile may change the layout, but must preserve the evidence, assessments and verification gaps required here.
 
-Keep severity separate from scope: a broader design opportunity is not automatically a defect or blocker.
+The report must be understandable without opening the worker reports. Include the relevant research, evidence and conclusions in the report itself; links to sources and supporting artefacts supplement that content.
 
-Separate current failures, supported conventions, preferences, direction and questions.
+#### Consolidation
 
-List each skill/reference actually used and the status/result.
+1. **Account for inputs**: Read the research report and every assigned assessment. Wait for outstanding workers; if a worker failed or was cancelled, record its missing coverage explicitly. Do not treat a missing assessment as a pass.
+2. **Reconcile evidence**: Verify material claims against source code, callers, requirements and recorded validation. Resolve contradictory conclusions through evidence; where that is not possible, preserve the uncertainty as a question or verification gap.
+3. **Combine findings**: Merge overlapping findings into one account of the trigger, consequence and recommended action. Preserve distinct consequences and supporting evidence. Identify concerns already raised in existing PR comments and link them rather than proposing duplicate comments.
+4. **Form the assessment**: Give the parent's judgement on product fit, architectural direction, design and correctness. Incorporate the simplicity assessment into design and PR scope. Distinguish current failures, established conventions, preferences, documented direction and open questions. Keep opportunity scope separate from defect severity.
+5. **Write the report**: Populate the template with the consolidated conclusions, research context, checklist outcomes and validation results. Use the finding severity guidance below. Keep supported wider opportunities visible with migration cost and a feasible first step. State when no supported defects or redesign were found; omit empty finding sections.
+6. **Check completeness**: Ensure every material worker conclusion is represented, merged, or explicitly excluded with a reason in the consolidation record. Check that verdicts match the findings and verification limits, all selected checks are accounted for, and the report contains no unresolved template placeholders.
 
-For each: source location, category (defect/convention/preference/question), severity, trigger, consequence, concrete evidence, recommendation and any limits. A source line outside the diff is valid evidence; do not invent an inline anchor. An empty list is valid.
+#### Deliverable
 
-Label **PR-scoped improvement** or **broader opportunity** separately from severity.
+Return the path to **one completed `review-report.md` file** containing:
 
-State evidence gaps or no supported redesign instead of manufacturing advice.
+- **Scope and provenance**: Target, base and head revisions, reviewed changes, input assessments and selected guidance versions.
+- **Checklist coverage**: Evidence-backed outcomes for Step 3 verification checklists and every other selected checklist, including failures, N/A reasons and incomplete coverage.
+- **Research context**: The original problem, intended behaviour, relevant requirements, affected consumers and sources needed to understand the review.
+- **Consolidated assessment**: The parent's overall recommendation and supported judgements at all four levels, including simplicity, PR scope and material limits.
+- **Findings and opportunities**: Deduplicated, actionable findings with locations, triggers, consequences, evidence, recommendations and uncertainty; supported alternatives with preserved behaviour, affected consumers, complexity removed, migration cost and a feasible first step.
+- **Decisions and verification**: Established decisions, unresolved questions, exact validation commands and results, unverified behaviour and a concise record of reconciled or excluded conclusions.
+- **Inline comment drafts**: Proposed new comments with valid revision-specific diff anchors, or an explicit statement that none are proposed. Findings outside the diff remain in the report without invented anchors. Drafting does not authorise staging or submission.
 
-For each design and direction opportunity: product/direction/design lens, current friction, alternative, before/after consumer usage where relevant, preserved behaviour, complexity removed, affected consumers, migration cost, feasible first step, and why this change is an opportunity. Label **PR-scoped improvement** or **broader opportunity** separately from severity. State evidence gaps or no supported redesign instead of manufacturing advice.
+#### This step is complete when:
+
+- [ ] All assigned review inputs are accounted for, with missing coverage explicitly identified.
+- [ ] Material claims have been checked and overlaps or contradictions reconciled, or recorded as unresolved.
+- [ ] The report contains the parent's assessment rather than a concatenation of worker reports.
+- [ ] The single report contains all required conclusions, evidence and verification limits without depending on worker reports for essential context.
+- [ ] Every selected checklist item has an outcome, and all template placeholders have been replaced or their optional sections removed.
+- [ ] The report is saved and its path is returned to the user.
 
 #### Finding severity
 
