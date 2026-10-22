@@ -4,7 +4,7 @@
 
 ## Review checklist coverage
 
-{{ First section after the title and scope. Account for every Step 3 verification item and every other selected checklist item, grouped by PR and skill/assessment. Record guidance paths and versions (commit or content hash where unversioned). Link supporting evidence within this report or to exact source revisions. Reading guidance or completing an investigation does not establish that behaviour is correct. }}
+{{ First section after the title and scope. Account for every Step 3 verification item, every Step 4 rule result and every other selected checklist item, grouped by PR and skill/assessment. Record guidance paths and versions (commit or content hash where unversioned). Link supporting evidence within this report or to exact source revisions. Reading guidance or completing an investigation does not establish that behaviour is correct. }}
 
 {{ Use [x] only for verified satisfactory checks, [ ] for failed/blocked/unverified checks with a reason, and N/A separately with a scope reason. Collapse only categories where every applicable item is satisfactory; identify excluded N/A items. Do not load unrelated guidance just to mark it N/A. If guidance changed after the review, identify retrospective evidence and leave unsupported new checks unverified. }}
 
@@ -75,7 +75,7 @@
 
 ## Consolidation record
 
-{{ List the research report and each Step 3 assessment, their source paths and completion status. Identify failed, cancelled or missing inputs and the resulting coverage gaps. Record guidance actually used with its version and result if not already captured in checklist coverage. }}
+{{ List the research report and each Step 3 assessment and Step 4 rule assessment, their source paths and completion status. Identify failed, cancelled or missing inputs and the resulting coverage gaps. Record guidance actually used with its version and result if not already captured in checklist coverage. }}
 
 {{ Briefly record material overlaps merged, contradictions resolved and conclusions excluded, with reasons and evidence. Link concerns already raised in PR comments and explain their disposition. If a contradiction remains unresolved, link the corresponding question or verification gap. Do not copy worker reports here. }}
 

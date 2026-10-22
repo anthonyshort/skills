@@ -82,6 +82,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 #### Review best practices
 
 - **Look beyond the diff**: Check real callers, code ownership and similar implementations when they affect the conclusion.
+- **Show API changes through caller code**: When proposing an API change, show before-and-after caller code. Explain what becomes clearer or what bookkeeping disappears, including error handling and cleanup where relevant.
 - **Understand what must stay the same**: Establish the behaviour that alternatives must preserve before recommending a simpler design.
 - **Ask only when the answer matters**: Ask about missing requirements or direction when they could change the assessment. Explain the alternatives, their effects and your recommendation when a choice needs input. Continue other review work while waiting.
 - **Follow the risk**: Spend more time on behaviour with a high cost of failure, complex dependencies or weak test coverage. Give simpler changes a lighter review.
@@ -124,6 +125,7 @@ Some things you should look for:
 - Is this duplicating some existing logic
 - Is there any unnecessary tight coupling? Could we decouple things using common patterns like an adapter pattern, plugin pattern, event emitters, or dependency injection?
 
+- **Look for consolidation opportunities**: Compare similar implementations for shared behaviour that could have one owner and implementation. Explain what duplication would disappear and whether sharing the code would introduce unwanted coupling. Similarity alone is not a reason to merge implementations.
 - **Dependency direction**: Check that imports respect ownership and system boundaries. Look for cycles and dependencies that tie unrelated parts of the system together.
 - **Prevent similar bugs**: Look for architectural changes that could prevent a class of bugs. Explain the benefit and cost separately from the immediate fix.
 
@@ -180,7 +182,7 @@ Review how easy the code is to read and navigate. Recommend changes that make pu
 
 - [ ] **Names**: Check that files, folders, functions and variables clearly describe their purpose.
 - [ ] **File organisation**: Check that files are placed intentionally and the folder hierarchy makes ownership clear. Avoid unnecessary nesting or fragmentation.
-- [ ] **Readability**: Look for confusing control flow, nesting and indirection.
+- [ ] **Readability**: Look for confusing control flow, nesting and indirection. Can we split large blocks into smaller functions to make it easier to read and follow?
 - [ ] **Comments**: Check that comments explain intent or surprising behaviour and follow project conventions.
 - [ ] **Formatting**: Check consistency with the project's style and formatting rules.
 
@@ -227,9 +229,47 @@ Return a **correctness assessment** containing:
 4. **Validation results**: A table of exact commands, results and relevant failure details. Include checks not run and why.
 5. **Coverage gaps**: Missing regression coverage, unverified behaviour and the effect of these gaps on confidence.
 
-### Step 4: Create the final review report
+### Step 4: Check review rules
 
-The parent agent combines the research report and all Step 3 assessments into one final review report.
+Use a separate subagent to check each relevant rule against the change. This gives each agent one focused task.
+
+#### Select the rules
+
+Read [the rule index](rules/README.md) and select rules that apply to the change. Record why other rules do not apply.
+
+#### Assign the checks
+
+Give each subagent:
+
+- The rule file.
+- The repository location, base and head revisions, and diff.
+- Relevant project instructions.
+- Any requirements or decisions needed to judge that rule, with sources. Do not include the full research report unless needed.
+
+Run agents in batches within the available agent limit.
+
+#### Guidance for rule agents
+
+- **Start with the diff**: Read surrounding code, callers and similar implementations when needed to check the rule.
+- **Check the exceptions**: A matching code pattern does not automatically mean there is a problem.
+- **Support the result**: Explain what you checked and cite the evidence.
+- **Report missing context**: If a requirement or decision could change the result, ask for it or mark the check as not verified.
+
+#### Deliverable
+
+Each subagent returns a **rule assessment** containing:
+
+- **Rule**: The rule name and file.
+- **Result**: Satisfied, concern found, not applicable or not verified.
+- **Evidence**: Code locations and the behaviour or relationships checked.
+- **Finding**: The problem, its effect and a recommended change, if supported.
+- **Limits**: Missing information or behaviour that could not be verified.
+
+The parent saves the assessments in the review artefact directory. Include their results in the final report alongside the broader code review assessments. Merge duplicate findings during consolidation.
+
+### Step 5: Create the final review report
+
+The parent agent combines the research report, all Step 3 assessments and the Step 4 rule assessments into one final review report.
 
 #### Rules for a good report
 
@@ -244,7 +284,7 @@ The parent agent combines the research report and all Step 3 assessments into on
 
 #### Create the report
 
-1. **Read the inputs**: Read the research report and every Step 3 assessment. Wait for agents that are still working. Note any failed or missing assessments.
+1. **Read the inputs**: Read the research report, every Step 3 assessment and every Step 4 rule assessment. Wait for agents that are still working. Note any failed or missing assessments.
 2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Note anything you could not verify.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
@@ -264,7 +304,7 @@ One completed `review-report.md` file saved in the review artefact directory. Fi
 - [ ] Every selected check has a result. All template placeholders are filled in or removed with their optional sections.
 - [ ] The report is saved and its path is returned to the user.
 
-### Step 5: Publish the GitHub review (optional)
+### Step 6: Publish the GitHub review (optional)
 
 Run this step only when the user requests staging or publishing a review on the target PR.
 
