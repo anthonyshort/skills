@@ -28,8 +28,6 @@ Keep React state, effects, and rendering predictable across interactions, recove
 - Co-locate feature hooks and shared read/write hooks.
 - Use tuples for state/setter pairs, objects for richer APIs, and getters for keyed batch results.
 
-- For changed type contracts or schemas, load [TypeScript](../typescript/SKILL.md).
-
 ### State ownership
 
 #### State and hooks
@@ -53,7 +51,6 @@ Keep React state, effects, and rendering predictable across interactions, recove
     </>
   );
   ```
-
 
 ### Rendering and recovery
 
@@ -87,8 +84,6 @@ Keep React state, effects, and rendering predictable across interactions, recove
 - Identify regions intended to recover independently. Trace a rendering failure to the fallback and verify required neighbouring UI remains usable. Check the fallback exposes a supported recovery action and identify the state it resets.
 - Reset the state responsible for a boundary failure; remounting the fallback alone may reproduce it.
 
-- For fallback and recovery behaviour, load [error handling](../error-handling/SKILL.md).
-
 ### Effects and requests
 
 - Keep requests and mutations out of render and memoisation callbacks.
@@ -97,8 +92,6 @@ Keep React state, effects, and rendering predictable across interactions, recove
 - Use the established query layer for server-state caching and deduplication.
 
 - Compare effects or memos sharing inputs and lifetimes for duplicated work. Combine them only when dependencies, conditional execution, ordering and cleanup remain correct. Keep separate hooks when update triggers or owners differ.
-
-- For tRPC query-layer work, load [tRPC best practices](../trpc/SKILL.md).
 
 - Guard both result and error handlers after abort; cancellation must not replace current state or show an obsolete failure.
 
@@ -139,5 +132,4 @@ Keep React state, effects, and rendering predictable across interactions, recove
 
 - Use transitions for non-urgent updates. Async transition actions depend on the React version. Transitions do not handle every kind of network loading; handle failures, cancellation, and races explicitly.
 
-- For measured rendering costs, load [TypeScript performance guidance](../typescript/SKILL.md#performance-and-resources).
-- For changed interactions, effect cleanup, or races, load [testing](../testing/SKILL.md) and apply its coverage and layer-selection rules. Do not request a render test for every changed component. A store/client/helper test is preferable for domain logic; React tests need a specific interaction, DOM, wiring or lifecycle risk that remains uncovered at that layer.
+- Verify changed interactions, effect cleanup and races at the cheapest layer that can catch the risk. Prefer store, client or helper tests for domain logic. React tests need a specific interaction, DOM, wiring or lifecycle risk not covered at that layer.

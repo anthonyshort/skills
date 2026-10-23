@@ -16,7 +16,7 @@ Keep tRPC access, validation, failure behaviour, and client cache recovery consi
 - Trace each procedure through the established base middleware and resource-permission checks. Reuse shared tracing, logging, error mapping and authentication. Authentication must precede middleware that reads the authenticated context; public exceptions must be explicit.
 - Compare named query/mutation procedures with their actual reads and side effects.
 
-- For changed contracts, use [caller compatibility](../../review/rules/keep-api-changes-compatible.md). For side effects with retry paths, use [retry checks](../../review/rules/check-retries-for-repeated-effects.md).
+- Trace changed contracts through supported callers. Check realistic retry and duplicate-request paths for repeated side effects.
 
 ### Validation and errors
 
@@ -47,15 +47,10 @@ Keep tRPC access, validation, failure behaviour, and client cache recovery consi
   }
   ```
 
-- For permission checks and resource limits, load [HTTP API guidance](../http-api/SKILL.md).
-
 ### Domain work and partial failure
 
 - Extract complex shared fetch/domain logic into functions accepting context and validated input; keep transport-specific mapping in procedures.
 - Use `Promise.allSettled` for independent lookups only when partial results are acceptable. Inspect every result and define which failures are fatal; use fail-fast behaviour when the operation requires all results.
-
-- For mapped errors and partial failure, load [error handling](../error-handling/SKILL.md).
-- For batching and bounded concurrency, load [TypeScript performance guidance](../typescript/SKILL.md#performance-and-resources).
 
 ### Query state
 
@@ -71,4 +66,4 @@ Keep tRPC access, validation, failure behaviour, and client cache recovery consi
 
 ### Verification
 
-- For auth, cache recovery, and races, load [testing](../testing/SKILL.md).
+- Verify changed access checks, cache recovery and races with focused tests.

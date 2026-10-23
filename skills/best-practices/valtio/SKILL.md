@@ -72,7 +72,7 @@ Keep a captured value when the action intentionally uses a historical snapshot. 
   });
   ```
 
-- Return unsubscribe as effect cleanup or release it at the owner's lifecycle boundary. Use [TypeScript lifecycle guidance](../typescript/SKILL.md#background-work-and-cleanup) for background work that can outlive its owner.
+- Return unsubscribe as effect cleanup or release it at the owner's lifecycle boundary. Cancel or otherwise bound background work that can outlive its owner.
 
   ```typescript
   useEffect(() => subscribe(cartStore, syncCart), [syncCart])
@@ -115,18 +115,16 @@ Keep a captured value when the action intentionally uses a historical snapshot. 
 - Getters do not provide general memoisation for expensive work.
 - Verify legacy helpers such as `addComputed`/`proxyWithComputed` against the installed version. Prefer getters when compatible and sufficient.
 
-- For subscription costs and expensive derived values, load [TypeScript performance guidance](../typescript/SKILL.md#performance-and-resources).
-
 ### Actions and cross-store behaviour
 
 - Default subscriptions batch synchronous updates; do not rely on batching across `await` or with synchronous subscriptions.
 
-- Use [shared actions](../../review/rules/keep-shared-state-rules-in-shared-actions.md) when several callers must preserve the same state rule. Keep independent single-field mutations near their interaction when that remains clear.
+- Use shared actions when several callers must preserve the same state rule. Keep independent single-field mutations near their interaction when that remains clear.
 - Mutate in actions, event handlers or synchronising effects. Never mutate during render.
 - If the store framework already has domain actions or events, use those APIs when other code needs to know which operation happened. A low-level subscription shows state changes, not necessarily user intent.
 - Standard Valtio does not define a project-specific domain event API. Check the actual framework before using one.
-- Use scoped subscriptions or shared actions for cross-store work. Avoid cycles and needless event infrastructure. See [events and direct calls](../../review/rules/await-required-operations.md) for their different contracts.
+- Use scoped subscriptions or shared actions for cross-store work. Avoid cycles and needless event infrastructure. Await operations whose result or success is required before continuing.
 
 ### Verification
 
-- For lifecycle cleanup, batching, and state invariants, load [testing](../testing/SKILL.md).
+- Verify changed lifecycle cleanup, batching and state invariants with focused tests or runtime checks.

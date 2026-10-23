@@ -27,8 +27,6 @@
   .button:hover { background: #eee; }
   ```
 
-- For wider computation, I/O, or resource concerns, load [TypeScript performance guidance](../../typescript/SKILL.md#performance-and-resources).
-
 ## Fonts and page stability
 
 Keep text readable while fonts load. Choose font loading behaviour for the actual page.
@@ -44,4 +42,3 @@ Keep text readable while fonts load. Choose font loading behaviour for the actua
 - Download only the weights and character sets needed.
 - Compare variable fonts with individual files for the weights actually used.
 - Check layout shift and responsiveness alongside loading time.
-- Use [HTML resource hints](../../html/SKILL.md#resource-hints) for preload and preconnect checks.

@@ -44,7 +44,7 @@ Use headings to express hierarchy. Use lists for related items and tables for ta
 <p id="email-error">Enter a valid email address.</p>
 ```
 
-Use [TypeScript validation](../typescript/SKILL.md#schemas-and-narrowing) for untrusted values and [HTTP API guidance](../http-api/SKILL.md) for server limits and access checks.
+Validate untrusted form values on the server and enforce request limits and resource access checks.
 
 ## Images
 

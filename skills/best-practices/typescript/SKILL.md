@@ -251,8 +251,6 @@ Use the published-package test to judge usability. It does not require package i
     : typeof error === "string" ? error : "Internal error";
   ```
 
-- For HTTP access protection and request limits, use [HTTP API guidance](../http-api/SKILL.md). For general resource growth and cleanup, use the performance and resources guidance below.
-
 ### Bounds and conversions
 
 - Check the relationship between independently derived indices, searches, and bounds, even when each is valid alone. Clamp at the composition site; current caller behaviour is not the helper's contract.
@@ -298,9 +296,6 @@ Use the published-package test to judge usability. It does not require package i
 - Document complex algorithms with multi-line JSDoc explaining their invariants and flow. Add an ASCII illustration for very complex algorithms.
 - Use `//` comments for non-obvious phases, ordering constraints or state transitions that the code does not reveal. Name the actual constraint; function length alone does not require comments.
 - Treat formatting as non-blocking unless project instructions require it.
-
-- When comparing specific designs, read only the relevant review rule: [wrappers](../../review/rules/remove-wrappers-that-add-no-value.md), [plugin lifecycle](../../review/rules/use-registries-for-real-extensions.md), [events and direct calls](../../review/rules/await-required-operations.md) or [decision extraction](../../review/rules/extract-decisions-only-when-useful.md).
-- For failures and promise handling, load [error handling](../error-handling/SKILL.md).
 
 ### Performance and resources
 
@@ -353,12 +348,9 @@ Use an established sanitiser when the feature intentionally accepts HTML. Do not
 - Inspect actual bundle output. Import syntax alone does not prove unused code was removed.
 - Split optional features or defer non-critical scripts when this improves loading.
 - Measure affected rendering and interaction paths before claiming a performance improvement.
-- For markup and browser interaction checks, use [HTML guidance](../html/SKILL.md). This also applies to JSX.
 
 ### Verification
 
 - Run applicable typechecks for changed construction sites and consumers.
 - Check changed schemas and guards with valid and relevant invalid inputs.
 - Inspect emitted declarations when public compatibility is at risk.
-
-- For schema or guard changes, load [testing](../testing/SKILL.md).

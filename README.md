@@ -15,7 +15,7 @@ skills use relative links; install the whole collection to retain those links.
 skills/
   review/SKILL.md
   review/references/
-  review/assets/
+  review/templates/
   best-practices/react/SKILL.md
   writing-voice/SKILL.md
   ...

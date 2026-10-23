@@ -117,7 +117,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 #### Subagent best practices
 
 - **Give each agent a clear brief**: Include its question, review scope, research findings, relevant context, operational constraints and exact guidance paths.
-- **Ask agents to use relevant skills**: Tell each subagent to look for and use available skills that would help with its task. Ask it to build a task-specific verification checklist using the process below.
+- **Ask agents to use relevant skills**: Tell each subagent to inspect the available skills in [best-practices](../best-practices/) and select those relevant to its task. Use their descriptions rather than a fixed list of skill names. Ask it to build a task-specific verification checklist using the process below.
 - **Keep context focused**: Give agents what they need for their task. Report templates and writing voice belong to the parent.
 - **Use parallel work after research**: Once Step 2 is complete, independent review tasks can run together within the available agent limit.
 - **Group work by review question**: Avoid creating an agent for every file or skill. Use a subagent to answer each review question below.
@@ -352,11 +352,11 @@ The parent agent combines the research report, all Step 3 assessments and the St
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
 5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough, is easy to maintain and works correctly. Say whether the PR should be split. Separate required fixes, suggestions and wider improvements.
-6. **Write the report**: Use [the review report template](assets/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
+6. **Write the report**: Use [the review report template](templates/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
 
 #### Deliverable
 
-One completed `review-report.md` file saved in the review artefact directory. Fill in the [review report template](assets/review-report.md) and return the file path.
+One completed `review-report.md` file saved in the review artefact directory. Fill in the [review report template](templates/review-report.md) and return the file path.
 
 #### This step is complete when:
 
@@ -380,7 +380,7 @@ Run this step only when the user requests staging or publishing a review on the 
 #### Prepare and publish the review
 
 1. **Check the PR**: Read the current head, diff, review threads and any pending review. If the code has changed, check that the findings still apply.
-2. **Draft the review**: Fill in [the GitHub review template](assets/github-review.md). Use [writing-voice](../writing-voice/SKILL.md) for the body and inline comments. Apply any supplied profile's GitHub layout.
+2. **Draft the review**: Fill in [the GitHub review template](templates/github-review.md). Use [writing-voice](../writing-voice/SKILL.md) for the body and inline comments. Apply any supplied profile's GitHub layout.
 3. **Stage or submit**: Recheck the head and comments before writing. Update stale findings or anchors, then take the requested action. If an action partly fails, check what was saved before retrying.
 4. **Return the result**: Return the review link and say whether the review is pending or submitted. Report any action that failed or remains incomplete.
 

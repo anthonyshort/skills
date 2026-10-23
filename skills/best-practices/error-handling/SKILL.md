@@ -13,7 +13,7 @@ Keep failures detectable and report recovery accurately. Preserve caller contrac
 
 ### Handling and propagation
 
-- Handle unknown variants with reasonable defaults rather than throwing, so version skew does not crash consumers. Use a `never` assignment to expose missing known variants at build time; see [TypeScript](../typescript/SKILL.md).
+- Handle unknown variants with reasonable defaults rather than throwing, so version skew does not crash consumers. Use a `never` assignment to expose missing known variants at build time.
 - Keep genuine operation failures distinct from unknown variants. Preserve input validation and access checks, and report success only after the operation or its recovery completes.
 - Catch errors to add context, recover, map errors at a boundary, or release resources. Let other failures, including asynchronous ones, reach the responsible handler; avoid catch-and-rethrow blocks that add nothing.
 
