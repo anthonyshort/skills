@@ -9,59 +9,6 @@ description: Write, refactor, or review CSS for predictable scope, cascade, layo
 
 Keep styling predictable across scopes, themes, layouts, browser targets, and user preferences.
 
-## Checklist
-
-Track checks in task notes, not here. Mark done only after verifying; explain N/A and report blocked or unverified checks. Run independent checks in parallel where useful.
-
-**Scope and cascade**
-
-- [ ] **Local styles** - Follow repository scoping; keep component styles local.
-- [ ] **Explicit variants** - Avoid variants that depend on incidental ancestors.
-- [ ] **Specificity** - Keep selectors and nesting predictable and low-specificity.
-- [ ] **Native nesting** - Write class suffixes explicitly; & cannot concatenate them.
-- [ ] **Layer order** - Account for unlayered and third-party styles.
-- [ ] **Important overrides** - Justify !important; do not use it by default.
-- [ ] **Stylesheet imports** - Keep @import top-level; account for loading or bundling.
-- [ ] **File responsibilities** - Keep component rules together; separate tokens, resets, and utilities.
-
-**Tokens and themes**
-
-- [ ] **Token definitions** - Define every custom property in its relevant scope.
-- [ ] **Token reuse** - Reuse recurring tokens; avoid tokenising every one-off dimension.
-- [ ] **Optional fallbacks** - Use fallbacks only for optional tokens.
-- [ ] **Theme selection** - Preserve user selection and system preferences.
-- [ ] **Theme pairs** - Verify actual foreground/background token pairs and contrast in every theme.
-
-**Layout and compatibility**
-
-- [ ] **Normal layout** - Prefer flow, Grid, or Flexbox over unnecessary positioning hacks.
-- [ ] **Child spacing** - Use gap for flex or grid spacing where suitable.
-- [ ] **Layout direction** - Use logical properties where direction matters.
-- [ ] **Responsive sizing** - Match sizing to the intended container or viewport.
-- [ ] **Sticky positioning** - Check the scroll container and ancestor overflow.
-- [ ] **Content extremes** - Test narrow containers, long content, and empty states for overflow or clipping.
-- [ ] **Reset defaults** - Preserve useful defaults; include pseudo-elements in box sizing.
-- [ ] **Browser support** - Check supported browsers and embedded runtimes; add usable fallbacks.
-
-**Accessibility**
-
-- [ ] **Visible focus** - Keep keyboard focus and control affordances visible.
-- [ ] **Text contrast** - Verify at least 4.5:1 for normal text and 3:1 for large text.
-- [ ] **Reduced motion** - Preserve final states and required interactions.
-- [ ] **Contrast preferences** - Check forced colours and increased contrast where supported.
-- [ ] **State cues** - Convey state through more than colour.
-- [ ] **Text reflow** - Check zoom, larger text, and translations for clipping.
-- [ ] **Hidden content** - Keep meaningful hidden content accessible to assistive technology.
-
-**Rendering costs**
-
-- [ ] **Measured costs** - Require measurements for performance-driven complexity, not selector syntax.
-- [ ] **Animation costs** - Check repeated layout work and relevant compositing.
-- [ ] **Rendering hints** - Verify traces justify will-change and its lifetime follows the work.
-- [ ] **Containment** - Preserve intended layout, sizing, and painting.
-
-- [ ] **Fonts and stability** - Keep text available, match font payloads to actual use and check layout shifts.
-
 ## Guidance
 
 ### Scope and cascade

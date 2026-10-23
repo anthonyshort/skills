@@ -9,33 +9,6 @@ description: Use when writing, refactoring, or reviewing failure propagation, re
 
 Keep failures detectable and report recovery accurately. Preserve caller contracts and multi-step invariants.
 
-## Checklist
-
-Track checks in task notes, not here. Mark done only after verifying; explain N/A and report blocked or unverified checks. Run independent checks in parallel where useful.
-
-**Handling and propagation**
-
-- [ ] **Version skew** - Return reasonable defaults for unknown variants; do not throw.
-- [ ] **Failed operations** - Keep failures visible; report success only after recovery completes.
-- [ ] **Useful catches** - Catch only to add context, recover, map errors, or release resources.
-- [ ] **Unhandled failures** - Trace them, including async rejections, to the responsible handler.
-- [ ] **Failure paths** - Trace changed failures through partial work, caller results, retries, and recovery.
-- [ ] **Partial updates** - Identify the invariant each changed multi-step update could break.
-- [ ] **Invariant recovery** - Preserve it through atomic commits or explicit recovery.
-
-**Error contracts and responses**
-
-- [ ] **Caller contracts** - Preserve handling of changed error codes, causes, and shapes.
-- [ ] **Known failures** - Map them to the appropriate response.
-- [ ] **Unknown failures** - Keep them distinct from invalid client input.
-
-**Logging and diagnostics**
-
-- [ ] **Useful logs** - Verify diagnostics identify the failed operation and preserve its cause.
-- [ ] **Duplicate logs** - Avoid logging the same failure again at every layer.
-- [ ] **Lost diagnostics** - Check propagation or logging changes preserve them.
-- [ ] **Sensitive errors** - Exclude credentials, tokens and sensitive data from responses and diagnostic logs.
-
 ## Guidance
 
 ### Handling and propagation

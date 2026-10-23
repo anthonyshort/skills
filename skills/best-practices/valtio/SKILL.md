@@ -9,22 +9,6 @@ description: Use when writing, refactoring, or reviewing Valtio v1 proxy stores,
 
 Keep Valtio v1 store ownership, tracked reads, mutations, and subscription lifetimes explicit.
 
-## Verification checklist
-
-Use the checks relevant to the change. Record evidence and explain skipped or blocked checks.
-
-- [ ] **Ownership**: Give shared state a clear feature owner. Keep component-only state local.
-- [ ] **React reads**: Render from snapshots, write to proxies and avoid tracking unused properties.
-- [ ] **Callback reads**: Read the proxy when a callback needs current state.
-- [ ] **Subscriptions**: Read current values from the proxy and release subscriptions when their owner ends.
-- [ ] **Opaque objects**: Use `ref` only for objects whose internal changes should remain untracked.
-- [ ] **Collections**: Use reactive Map/Set helpers when collection mutations must notify readers.
-- [ ] **Derived values**: Keep getters pure, read dependencies through `this` and do not assume expensive work is memoised.
-- [ ] **Mutations and invariants**: Keep mutations out of render. Check shared actions and batching limits.
-- [ ] **Cross-store behaviour**: Keep dependencies explicit, avoid cycles and use existing coordination mechanisms.
-- [ ] **Compatibility**: Check helpers against Valtio v1 and any internal store framework.
-- [ ] **Verification**: Test changed lifecycle and invariant risks. Measure expensive derived work when it motivates a change.
-
 ## Guidance
 
 ### Ownership and React reads

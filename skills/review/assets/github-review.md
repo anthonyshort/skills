@@ -51,7 +51,7 @@ Keep the issue, impact and recommended action visible. Put longer evidence in a 
 
 {{ Briefly state what was checked, the results and any gaps that affect the recommendation. Keep important failures and limits visible here even when the full checklist is folded below. Separate source inspection from executed checks. Source checked does not mean runtime verified. }}
 
-{{ Add one details block per skill or review checklist used, including the Step 3 checklists. Copy the outcomes from the final report and expand any collapsed categories into their full checklist. List every selected item, including failed, blocked, unverified and N/A checks. Do not include skills that were not used or claim new checks were performed. }}
+{{ Add one details block per skill or review checklist used, including the task-specific checklists generated in Step 3. Copy the full outcomes and guidance section references from the final report. List every selected item, including failed, blocked, unverified and N/A checks. Do not include skills that were not used or claim new checks were performed. }}
 
 <details>
 <summary>{{ Skill or checklist name }} — {{ short result summary }}</summary>

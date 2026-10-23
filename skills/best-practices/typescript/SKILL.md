@@ -9,91 +9,14 @@ description: Use when writing, refactoring, or reviewing TypeScript API design, 
 
 Keep TypeScript contracts, construction, and validation explicit so incorrect wiring and invalid states are caught before runtime. Prevent performance and resource problems using evidence from real workloads.
 
-## Checklist
-
-Track checks in task notes, not here. Mark done only after verifying; explain N/A and report blocked or unverified checks. Run independent checks in parallel where useful.
-
-**API design and construction**
-
-- [ ] **Building blocks** - Prefer functions and plain objects where they keep the design simple.
-- [ ] **Composition** - Make dependencies explicit. Avoid inheritance that pulls in unrelated behaviour.
-- [ ] **Core logic** - Keep calculations and decisions independent of effects when useful.
-- [ ] **Public boundary** - Let the public API own internal wiring and keep coupling at the edges.
-- [ ] **Construction** - Require needed dependencies. Check callers and fixtures without masking casts. Model optional capabilities explicitly or expose a narrower interface.
-- [ ] **Caller experience** - Check real calls for clear inputs, useful results and understandable error, cancellation and cleanup obligations.
-- [ ] **Public surface** - Keep exports and configuration limited to demonstrated caller needs.
-- [ ] **Canonical types** - Search existing types before adding replacement models.
-- [ ] **Public returns** - Preserve return contracts and applicable declaration requirements.
-- [ ] **Type-only imports** - Follow module rules for type-only imports.
-- [ ] **Domain names** - Name types and functions for their domain purpose.
-- [ ] **Options objects** - Consider options for three or more parameters; preserve existing contracts unless migrating.
-
-**Type models**
-
-- [ ] **Exclusive states** - Use discriminated variants rather than independently optional fields.
-- [ ] **Exhaustive switches** - Check variants with never and provide safe version-skew fallbacks.
-- [ ] **Literal shapes** - Retain needed literal types and check the intended shape.
-- [ ] **Overloads** - Preserve argument-specific returns and support union callers.
-- [ ] **Utility types** - Check helper semantics and preserve brands in recursive transformations.
-
-**Schemas and narrowing**
-
-- [ ] **Schema types** - Derive validated types from canonical Zod schemas, not duplicate interfaces.
-- [ ] **Boundary parsing** - Parse untrusted input rather than asserting it into a trusted type.
-- [ ] **Array limits** - Give every user-input array a meaningful maximum.
-- [ ] **Any and casts** - Replace any or unchecked casts with specific types or narrowing.
-- [ ] **Custom guards** - Validate every property the claimed type requires.
-- [ ] **Caught values** - Handle unknown errors, including strings, objects, and null.
-- [ ] **Schema factories** - Follow project naming and justify laziness or memoisation.
-
-**Bounds and conversions**
-
-- [ ] **Combined bounds** - Check relationships between independently computed bounds; clamp at composition.
-- [ ] **Semantic boundaries** - Use exact lookup and comparison rather than adding one storage unit.
-- [ ] **Actual extent** - Read first and last values from data, not requested bounds.
-- [ ] **Direct conversions** - Replace repeated A → B → C conversions with a domain A → C helper.
-
-**Organisation and comments**
-
-- [ ] **Feature files** - Keep related files together with clear names and no needless directories.
-- [ ] **Module exports** - Expose only the intended API and avoid dependency cycles.
-- [ ] **Promise ownership** - Await, return, or explicitly handle each rejection.
-- [ ] **Async wrappers** - Keep wrappers only when they add behaviour.
-- [ ] **Comment format** - Apply the caller's JSDoc and // preference where applicable; block only if required.
-- [ ] **Comment accuracy** - Explain constraints or unexpected behaviour and update stale comments.
-- [ ] **Algorithm documentation** - Explain complex algorithms in JSDoc; illustrate very complex ones.
-- [ ] **Function flow** - Explain non-obvious phases, ordering or state transitions not revealed by the code.
-
-**Performance and resources**
-
-- [ ] **Workload evidence** - Support performance claims with measurements or a concrete execution path and expected workload.
-- [ ] **Repeated work** - Establish frequency and cost, including expensive work repeated after success.
-- [ ] **Algorithm cost** - Compare work with input growth and identify unnecessary repeated scans.
-- [ ] **Array style** - Prefer `flatMap` over `filter().map()` when it expresses the same operation clearly. This is a style preference, not proof of better performance.
-- [ ] **Cache behaviour** - Preserve freshness, cancellation and failures when caching or batching.
-- [ ] **Bounded growth** - Trace how buffers, caches, queues and concurrent work grow and drain.
-- [ ] **Blocking work** - Identify synchronous work that causes meaningful event-loop delays.
-- [ ] **Task coordination** - Preserve ordering, failures and resource limits when parallelising.
-- [ ] **Owner cleanup** - Release timers, subscriptions and background work when their owner ends. Check expected shutdown.
-- [ ] **Polling changes** - Establish polling cost and preserve update and failure behaviour when replacing it.
-
-**Browser APIs and loading**
-
-- [ ] **Native APIs** - Check supported native APIs and existing dependencies before adding a library or build step.
-- [ ] **DOM safety** - Keep untrusted text out of markup APIs. Use established sanitisation when HTML is intentional.
-- [ ] **Loading costs** - Inspect bundle output and measure affected loading or interaction paths before making performance claims.
-
-**Verification**
-
-- [ ] **Typechecks** - Run applicable typechecks for changed construction sites and consumers.
-- [ ] **Schema tests** - Verify changed schemas and guards accept valid and reject relevant invalid values.
-- [ ] **Declarations** - Inspect emitted declarations when public compatibility is at risk.
-
 ## Guidance
 
 ### API design and construction
 
 #### Tooling and contracts
+
+- Search for canonical types before adding replacement models. Name types and functions for their domain purpose.
+- Consider an options object for three or more parameters when it makes calls clearer. Preserve existing contracts unless migrating callers.
 
 - Follow repository tooling and prefer strict checking. Do not impose `isolatedDeclarations` or change configuration for unrelated work.
 - Mixed value/type imports can use inline `type` specifiers where module configuration permits.
@@ -318,7 +241,7 @@ Use the published-package test to judge usability. It does not require package i
 
 #### Narrowing and errors
 
-- Narrow with predicates or `instanceof` rather than asserting unchecked assumptions.
+- Narrow with predicates or `instanceof` rather than asserting unchecked assumptions. Custom guards must validate every property their claimed type requires. Avoid `any` and unchecked casts.
 
 - Treat caught values as `unknown`; JavaScript can throw strings, objects, or null.
 
@@ -354,7 +277,8 @@ Use the published-package test to judge usability. It does not require package i
 
 - Keep feature components, hooks, types, and constants together. Split utilities by responsibility; avoid directories for trivial helpers.
 - Follow repository naming: typically PascalCase for component files, `useName` for hooks, descriptive camelCase for utilities, and `types.ts`/`constants.ts` for shared feature definitions.
-- Prefer named re-exports for selected items; use wildcards only for the intended module API.
+- Prefer named re-exports for selected items. Use wildcards only for the intended module API. Avoid dependency cycles.
+- Await, return or explicitly handle each promise rejection. Keep async wrappers only when they add behaviour.
 
 #### Comments
 
@@ -432,5 +356,9 @@ Use an established sanitiser when the feature intentionally accepts HTML. Do not
 - For markup and browser interaction checks, use [HTML guidance](../html/SKILL.md). This also applies to JSX.
 
 ### Verification
+
+- Run applicable typechecks for changed construction sites and consumers.
+- Check changed schemas and guards with valid and relevant invalid inputs.
+- Inspect emitted declarations when public compatibility is at risk.
 
 - For schema or guard changes, load [testing](../testing/SKILL.md).

@@ -9,64 +9,12 @@ description: Use when writing, refactoring, or reviewing React and TypeScript co
 
 Keep React state, effects, and rendering predictable across interactions, recovery, and component lifetimes.
 
-## Checklist
-
-Track checks in task notes, not here. Mark done only after verifying; explain N/A and report blocked or unverified checks. Run independent checks in parallel where useful.
-
-**Component APIs**
-
-- [ ] **Component responsibility** - Identify each component’s state, behaviour or layout; flag wrappers adding no contract or behaviour.
-- [ ] **Props and exports** - Follow named component/props conventions and existing exports; avoid React.FC solely for props.
-- [ ] **Shared component API** - Verify shared state/configuration has one owner and consistent defaults, controlled state and actions.
-- [ ] **Class overrides** - Put forwarded className last with the established merging helper.
-- [ ] **Custom hooks** - Follow useName naming and reuse suitable feature hooks.
-- [ ] **Hook contracts** - Fit return shapes to consumers and keep shared read/write hooks together.
-- [ ] **Pure utilities** - Use hooks only when React behaviour is needed.
-
-**State ownership**
-
-- [ ] **State ownership** - Keep interaction state local and shared state in one source of truth.
-- [ ] **Prop drilling** - Check deep state or action forwarding needs a store, provider, or narrower API.
-- [ ] **Derived state** - Calculate values rather than storing and synchronising them with effects.
-- [ ] **Previous state** - Use functional setters for updates based on previous state.
-- [ ] **Mirrored refs** - Require synchronous imperative reads, one update path, and no render-time reads.
-- [ ] **DOM ownership** - Use props/state for React-owned DOM state; refs for imperative integrations.
-
-**Rendering and recovery**
-
-- [ ] **Hook order** - Call hooks before conditional returns.
-- [ ] **Rendering states** - Render loading, error, and empty states explicitly.
-- [ ] **Variant rendering** - Check variants exhaustively and provide safe unknown-variant fallbacks.
-- [ ] **List keys** - Use stable keys.
-- [ ] **Direct rendering** - Prefer JSX or map over assembled arrays where clearer.
-- [ ] **Error boundaries** - Verify independent recovery keeps neighbouring UI usable and offers a supported recovery action.
-- [ ] **Boundary reset** - Clear the state responsible for the failure.
-
-**Effects and requests**
-
-- [ ] **Render purity** - Check render and memoisation callbacks for requests or mutations.
-- [ ] **Effect purpose** - Synchronise external systems; keep interaction work in handlers.
-- [ ] **Effect dependencies** - Include reactive dependencies.
-- [ ] **Related hooks** - Compare hooks sharing inputs and lifetimes; combine only with correct dependencies, cleanup and timing.
-- [ ] **Effect cleanup** - Release subscriptions, timers, and requests safely under repeated mounting.
-- [ ] **Request races** - Abort obsolete requests and prevent stale responses replacing current results.
-- [ ] **Cancellation** - Keep cancellation separate from user-visible failures.
-- [ ] **Server state** - Use the established query layer for caching and deduplication.
-
-**Performance and verification**
-
-- [ ] **Memoisation benefit** - Require an expensive pure calculation or concrete identity benefit for useMemo.
-- [ ] **Repeated execution** - Trace pending → ready → later render before flagging repeated work.
-- [ ] **Initialisation retries** - Preserve pending retries and latch only the first successful result.
-- [ ] **Context identity** - Stabilise values when it prevents unwanted updates; include dependencies.
-- [ ] **Callback identity** - Require an identity-sensitive consumer or subscription; include dependencies.
-- [ ] **Transition support** - Use transitions for non-urgent updates and check async support against React's version.
-- [ ] **Async transitions** - Handle failures, cancellation, and request races.
-- [ ] **Interaction checks** - Verify important changed interactions, recovery and effect lifetimes at the cheapest layer that can catch the risk.
-
 ## Guidance
 
 ### Component APIs
+
+- Use named components and clear props types. Follow existing exports. Do not add `React.FC` solely to type props.
+- Name custom hooks `useName` and reuse suitable feature hooks. Use plain functions for utilities that do not need React behaviour.
 
 - Identify the state, behaviour, layout or contract each changed component owns. Wrappers can own styling, accessibility, context, lifecycle or integration. For a split, name independently changeable responsibilities and the coupling it removes; line count alone is not evidence.
 - When sub-components share configuration or state, trace each value and action to its owner. Compare defaults, controlled behaviour and actions across consumers. Props, context and compound components are possible mechanisms; props alone do not make this check N/A.
@@ -85,6 +33,10 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 ### State ownership
 
 #### State and hooks
+
+- Keep interaction state local and give shared state one source of truth.
+- Calculate derived values rather than storing them and synchronising with effects.
+- Use functional setters when an update depends on previous state.
 
 - Trace state and actions forwarded through many components. Use an appropriate store, provider, or narrower component API when intermediate components only relay them.
 
@@ -139,6 +91,11 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 ### Effects and requests
 
+- Keep requests and mutations out of render and memoisation callbacks.
+- Use effects to synchronise external systems. Keep interaction work in handlers.
+- Include reactive dependencies. Release subscriptions, timers and obsolete requests safely across repeated mounts.
+- Use the established query layer for server-state caching and deduplication.
+
 - Compare effects or memos sharing inputs and lifetimes for duplicated work. Combine them only when dependencies, conditional execution, ordering and cleanup remain correct. Keep separate hooks when update triggers or owners differ.
 
 - For tRPC query-layer work, load [tRPC best practices](../trpc/SKILL.md).
@@ -178,9 +135,9 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 - Do not memoise every object prop by default; identify the expensive calculation or identity-sensitive consumer.
 
-- Keep ordinary handlers inline when callback identity has no benefit.
+- Keep ordinary handlers inline when callback identity has no benefit. Stabilise callbacks and context values only for a concrete identity-sensitive consumer. Include their reactive dependencies.
 
-- Async transition actions depend on the React version. Transitions do not handle every kind of network loading; handle failures, cancellation, and races explicitly.
+- Use transitions for non-urgent updates. Async transition actions depend on the React version. Transitions do not handle every kind of network loading; handle failures, cancellation, and races explicitly.
 
 - For measured rendering costs, load [TypeScript performance guidance](../typescript/SKILL.md#performance-and-resources).
 - For changed interactions, effect cleanup, or races, load [testing](../testing/SKILL.md) and apply its coverage and layer-selection rules. Do not request a render test for every changed component. A store/client/helper test is preferable for domain logic; React tests need a specific interaction, DOM, wiring or lifecycle risk that remains uncovered at that layer.

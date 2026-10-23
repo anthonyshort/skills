@@ -9,23 +9,6 @@ description: Write, refactor, or review tests for changed behaviour, bug fixes, 
 
 Prove intended behaviour with focused, reliable tests. Choose tests that would catch a real mistake.
 
-## Verification checklist
-
-Use the checks relevant to the change. Record evidence and explain skipped or blocked checks. Reading this list does not complete a check.
-
-- [ ] **Coverage**: Cover changed behaviour and the boundaries or failures it introduces. Reuse existing tests when they already catch the risk.
-- [ ] **Test layer**: Use the cheapest layer that can catch the regression without bypassing the behaviour.
-- [ ] **Placement**: Keep tests beside the code that owns the behaviour, subject to runner constraints.
-- [ ] **Correct expectations**: Verify the inputs and expected outputs independently of the implementation.
-- [ ] **Useful assertions**: Check that the test rejects both a no-op and plausible wrong results.
-- [ ] **Regression evidence**: Where practical, show that the test fails without the fix for the intended reason.
-- [ ] **Real behaviour**: Keep the behaviour under test real. Mock external effects at their boundary.
-- [ ] **Valid fixtures**: Check that fixtures and mocks represent the claimed case and do not supply the answer.
-- [ ] **Readable cases**: Keep the scenario, action and expected result clear. Avoid helpers and snapshots that hide the contract.
-- [ ] **Isolation and timing**: Reset shared state, release owned resources and control time or promises instead of sleeping.
-- [ ] **Integration risks**: Cover changed wiring and async paths that isolated tests cannot prove.
-- [ ] **Execution**: Run focused checks and report actual results. Keep import and setup costs proportionate.
-
 ## Choose the right test
 
 | Changed behaviour | What to exercise and assert |

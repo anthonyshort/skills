@@ -9,20 +9,6 @@ description: Write, refactor or review HTML and JSX for semantic structure, acce
 
 Use markup that communicates meaning and preserves expected browser behaviour. Apply this guidance to JSX as well as HTML.
 
-## Verification checklist
-
-- [ ] **Structure**: Use headings, landmarks, lists and tables that match the content.
-- [ ] **Navigation and actions**: Use links with real destinations for navigation and buttons for actions.
-- [ ] **Forms**: Label controls, group related inputs and preserve standard submission behaviour.
-- [ ] **Errors**: Associate validation messages with the affected controls.
-- [ ] **Images**: Provide appropriate alternative text, dimensions and loading attributes.
-- [ ] **Interaction**: Check keyboard access, accessible names, focus and dismissal.
-- [ ] **Enhancement**: Keep essential content and navigation usable when enhancement fails.
-- [ ] **Resource hints**: Check that preloads match actual requests and connection hints serve important origins.
-- [ ] **Browser checks**: Verify changed interactions and fallbacks in supported browsers.
-
-Record evidence and explain checks that do not apply or could not be verified.
-
 ## Structure and controls
 
 Choose elements by their meaning and behaviour.

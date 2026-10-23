@@ -9,24 +9,11 @@ description: Use when writing, refactoring or reviewing HTTP endpoints, request 
 
 Build APIs that enforce access, handle untrusted requests safely and return clear, intentional responses.
 
-## Verification checklist
-
-- [ ] **Authentication**: Trace protected operations to the shared authentication mechanism.
-- [ ] **Resource access**: Check permission for the requested resource, not just whether the caller is signed in.
-- [ ] **Public exceptions**: Make intentionally public access explicit.
-- [ ] **Other entry points**: Check equivalent operations through affected WebSocket or other transports enforce the same protection.
-- [ ] **Credentials**: Use supported credential mechanisms. Do not treat localhost binding alone as access protection.
-- [ ] **Input validation**: Validate external values before trusted use with canonical schemas.
-- [ ] **Request limits**: Enforce body or message size limits before parsing. Bound input arrays and expensive processing.
-- [ ] **Response fields**: Return intentional public fields instead of serialising internal objects or configuration.
-- [ ] **Error responses**: Keep server diagnostics out of responses and preserve useful caller-visible error distinctions.
-- [ ] **Compatibility and retries**: Check affected callers and realistic duplicate-request paths using the relevant review rules.
-
-Record evidence and distinguish source inspection from executed checks. Explain checks that do not apply and checks that could not be verified.
-
 ## Guidance
 
 ### Access and credentials
+
+- Trace protected operations to shared authentication and resource-permission checks. Make intentional public exceptions explicit.
 
 - Trace the requested resource identifier through its permission check before reading or changing protected data. Reuse shared authentication and permission helpers.
 - Follow sensitive operations through every affected entry point. A protected HTTP route does not make an equivalent WebSocket operation safe.

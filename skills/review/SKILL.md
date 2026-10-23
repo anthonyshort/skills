@@ -117,7 +117,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 #### Subagent best practices
 
 - **Give each agent a clear brief**: Include its question, review scope, research findings, relevant context, operational constraints and exact guidance paths.
-- **Ask agents to use relevant skills**: Tell each subagent to look for and use available skills that would help with its task.
+- **Ask agents to use relevant skills**: Tell each subagent to look for and use available skills that would help with its task. Ask it to build a task-specific verification checklist using the process below.
 - **Keep context focused**: Give agents what they need for their task. Report templates and writing voice belong to the parent.
 - **Use parallel work after research**: Once Step 2 is complete, independent review tasks can run together within the available agent limit.
 - **Group work by review question**: Avoid creating an agent for every file or skill. Use a subagent to answer each review question below.
@@ -131,6 +131,18 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 - **Understand what must stay the same**: Establish the behaviour that alternatives must preserve before recommending a simpler design.
 - **Ask only when the answer matters**: Ask about missing requirements or direction when they could change the assessment. Explain the alternatives, their effects and your recommendation when a choice needs input. Continue other review work while waiting.
 - **Follow the risk**: Spend more time on behaviour with a high cost of failure, complex dependencies or weak test coverage. Give simpler changes a lighter review.
+
+#### Build and verify the checklist
+
+Each review subagent builds its checklist before checking the code:
+
+1. **Read the guidance**: Read relevant skills and the supporting sections needed for the assigned question.
+2. **Make the checks concrete**: Turn each applicable instruction into a check naming the affected code or behaviour. Cite the skill section or rule it comes from. Do not copy examples as universal requirements.
+3. **Combine overlaps**: Merge checks that test the same behaviour, including overlaps with the review question's checklist. Keep all source references.
+4. **Account for exclusions**: Note guidance sections that do not apply and why. Leave checks blocked when context or access is missing. Do not remove a check just because it is difficult to verify.
+5. **Verify and return results**: Give each check a method, result and evidence. Use Source checked, Test passed, Test failed, Concern found, Blocked, Not run or N/A. Source inspection alone does not establish runtime success.
+
+Return the checklist with the assessment. If new risks appear, add checks and record their results. The parent checks coverage against the selected guidance during consolidation and follows up on missing checks or weak evidence.
 
 #### Q: Should we build this?
 
@@ -336,7 +348,7 @@ The parent agent combines the research report, all Step 3 assessments and the St
 #### Create the report
 
 1. **Read the inputs**: Read the research report, every Step 3 assessment and every Step 4 rule assessment. Wait for agents that are still working. Note any failed or missing assessments.
-2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Note anything you could not verify.
+2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Compare their generated checklists with the guidance they used. Follow up on missing checks or weak evidence. Note anything you could not verify.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
 5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough, is easy to maintain and works correctly. Say whether the PR should be split. Separate required fixes, suggestions and wider improvements.

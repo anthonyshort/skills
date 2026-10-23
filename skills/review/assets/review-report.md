@@ -71,7 +71,7 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 <details>
 <summary>Review checklist coverage — {{ short result summary }}</summary>
 
-{{ Group by PR and skill or assessment. List every selected item with its evidence, method and result. Record guidance paths and versions. Use explicit results: Source checked, Test passed, Test failed, Concern found, Blocked, Not run or N/A with a reason. Source checked means inspected, not runtime verified. Do not collapse away individual outcomes. Do not load unrelated skills just to mark them N/A. If guidance changed after the review, identify retrospective evidence and leave unsupported new checks unverified. }}
+{{ Group by PR and skill or assessment. List every generated check with its guidance section references, evidence, method and result. Include excluded sections and their scope reasons. Check that relevant guidance was not silently omitted. Record guidance paths and versions. Use explicit results: Source checked, Test passed, Test failed, Concern found, Blocked, Not run or N/A with a reason. Source checked means inspected, not runtime verified. Do not collapse away individual outcomes. Do not load unrelated skills just to mark them N/A. If guidance changed after the review, identify retrospective evidence and leave unsupported new checks unverified. }}
 
 | Skill / checklist and version | Item | Method | Result | Evidence or reason |
 | --- | --- | --- | --- | --- |
