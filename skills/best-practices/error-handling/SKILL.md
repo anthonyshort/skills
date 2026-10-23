@@ -1,5 +1,5 @@
 ---
-name: error-handling-best-practices
+name: error-handling
 description: Use when writing, refactoring, or reviewing failure propagation, recovery, error mapping, diagnostic logging, or multi-step updates that can partially fail.
 ---
 
@@ -40,7 +40,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 ### Handling and propagation
 
-- Handle unknown variants with reasonable defaults rather than throwing, so version skew does not crash consumers. Use a `never` assignment to expose missing known variants at build time; see [TypeScript](../typescript-best-practices/SKILL.md).
+- Handle unknown variants with reasonable defaults rather than throwing, so version skew does not crash consumers. Use a `never` assignment to expose missing known variants at build time; see [TypeScript](../typescript/SKILL.md).
 - Keep genuine operation failures distinct from unknown variants. Preserve input validation and access checks, and report success only after the operation or its recovery completes.
 - Catch errors to add context, recover, map errors at a boundary, or release resources. Let other failures, including asynchronous ones, reach the responsible handler; avoid catch-and-rethrow blocks that add nothing.
 

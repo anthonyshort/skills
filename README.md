@@ -6,7 +6,8 @@ plus the `galaxy-review` profile migrated from pi-config.
 
 ## Layout
 
-Each skill lives at `skills/<name>/SKILL.md` with standard `name` and `description`
+Workflow skills live at `skills/<name>/SKILL.md`. Best-practice skills live at
+`skills/best-practices/<topic>/SKILL.md` with standard `name` and `description`
 YAML frontmatter. References and assets stay inside their owning skill. Related
 skills use relative links; install the whole collection to retain those links.
 
@@ -15,7 +16,7 @@ skills/
   review/SKILL.md
   review/references/
   review/assets/
-  react-best-practices/SKILL.md
+  best-practices/react/SKILL.md
   writing-voice/SKILL.md
   ...
 package.json
@@ -35,7 +36,7 @@ cd ~/dev/anthonyshort/skills
 python3 scripts/link.py
 ```
 
-The script links every skill directly from this checkout into `~/.agents/skills`
+The script finds skills recursively and links each skill directly from this checkout into `~/.agents/skills`
 (Codex and current Pi) and `~/.claude/skills` (Claude Code). Edits take effect from
 this checkout without reinstalling. It can be rerun and refuses to overwrite
 existing skills. `--home <directory>` supports an alternative agent home.
@@ -79,7 +80,7 @@ compatibility symlinks at `home/.pi/agent/skills/code-quality` and
 `home/.pi/agent/skills/galaxy/galaxy-review`. They keep existing personal profiles and
 review-bot paths working; clone this repository alongside pi-config to retain them.
 The original uncommitted `review/SKILL.md` edits were preserved during extraction.
-Cross-skill links use the flat layout. Galaxy profile delegation uses the resolved
+Cross-skill links use relative paths across the grouped layout. Galaxy profile delegation uses the resolved
 skill path so the profile can be installed outside the original home directory.
 
 ## Work-review profile

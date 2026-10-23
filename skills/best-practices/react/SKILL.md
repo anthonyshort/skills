@@ -1,5 +1,5 @@
 ---
-name: react-best-practices
+name: react
 description: Use when writing, refactoring, or reviewing React and TypeScript components, hooks, context, state, effects, and rendering behaviour.
 ---
 
@@ -80,7 +80,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - Co-locate feature hooks and shared read/write hooks.
 - Use tuples for state/setter pairs, objects for richer APIs, and getters for keyed batch results.
 
-- For changed type contracts or schemas, load [TypeScript](../typescript-best-practices/SKILL.md).
+- For changed type contracts or schemas, load [TypeScript](../typescript/SKILL.md).
 
 ### State ownership
 
@@ -135,13 +135,13 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - Identify regions intended to recover independently. Trace a rendering failure to the fallback and verify required neighbouring UI remains usable. Check the fallback exposes a supported recovery action and identify the state it resets.
 - Reset the state responsible for a boundary failure; remounting the fallback alone may reproduce it.
 
-- For fallback and recovery behaviour, load [error handling](../error-handling-best-practices/SKILL.md).
+- For fallback and recovery behaviour, load [error handling](../error-handling/SKILL.md).
 
 ### Effects and requests
 
 - Compare effects or memos sharing inputs and lifetimes for duplicated work. Combine them only when dependencies, conditional execution, ordering and cleanup remain correct. Keep separate hooks when update triggers or owners differ.
 
-- For tRPC query-layer work, load [tRPC best practices](../trpc-best-practices/SKILL.md).
+- For tRPC query-layer work, load [tRPC best practices](../trpc/SKILL.md).
 
 - Guard both result and error handlers after abort; cancellation must not replace current state or show an obsolete failure.
 
@@ -182,5 +182,5 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 - Async transition actions depend on the React version. Transitions do not handle every kind of network loading; handle failures, cancellation, and races explicitly.
 
-- For measured rendering costs, load [TypeScript performance guidance](../typescript-best-practices/SKILL.md#performance-and-resources).
-- For changed interactions, effect cleanup, or races, load [testing](../testing-best-practices/SKILL.md) and apply its coverage and layer-selection rules. Do not request a render test for every changed component. A store/client/helper test is preferable for domain logic; React tests need a specific interaction, DOM, wiring or lifecycle risk that remains uncovered at that layer.
+- For measured rendering costs, load [TypeScript performance guidance](../typescript/SKILL.md#performance-and-resources).
+- For changed interactions, effect cleanup, or races, load [testing](../testing/SKILL.md) and apply its coverage and layer-selection rules. Do not request a render test for every changed component. A store/client/helper test is preferable for domain logic; React tests need a specific interaction, DOM, wiring or lifecycle risk that remains uncovered at that layer.

@@ -1,5 +1,5 @@
 ---
-name: testing-best-practices
+name: testing
 description: Write, refactor, or review tests for changed behaviour, bug fixes, error paths, concurrency, or concrete coverage gaps using observable regression evidence.
 ---
 

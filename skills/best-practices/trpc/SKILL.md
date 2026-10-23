@@ -1,5 +1,5 @@
 ---
-name: trpc-best-practices
+name: trpc
 description: Use when writing, refactoring, or reviewing tRPC routers, procedures, middleware, validation, auth, typed errors, client queries, mutations, and cache behaviour.
 ---
 
@@ -67,7 +67,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - Trace each procedure through the established base middleware and resource-permission checks. Authentication must precede middleware that reads the authenticated context; public exceptions must be explicit.
 - Compare named query/mutation procedures with their actual reads and side effects.
 
-- For changed contracts, use [caller compatibility](../review/rules/keep-api-changes-compatible.md). For side effects with retry paths, use [retry checks](../review/rules/check-retries-for-repeated-effects.md).
+- For changed contracts, use [caller compatibility](../../review/rules/keep-api-changes-compatible.md). For side effects with retry paths, use [retry checks](../../review/rules/check-retries-for-repeated-effects.md).
 
 ### Validation and errors
 
@@ -98,15 +98,15 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
   }
   ```
 
-- For permission checks and resource limits, load [HTTP API guidance](../http-api-best-practices/SKILL.md).
+- For permission checks and resource limits, load [HTTP API guidance](../http-api/SKILL.md).
 
 ### Domain work and partial failure
 
 - Extract complex shared fetch/domain logic into functions accepting context and validated input; keep transport-specific mapping in procedures.
 - Use `Promise.allSettled` for independent lookups only when partial results are acceptable. Inspect every result and define which failures are fatal; use fail-fast behaviour when the operation requires all results.
 
-- For mapped errors and partial failure, load [error handling](../error-handling-best-practices/SKILL.md).
-- For batching and bounded concurrency, load [TypeScript performance guidance](../typescript-best-practices/SKILL.md#performance-and-resources).
+- For mapped errors and partial failure, load [error handling](../error-handling/SKILL.md).
+- For batching and bounded concurrency, load [TypeScript performance guidance](../typescript/SKILL.md#performance-and-resources).
 
 ### Query state
 
@@ -122,4 +122,4 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 ### Verification
 
-- For auth, cache recovery, and races, load [testing](../testing-best-practices/SKILL.md).
+- For auth, cache recovery, and races, load [testing](../testing/SKILL.md).

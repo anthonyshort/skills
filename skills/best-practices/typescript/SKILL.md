@@ -1,5 +1,5 @@
 ---
-name: typescript-best-practices
+name: typescript
 description: Use when writing, refactoring, or reviewing TypeScript API design, classes, interfaces, types, narrowing, schemas, async APIs, performance, resource lifetimes, module boundaries, and file organisation.
 ---
 
@@ -328,7 +328,7 @@ Use the published-package test to judge usability. It does not require package i
     : typeof error === "string" ? error : "Internal error";
   ```
 
-- For HTTP access protection and request limits, use [HTTP API guidance](../http-api-best-practices/SKILL.md). For general resource growth and cleanup, use the performance and resources guidance below.
+- For HTTP access protection and request limits, use [HTTP API guidance](../http-api/SKILL.md). For general resource growth and cleanup, use the performance and resources guidance below.
 
 ### Bounds and conversions
 
@@ -375,8 +375,8 @@ Use the published-package test to judge usability. It does not require package i
 - Use `//` comments for non-obvious phases, ordering constraints or state transitions that the code does not reveal. Name the actual constraint; function length alone does not require comments.
 - Treat formatting as non-blocking unless project instructions require it.
 
-- When comparing specific designs, read only the relevant review rule: [wrappers](../review/rules/remove-wrappers-that-add-no-value.md), [plugin lifecycle](../review/rules/use-registries-for-real-extensions.md), [events and direct calls](../review/rules/await-required-operations.md) or [decision extraction](../review/rules/extract-decisions-only-when-useful.md).
-- For failures and promise handling, load [error handling](../error-handling-best-practices/SKILL.md).
+- When comparing specific designs, read only the relevant review rule: [wrappers](../../review/rules/remove-wrappers-that-add-no-value.md), [plugin lifecycle](../../review/rules/use-registries-for-real-extensions.md), [events and direct calls](../../review/rules/await-required-operations.md) or [decision extraction](../../review/rules/extract-decisions-only-when-useful.md).
+- For failures and promise handling, load [error handling](../error-handling/SKILL.md).
 
 ### Performance and resources
 
@@ -429,8 +429,8 @@ Use an established sanitiser when the feature intentionally accepts HTML. Do not
 - Inspect actual bundle output. Import syntax alone does not prove unused code was removed.
 - Split optional features or defer non-critical scripts when this improves loading.
 - Measure affected rendering and interaction paths before claiming a performance improvement.
-- For markup and browser interaction checks, use [HTML guidance](../html-best-practices/SKILL.md). This also applies to JSX.
+- For markup and browser interaction checks, use [HTML guidance](../html/SKILL.md). This also applies to JSX.
 
 ### Verification
 
-- For schema or guard changes, load [testing](../testing-best-practices/SKILL.md).
+- For schema or guard changes, load [testing](../testing/SKILL.md).

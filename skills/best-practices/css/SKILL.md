@@ -1,5 +1,5 @@
 ---
-name: css-best-practices
+name: css
 description: Write, refactor, or review CSS for predictable scope, cascade, layout, responsive behaviour, theming, accessibility, and rendering performance.
 ---
 
@@ -80,7 +80,7 @@ Read [tokens and theming](references/tokens-theming.md) for token tiers, compone
 
 Test layout in its actual component container and scroll hierarchy, including supported embedded runtimes.
 
-Read [layout and responsiveness](references/layout-responsive.md) for flow, spacing, logical properties, sticky positioning, and bounded fluid sizing. Read [reset and compatibility](references/reset-compatibility.md) when resets, native defaults, browser support, or fallbacks change. For presentation-only scripting and font loading, read [CSS performance](references/performance.md). For markup and browser interaction, use [HTML guidance](../html-best-practices/SKILL.md).
+Read [layout and responsiveness](references/layout-responsive.md) for flow, spacing, logical properties, sticky positioning, and bounded fluid sizing. Read [reset and compatibility](references/reset-compatibility.md) when resets, native defaults, browser support, or fallbacks change. For presentation-only scripting and font loading, read [CSS performance](references/performance.md). For markup and browser interaction, use [HTML guidance](../html/SKILL.md).
 
 ### Accessibility
 
@@ -90,4 +90,4 @@ Read [CSS accessibility](references/accessibility.md) for focus, motion, contras
 
 Use rendering traces to distinguish selector, layout, paint, and compositing costs before accepting more complex code.
 
-Read [CSS performance](references/performance.md) for selectors, animation, containment, and presentation choices. Load [TypeScript performance guidance](../typescript-best-practices/SKILL.md#performance-and-resources) for wider computation, I/O, or resource concerns.
+Read [CSS performance](references/performance.md) for selectors, animation, containment, and presentation choices. Load [TypeScript performance guidance](../typescript/SKILL.md#performance-and-resources) for wider computation, I/O, or resource concerns.

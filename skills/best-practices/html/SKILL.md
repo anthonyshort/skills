@@ -1,5 +1,5 @@
 ---
-name: html-best-practices
+name: html
 description: Write, refactor or review HTML and JSX for semantic structure, accessible controls, forms, images, focus behaviour and browser resource loading.
 ---
 
@@ -58,7 +58,7 @@ Use headings to express hierarchy. Use lists for related items and tables for ta
 <p id="email-error">Enter a valid email address.</p>
 ```
 
-Use [TypeScript validation](../typescript-best-practices/SKILL.md#schemas-and-narrowing) for untrusted values and [HTTP API guidance](../http-api-best-practices/SKILL.md) for server limits and access checks.
+Use [TypeScript validation](../typescript/SKILL.md#schemas-and-narrowing) for untrusted values and [HTTP API guidance](../http-api/SKILL.md) for server limits and access checks.
 
 ## Images
 

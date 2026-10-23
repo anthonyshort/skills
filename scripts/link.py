@@ -12,7 +12,7 @@ def main():
     source = Path(__file__).resolve().parent.parent / "skills"
     destinations = [args.home / ".agents/skills", args.home / ".claude/skills"]
     links = [(directory / skill.name, skill) for directory in destinations
-             for skill in sorted(source.iterdir()) if (skill / "SKILL.md").is_file()]
+             for skill in sorted(path.parent for path in source.rglob("SKILL.md"))]
     conflicts = [destination for destination, skill in links
                  if (destination.exists() or destination.is_symlink())
                  and not (destination.is_symlink() and destination.resolve() == skill.resolve())]
