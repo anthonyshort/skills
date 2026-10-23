@@ -1,0 +1,41 @@
+{
+  "node": "v24.22.1",
+  "results": [
+    {
+      "id": "A01",
+      "result": "Test failed",
+      "error": "Cannot read properties of undefined (reading 'retries')"
+    },
+    {
+      "id": "A02",
+      "result": "Test failed",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   isOpen: true,\n-   isOpen: false,\n    itemIds: []\n  }\n"
+    },
+    {
+      "id": "A03",
+      "result": "Test failed",
+      "error": "Expected values to be strictly equal:\n\n6 !== 4\n"
+    },
+    {
+      "id": "A04",
+      "result": "Test failed",
+      "error": "Expected values to be strictly equal:\n\n0 !== 1\n"
+    },
+    {
+      "id": "A05",
+      "result": "Test passed"
+    },
+    {
+      "id": "A06",
+      "result": "Test passed"
+    },
+    {
+      "id": "A07",
+      "result": "Test passed"
+    },
+    {
+      "id": "A08",
+      "result": "Test passed"
+    }
+  ]
+}

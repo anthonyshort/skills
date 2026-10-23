@@ -12,6 +12,7 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 - Include a short code example directly in a finding when it makes the issue or alternative easier to understand. Prefer the smallest relevant excerpt from the reviewed revision. Label proposed code and omitted context. Do not invent an available helper or force an example for a simple nit.
 - Number bugs, required fixes, suggestions, design opportunities and nits in one sequence across the review. Do not restart at each category. Use those numbers in cross-references and related inline comments.
 - Start with `Review on {short commit hash}`. Keep the summary focused on what the author should do.
+- Mention material risk or a recommendation to split when it changes what the author should do. Explain the specific concern and useful boundary. Do not flag size alone or repeat the full risk assessment.
 - Put validation results, gaps and coverage inside one Verification fold. Its summary must expose the important result or limit without opening it. Keep a material blocker visible in the finding or summary too.
 - Keep notes with the verification overview before its nested coverage folds. Do not append a second notes section at the bottom.
 - Keep exact hashes, repeated skill paths, agent bookkeeping and long output in the saved report. The GitHub review should explain the results, not reproduce raw worker reports.

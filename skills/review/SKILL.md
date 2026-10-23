@@ -17,6 +17,7 @@ The output is a report that evaluates the change against a few different metrics
 - The change has simple, elegant, and consistent APIs.
 - The code is clear and easy to maintain.
 - The change works correctly.
+- The change has a clear scope, understood risks and a practical way to verify it.
 
 ## Rules
 
@@ -47,14 +48,41 @@ Create a named directory for review artefacts. Use the requested location, or de
 
 You will need to confirm the review scope and make sure you're reviewing all commits and not just the latest.
 
+#### Form an initial risk assessment
+
+Start with the diff size, then consider what the change does and where it runs.
+
+| Changed lines | Starting expectation |
+| --- | --- |
+| Under 100 | Usually straightforward to review. Check for sensitive behaviour. |
+| 100–499 | Needs closer investigation. Size alone rarely warrants splitting. |
+| 500–999 | Look actively for useful ways to split it. |
+| 1,000 or more | Strong preference for splitting unless keeping it together has a clear benefit. |
+
+Count additions and deletions across the full reviewed diff. Identify generated files, lockfiles, moves and mechanical changes separately so they do not hide the meaningful change.
+
+These are starting signals. A small data-loading change can be riskier than a large styling change. A large, tested implementation with no callers may have little immediate production impact. Typechecking supports a refactor's safety but does not establish that runtime behaviour is preserved.
+
+Consider:
+
+- **Understandability:** Can you quickly explain the scope and what might go wrong?
+- **Isolation:** Does the PR contain a small end-to-end change or a clearly explained group of low-risk changes? Look for several substantial changes that need different reasoning or verification.
+- **Complexity:** How many behaviours, owners and dependencies must be understood together? Look at difficult functions and files as well as the whole diff.
+- **Testability:** Can important behaviour be tested independently? Identify external dependencies and missing coverage that make verification difficult.
+- **Blast radius:** Which consumers and production paths could be affected? Consider the consequence of failure and how it could be detected and recovered from.
+- **Activation:** Is the new code already used? Check callers, imports, registration and side effects before treating it as inactive.
+
+Record the initial assessment and questions in the review artefact directory. Pass them to research and review agents. Revisit them as evidence arrives. Distinguish review effort from production impact. Do not use a numerical risk score.
+
 #### This step is complete when:
 - [ ] There is a local copy of the code being reviewed.
 - [ ] Confirm the review scope.
 - [ ] There is a temporary folder for review artefacts.
+- [ ] Diff size, distinct changes and initial risks are recorded.
 
 ### Step 2: Research
 
-Assign a subagent to gather the context needed for the review. Give it the repository, target and base revisions, full diff and any supplied links. Wait for research to finish before starting the review.
+Assign a subagent to gather the context needed for the review. Give it the repository, target and base revisions, full diff, initial risk assessment and any supplied links. Wait for research to finish before starting the review.
 
 #### Gather the context
 
@@ -72,6 +100,7 @@ Assign a subagent to gather the context needed for the review. Give it the repos
 
 #### Research guidance
 
+- **Investigate the initial risks:** Establish affected consumers, activation paths and relevant non-functional requirements, such as data integrity, performance and compatibility. Look for evidence that reduces or increases risk. Report missing requirements rather than inventing them.
 - Separate the intended behaviour, current behaviour and assumptions.
 - Use repository documents as context, not extra review criteria.
 - Check that older decisions still apply. One existing implementation does not establish the desired direction.
@@ -82,6 +111,7 @@ Assign a subagent to gather the context needed for the review. Give it the repos
 #### Verification checklist
 
 - [ ] **Scope and behaviour**: Read the full change and trace relevant callers and tests.
+- [ ] **Risk context**: Trace the main risks to affected paths and consumers. Identify relevant requirements, safeguards and unresolved questions.
 - [ ] **Intent and decisions**: Establish the user problem, expected behaviour and relevant decisions from sources.
 - [ ] **Existing concerns**: Read review discussion and distinguish active concerns from issues fixed at the reviewed head.
 - [ ] **Slack**: Search for the PR and its topics. Read relevant results or report unavailable access and incomplete coverage.
@@ -95,6 +125,7 @@ Return a **research brief** containing:
 
 - **Problem and intent**: The user task, expected outcome and relevant requirements.
 - **Current behaviour**: Affected owners, callers and consumers, with source locations.
+- **Risk context**: Evidence that updates the initial assessment, relevant non-functional requirements and remaining gaps.
 - **Decisions and direction**: Supported constraints, design decisions and relevant similar implementations. Separate adopted patterns from planned changes.
 - **Existing concerns and related work**: Active review concerns and overlapping PRs, with links and their relevance.
 - **Sources and search coverage**: What was read, Slack and Notion searches, related-PR search scope and checklist results.
@@ -206,7 +237,9 @@ Return a **system fit assessment** containing:
 
 #### Q: Is this the simplest solution?
 
-You should make sure this is the most minimal code needed to solve the problem. We ideally want PRs to be small and independent. If the PR is large (>500 LOC) we should consider splitting the PR.
+Assess whether the implementation and PR scope are reasonably small and easy to reason about. Use the risk assessment and research to decide whether simplifying or splitting would make the change easier to understand and verify.
+
+Size alone does not establish risk. Keep justified complexity and changes that are easier to review together.
 
 Some things to look for:
 
@@ -220,8 +253,10 @@ Some things to look for:
 - [ ] **Complexity assessment**: Count concepts, not just lines. Consider the responsibilities, abstractions and dependencies introduced by the change. Identify unnecessary complexity and explain its cost.
 - [ ] **Unused code**: Identify code and exports made obsolete by the change. Check consumers before recommending removal.
 - [ ] **Simplifications**: Propose concrete removals or substitutions, showing how they preserve the required behaviour.
-- [ ] **Scope assessment**: Recommend keeping the PR together or splitting it; where splitting helps, identify independently reviewable changes and their dependencies.
+- [ ] **Scope assessment**: Recommend keeping the PR together, simplifying it or splitting it. Explain how this affects understandability, isolation, complexity, testability and blast radius. Identify useful boundaries when splitting would help.
 - [ ] **Recommendation**: State whether the implementation is reasonably minimal, including any complexity justified by the requirements.
+
+Use [split-pr](../split-pr/SKILL.md) when a detailed slicing plan would help. During review, propose the plan without changing code or branches. Either a small end-to-end slice or a group of low-risk preparation changes can be a useful PR.
 
 ##### Deliverable
 
@@ -230,7 +265,7 @@ Return a **simplicity assessment** containing:
 1. **Verdict**: Reasonably minimal or simplification recommended, with a short rationale.
 2. **Proposed simplifications**: For each, identify the current code, the removal or substitution, the complexity removed and how required behaviour is preserved. Explicitly state when no supported simplifications were found.
 3. **Justified complexity**: Any complexity that should remain because of a concrete requirement or constraint.
-4. **PR scope**: Keep together or split, with a rationale. If splitting is recommended, name the independently reviewable changes, their dependencies and a viable order.
+4. **PR scope**: Keep together, simplify or split, with a rationale. If splitting is recommended, name the independently reviewable changes, their dependencies and a viable order.
 
 #### Q: Is this code clear and easy to maintain?
 
@@ -348,7 +383,7 @@ The parent agent combines the research report, all Step 3 assessments and the St
 2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Compare their generated checklists with the guidance they used. Follow up on missing checks or weak evidence. Note anything you could not verify.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
-5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough, is easy to maintain and works correctly. Say whether the PR should be split. Separate required fixes, suggestions and wider improvements.
+5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough, is easy to maintain and works correctly. Revisit the initial risks using the completed review. Explain the main failure modes, evidence that reduces risk and remaining verification gaps. Recommend keeping the PR together, simplifying it or splitting it. Separate required fixes, suggestions and wider improvements.
 6. **Write the report**: Use [the review report template](templates/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
 
 #### Deliverable
@@ -360,6 +395,7 @@ One completed `review-report.md` file saved in the review artefact directory. Fi
 - [ ] All review inputs are included or noted as missing.
 - [ ] Important claims have been checked. Duplicate findings are merged. Disagreements are resolved or recorded as open questions.
 - [ ] The report gives the parent's conclusions instead of joining worker reports together.
+- [ ] The initial risks have been revisited using the completed review. The scope recommendation is supported by evidence.
 - [ ] The report contains enough background and evidence to make sense on its own, including what was not verified.
 - [ ] Every selected check has a result. All template placeholders are filled in or removed with their optional sections.
 - [ ] The report is saved and its path is returned to the user.

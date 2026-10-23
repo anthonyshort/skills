@@ -27,6 +27,19 @@ Keep Valtio v1 store ownership, tracked reads, mutations, and subscription lifet
 - Keep state in a component when only that component needs it. Use a store when values are shared or needed outside React.
 - Keep stores with their feature. Split nested stores when different owners or subscription lifetimes justify it. Nesting alone is not a reason to split.
 
+Trace which object is mutated, subscribed to and passed to collaborators. Creating a proxy does not make writes through the original object reactive.
+
+```typescript
+const original = { count: 0 };
+const store = proxy(original);
+
+// Bad: this bypasses the proxy being observed.
+original.count += 1;
+
+// Good: mutate through the observed proxy instead.
+store.count += 1;
+```
+
 #### React consumption
 
 - Snapshots are read-only render views; write to the original proxy.
@@ -76,7 +89,7 @@ Keep a captured value when the action intentionally uses a historical snapshot. 
   useEffect(() => subscribe(cartStore, syncCart), [syncCart])
   ```
 
-- Use `ref()` for opaque external instances or large immutable payloads, never primitives.
+- Use `ref()` for opaque external instances or large immutable payloads, never primitives. Use it only when untracked internal changes are intentional. Before referencing a borrowed object, check which consumers need to observe its changes.
 
   ```typescript
   const store = proxy({ connection: ref(new EventTarget()) })

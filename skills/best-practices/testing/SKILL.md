@@ -25,6 +25,16 @@ Prove intended behaviour with focused, reliable tests. Choose tests that would c
 - **Justify React tests**: Name the interaction, permission, focus, recovery or lifecycle risk. Thin wrappers, styling and prop forwarding alone do not justify another component test. Keep existing useful tests.
 - **Avoid artificial coverage**: Type-only changes, barrel exports, generated code, trivial forwarding and formatting do not need tests solely because they changed. Test a consumer contract if it is at risk.
 - **Keep tests local**: Put `x.test.ts` beside `x.ts`. Use `x.test.tsx` when JSX is needed. Test factories beside the factory and behaviour beside its owner, even when construction uses a factory.
+- **Group distinct suites when useful**: A feature with several distinct suites can use a nearby `tests/` or `perf/` folder. Keep ordinary tests colocated by default. Avoid multiplying filename suffixes just to organise cases, and verify runner discovery before moving tests.
+
+```text
+feature/
+  calculate.ts
+  calculate.test.ts
+  perf/
+    calculate.bench.ts
+```
+
 - **Respect runner constraints**: Follow supported browser or integration test locations. Keep framework-discovered routes thin if their folders cannot contain tests. Do not change suffixes just to select a mock setup.
 - **Make review requests specific**: Name the unprotected behaviour and the cheapest useful test. Do not request a test for every React file or unrelated legacy coverage.
 

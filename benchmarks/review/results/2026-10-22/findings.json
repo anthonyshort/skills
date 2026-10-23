@@ -1,0 +1,560 @@
+[
+  {
+    "id": "A01",
+    "title": "Connect the retry action",
+    "repository": "/tmp/review-benchmark-inputs/A01",
+    "base": "75c3b5d7c72e95c689098f5cad2d1b8d49dce47d",
+    "head": "5d9cfdbeebdb335c3131a6f75872d6f6892eee69",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md"
+    ],
+    "verdict": "Changes required",
+    "findings": [
+      {
+        "title": "Preserve the retry method receiver",
+        "type": "bug",
+        "severity": "P1",
+        "location": "service.ts:6",
+        "trigger": "Invoke the registered callback as a plain function.",
+        "effect": "Retry throws a TypeError and does not increment the client retry count.",
+        "evidence": "Client.retry reads this.retries at line 3. connect passes the unbound method. Independent Node check throws: Cannot read properties of undefined (reading retries). SPEC.md:3 requires plain callback invocation.",
+        "recommendation": "Restore registerRetry(() => client.retry()). Keep the public retry method.",
+        "id": "A01-F1"
+      }
+    ],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:3,6. Retained plain call loses this."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test failed",
+        "evidence": "Retain callback, invoke plainly, assert retries=1. Fails with TypeError."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Inventory",
+        "result": "N/A",
+        "evidence": "No supplied test"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  },
+  {
+    "id": "A02",
+    "title": "Add a keyboard clear action",
+    "repository": "/tmp/review-benchmark-inputs/A02",
+    "base": "aa6a1beef4a424eb7c0257c3771c4ee7d31da832",
+    "head": "90a3efd824b719c8ed08385d1b9009165f80905e",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md"
+    ],
+    "verdict": "Changes required",
+    "findings": [
+      {
+        "title": "Close the cart when clearing from the keyboard",
+        "type": "bug",
+        "severity": "P1",
+        "location": "service.ts:6-8",
+        "trigger": "Clear an open cart using clearFromKeyboard.",
+        "effect": "Items are removed but the cart stays open, violating the shared clear operation.",
+        "evidence": "SPEC.md:3 requires both entry points to empty and close. Menu writes both fields at lines 3-4. Independent keyboard check returns isOpen:true.",
+        "recommendation": "Use one clear operation that empties itemIds and sets isOpen=false from both entry points.",
+        "id": "A02-F1"
+      }
+    ],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:2-8. Menu sets both fields. Keyboard only empties items."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test failed",
+        "evidence": "Run both entry points from an open nonempty cart. Keyboard leaves isOpen=true."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Inventory",
+        "result": "N/A",
+        "evidence": "No supplied test"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  },
+  {
+    "id": "A03",
+    "title": "Add a mean helper",
+    "repository": "/tmp/review-benchmark-inputs/A03",
+    "base": "fa17f51f3feb8d864a376881396b36221e52aefb",
+    "head": "607a44c792c352bfbb7609bb5a0c97e90172bea5",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md"
+    ],
+    "verdict": "Changes required",
+    "findings": [
+      {
+        "title": "Count every sample in the mean divisor",
+        "type": "bug",
+        "severity": "P1",
+        "location": "service.ts:6; service.test.ts:3",
+        "trigger": "Calculate the mean of duplicate samples such as [2,2,8].",
+        "effect": "Returns 6 instead of the arithmetic mean 4. The supplied test encodes the same incorrect result.",
+        "evidence": "SPEC.md:3 counts duplicates. Sum is 12 and sample count is 3. Independent assertion fails 6 !== 4 while supplied service.test.ts passes.",
+        "recommendation": "Divide by values.length after the empty guard. Correct the duplicate-case test expectation to 4.",
+        "id": "A03-F1"
+      }
+    ],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:1-7 and service.test.ts:3. Sum is preserved. Distinct divisor is incorrect."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test failed",
+        "evidence": "Check sum=12, empty mean=undefined, duplicate mean=4. Last assertion fails. Supplied test separately passes with incorrect expected6."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Node24.22.1 execution",
+        "result": "Test passed",
+        "evidence": "Assertions passed, but expected mean is incorrect"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  },
+  {
+    "id": "A04",
+    "title": "Add a counter action",
+    "repository": "/tmp/review-benchmark-inputs/A04",
+    "base": "3c5b95308924299d7e17537dcea6f6c605ab6326",
+    "head": "abd8f6d3ebdeebd00d69b3056fc6aad34709706c",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md"
+    ],
+    "verdict": "Changes required",
+    "findings": [
+      {
+        "title": "Mutate the proxy that counter consumers observe",
+        "type": "bug",
+        "severity": "P1",
+        "location": "service.ts:5",
+        "trigger": "Call increment while consumers subscribe to counter.",
+        "effect": "Observed count remains zero and subscribers receive no change notification.",
+        "evidence": "SPEC.md:3 identifies counter as observed Valtio proxy. Installed Valtio1.13.2 copies initial properties into a separate base object (esm/vanilla.mjs:135,190-200). Independent ESM check observes before:0, after:0, notifications:0.",
+        "recommendation": "Write counter.count += 1. Optionally initialise the proxy inline to remove the alternate write target.",
+        "id": "A04-F1"
+      }
+    ],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md",
+      "skills/best-practices/valtio/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:1-6. Proxy is exported but the original object is mutated."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test failed",
+        "evidence": "Subscribe synchronously using the same ESM Valtio instance. Increment, inspect count and notifications. Both remain0."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Inventory",
+        "result": "N/A",
+        "evidence": "No supplied test"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  },
+  {
+    "id": "A05",
+    "title": "Add a scoped watcher group",
+    "repository": "/tmp/review-benchmark-inputs/A05",
+    "base": "de2642117b13c78c2ab550d741bec740d9eb657f",
+    "head": "72ce7f6bc9813520dd4ed6be0a1bacdf2425fd7e",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md",
+      "skills/best-practices/typescript/references/performance-resources.md"
+    ],
+    "verdict": "No defects found within verified scope",
+    "findings": [],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md",
+      "skills/best-practices/error-handling/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:3-12. Ordered setup, rollback, reverse teardown and stopped guard match the contract."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test passed",
+        "evidence": "Check setup order, reverse teardown, repeated stop, B failure rollback and error identity, A failure prevents B. Passed."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Inventory",
+        "result": "N/A",
+        "evidence": "No supplied test"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  },
+  {
+    "id": "A06",
+    "title": "Parse a bounded selection",
+    "repository": "/tmp/review-benchmark-inputs/A06",
+    "base": "4096d2ad8634446153a96c7df897bff29f8c4453",
+    "head": "da55881746c5d95f7482bc1d9864d3e39dada1eb",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md",
+      "skills/best-practices/typescript/references/schemas-narrowing.md",
+      "skills/best-practices/typescript/references/bounds-conversions.md"
+    ],
+    "verdict": "No defects found within verified scope",
+    "findings": [],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:3-11. Object, array length and every element are checked. A new array is populated."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test passed",
+        "evidence": "Check null, missing ids, scalar ids, invalid elements, sparse array, lengths0/100/101 and output mutation isolation. Passed."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Inventory",
+        "result": "N/A",
+        "evidence": "No supplied test"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  },
+  {
+    "id": "A07",
+    "title": "Save the issued invoice total",
+    "repository": "/tmp/review-benchmark-inputs/A07",
+    "base": "01399ab86fd2ffe5611fc8184ab588efb27e58d1",
+    "head": "94d5d198af15d2a65e2c31cd1ddeedb46bc4726d",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md"
+    ],
+    "verdict": "No defects found within verified scope",
+    "findings": [],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:4-7. Each draft line is copied and saved total is calculated from the copies."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test passed",
+        "evidence": "Check total5 from amounts2/3, mutate draft amount and append line, confirm saved snapshot unchanged. Empty issue total0. Passed."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Inventory",
+        "result": "N/A",
+        "evidence": "No supplied test"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  },
+  {
+    "id": "A08",
+    "title": "Expose an authorised invoice reader",
+    "repository": "/tmp/review-benchmark-inputs/A08",
+    "base": "53d143346eaba0cb074388cd0d5cd5acfcfb58f3",
+    "head": "55f01d367c3b19f9dc5452ac579d01c33dccb7c7",
+    "referencesUsed": [
+      "skills/best-practices/typescript/references/api-design.md",
+      "skills/best-practices/typescript/references/organisation-comments.md",
+      "skills/best-practices/typescript/references/tooling-contracts.md"
+    ],
+    "verdict": "No defects found within verified scope",
+    "findings": [],
+    "skillsUsed": [
+      "skills/review/SKILL.md",
+      "skills/best-practices/typescript/SKILL.md",
+      "skills/best-practices/testing/SKILL.md",
+      "skills/best-practices/error-handling/SKILL.md"
+    ],
+    "checks": [
+      {
+        "check": "Complete pinned diff and SPEC",
+        "method": "Source inspection",
+        "result": "Source checked",
+        "evidence": "service.ts:5-7. Awaited authorisation precedes reader.get. No catch changes rejection reasons."
+      },
+      {
+        "check": "Independent SPEC probes",
+        "method": "Node24.22.1 execution",
+        "result": "Test passed",
+        "evidence": "Controlled pending authorisation prevents get. Success returns same invoice. Denial prevents get and preserves reason. Reader failure preserves reason. Passed."
+      },
+      {
+        "check": "Supplied test",
+        "method": "Inventory",
+        "result": "N/A",
+        "evidence": "No supplied test"
+      },
+      {
+        "check": "Formatter",
+        "method": "Tool inventory",
+        "result": "Blocked",
+        "evidence": "No script, local executable or PATH prettier"
+      },
+      {
+        "check": "Lint and typecheck",
+        "method": "Tool inventory",
+        "result": "Not run",
+        "evidence": "No configured tasks. Node execution strips types and does not typecheck."
+      },
+      {
+        "check": "External research",
+        "method": "Scope restriction",
+        "result": "N/A",
+        "evidence": "Self-contained fixtures. External services explicitly excluded"
+      }
+    ],
+    "limits": [
+      "No real application integration or concrete consumers beyond fixture source and A03 test.",
+      "Runtime probes exercise specified paths, not every JavaScript value.",
+      "No configured lint, formatter, typecheck or CI pipeline.",
+      "Shared research and worker context across eight independent targets."
+    ]
+  }
+]

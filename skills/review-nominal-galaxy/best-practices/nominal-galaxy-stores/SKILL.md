@@ -18,5 +18,9 @@ description: Use for Galaxy valtio-store effects, watch and derive APIs, scope d
 
 - Identify whether the affected consumer uses legacy or explicit history. An injected manager does not prove explicit history is active.
 - Preserve the whole-store proxy while legacy history requires it.
+- Distinguish durable user state from transient runtime state, such as request IDs, controllers, provider handles and readiness flags.
+- Under legacy whole-store history, use the current history-exclusion mechanism for transient fields. Verify the actual `noHistory` and `ref` behaviour before choosing one.
+- Do not use `ref` merely to exclude history if consumers still need reactive updates.
+- Distinguish permanently excluding a field from suppressing history for one system update. User edits may still need undo and redo.
 - Explicit history must register durable edited state and start its manager. `BaseStore.registerHistory` does nothing without an injected manager.
 - Verify undo and redo through the actual editing path.

@@ -1,0 +1,28 @@
+{
+  "seededBugsFound": 4,
+  "seededBugsTotal": 4,
+  "unsupportedDefectsOnControls": 0,
+  "controlCases": 4,
+  "validExceptionsRespected": 2,
+  "validExceptionCases": 2,
+  "ruleCount": 17,
+  "caseRuleDecisions": 136,
+  "ruleOutcomes": {
+    "Not applicable": 105,
+    "Satisfied": 27,
+    "Concern found": 4
+  },
+  "elapsedSeconds": 744.6,
+  "independentRuns": false,
+  "parentQA": [
+    "Reminder to retain finding IDs and visible counts/verification gaps.",
+    "Requested persistence of separate A04 notification diagnostic because shared probe exits at earlier assertion."
+  ],
+  "limitations": [
+    "Synthetic, deliberately small fixtures.",
+    "One batched workflow and shared worker context, not eight independent runs.",
+    "External research, browser, Galaxy wrapper and GitHub publication excluded.",
+    "Lint, typecheck, formatter and CI unavailable.",
+    "Single trial does not establish repeatability."
+  ]
+}

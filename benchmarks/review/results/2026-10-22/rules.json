@@ -1,0 +1,920 @@
+[
+  {
+    "name": "Avoid duplicate live state",
+    "file": "avoid-duplicate-live-state.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No calculated duplicate live value stored.",
+        "result": "Not applicable",
+        "evidence": "No calculated duplicate live value stored."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No calculated duplicate live value stored.",
+        "result": "Not applicable",
+        "evidence": "No calculated duplicate live value stored."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No calculated duplicate live value stored.",
+        "result": "Not applicable",
+        "evidence": "No calculated duplicate live value stored."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No calculated duplicate live value stored.",
+        "result": "Not applicable",
+        "evidence": "No calculated duplicate live value stored."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No calculated duplicate live value stored.",
+        "result": "Not applicable",
+        "evidence": "No calculated duplicate live value stored."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No calculated duplicate live value stored.",
+        "result": "Not applicable",
+        "evidence": "No calculated duplicate live value stored."
+      },
+      "A07": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Historical snapshot exception explicitly applies. SPEC:3; service:4-7; draft mutation probe passed."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No calculated duplicate live value stored.",
+        "result": "Not applicable",
+        "evidence": "No calculated duplicate live value stored."
+      }
+    }
+  },
+  {
+    "name": "Keep domain operations independent of UI",
+    "file": "keep-domain-operations-independent-of-ui.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names.",
+        "result": "Not applicable",
+        "evidence": "No mounted component, editor or UI dependency. A02 accepts domain Cart despite entry-point names."
+      }
+    }
+  },
+  {
+    "name": "Consistent cleanup contracts",
+    "file": "make-cleanup-contracts-consistent.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No changed resource cleanup contract.",
+        "result": "Not applicable",
+        "evidence": "No changed resource cleanup contract."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No changed resource cleanup contract.",
+        "result": "Not applicable",
+        "evidence": "No changed resource cleanup contract."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No changed resource cleanup contract.",
+        "result": "Not applicable",
+        "evidence": "No changed resource cleanup contract."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No changed resource cleanup contract.",
+        "result": "Not applicable",
+        "evidence": "No changed resource cleanup contract."
+      },
+      "A05": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Uniform Stop handles. Reverse disposal, rollback, repeat guard service:1-13; runtime passed. Nonthrowing cleanup explicit."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No changed resource cleanup contract.",
+        "result": "Not applicable",
+        "evidence": "No changed resource cleanup contract."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No changed resource cleanup contract.",
+        "result": "Not applicable",
+        "evidence": "No changed resource cleanup contract."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No changed resource cleanup contract.",
+        "result": "Not applicable",
+        "evidence": "No changed resource cleanup contract."
+      }
+    }
+  },
+  {
+    "name": "Remove unnecessary interaction steps",
+    "file": "remove-unnecessary-interaction-steps.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No new UI confirmation, selection or intermediate interaction.",
+        "result": "Not applicable",
+        "evidence": "No new UI confirmation, selection or intermediate interaction."
+      }
+    }
+  },
+  {
+    "name": "Make function calls clear",
+    "file": "make-function-calls-clear.md",
+    "cases": {
+      "A01": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      },
+      "A02": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      },
+      "A03": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      },
+      "A04": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      },
+      "A05": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      },
+      "A06": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      },
+      "A07": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      },
+      "A08": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Public function inputs/results use meaningful domain values; no fake flags, placeholders or configuration. Source checked service.ts. Semantic defects evaluated separately."
+      }
+    }
+  },
+  {
+    "name": "Simplify HTTP calls",
+    "file": "simplify-http-calls.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No HTTP calls or envelopes.",
+        "result": "Not applicable",
+        "evidence": "No HTTP calls or envelopes."
+      }
+    }
+  },
+  {
+    "name": "Migrate callers in small steps",
+    "file": "migrate-callers-in-small-steps.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "SPEC:5 establishes no adopted replacement or migration.",
+        "result": "Not applicable",
+        "evidence": "SPEC:5 establishes no adopted replacement or migration."
+      }
+    }
+  },
+  {
+    "name": "Remove wrappers without value",
+    "file": "remove-wrappers-that-add-no-value.md",
+    "cases": {
+      "A01": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Concern found",
+        "evidence": "Removed closure preserved receiver; service:3,6 plain callback throws. Restore closure."
+      },
+      "A02": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Clear operation owns domain state."
+      },
+      "A03": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Mean adds calculation."
+      },
+      "A04": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Action owns count mutation."
+      },
+      "A05": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Group owns lifecycle and rollback."
+      },
+      "A06": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Parser owns validation and copy."
+      },
+      "A07": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Issue owns historical conversion."
+      },
+      "A08": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Access-enforcement exception: wrapper awaits authorisation. SPEC:3; service:5-7; gate probe passed."
+      }
+    }
+  },
+  {
+    "name": "Use registries for real extensions",
+    "file": "use-registries-for-real-extensions.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No registry, plugin mechanism or dynamic lookup.",
+        "result": "Not applicable",
+        "evidence": "No registry, plugin mechanism or dynamic lookup."
+      }
+    }
+  },
+  {
+    "name": "Await required operations",
+    "file": "await-required-operations.md",
+    "cases": {
+      "A01": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Synchronous retry has no async completion to await. Receiver defect separate."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No dependent event or callback operation.",
+        "result": "Not applicable",
+        "evidence": "No dependent event or callback operation."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No dependent event or callback operation.",
+        "result": "Not applicable",
+        "evidence": "No dependent event or callback operation."
+      },
+      "A04": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Concern found",
+        "evidence": "Required observed publication bypassed by original-object mutation service:5. Source plus count0/notification0 diagnostic."
+      },
+      "A05": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Synchronous setup/cleanup order service:3-12; runtime passed."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No dependent event or callback operation.",
+        "result": "Not applicable",
+        "evidence": "No dependent event or callback operation."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No dependent event or callback operation.",
+        "result": "Not applicable",
+        "evidence": "No dependent event or callback operation."
+      },
+      "A08": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Authorisation awaited before retrieval service:5-7; controlled gate and rejection probes passed."
+      }
+    }
+  },
+  {
+    "name": "Extract decisions only when useful",
+    "file": "extract-decisions-only-when-useful.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No relevant decision/effect split or fragmented policy helper.",
+        "result": "Not applicable",
+        "evidence": "No relevant decision/effect split or fragmented policy helper."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No relevant decision/effect split or fragmented policy helper.",
+        "result": "Not applicable",
+        "evidence": "No relevant decision/effect split or fragmented policy helper."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No relevant decision/effect split or fragmented policy helper.",
+        "result": "Not applicable",
+        "evidence": "No relevant decision/effect split or fragmented policy helper."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No relevant decision/effect split or fragmented policy helper.",
+        "result": "Not applicable",
+        "evidence": "No relevant decision/effect split or fragmented policy helper."
+      },
+      "A05": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Stopped decision stays with disposal owner service:9-10."
+      },
+      "A06": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Local validation is cohesive service:3-11; no independent consumer."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No relevant decision/effect split or fragmented policy helper.",
+        "result": "Not applicable",
+        "evidence": "No relevant decision/effect split or fragmented policy helper."
+      },
+      "A08": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Access decision stays at effect boundary service:5-7."
+      }
+    }
+  },
+  {
+    "name": "Keep shared code independent",
+    "file": "keep-shared-code-independent.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No shared-to-feature dependency or cross-module move. A04 imports framework only.",
+        "result": "Not applicable",
+        "evidence": "No shared-to-feature dependency or cross-module move. A04 imports framework only."
+      }
+    }
+  },
+  {
+    "name": "Compatible API changes",
+    "file": "keep-api-changes-compatible.md",
+    "cases": {
+      "A01": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Concern found",
+        "evidence": "Plain registration contract broken by detached method service:6; SPEC:3 and runtime TypeError."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "New API without modified existing supported consumer contract.",
+        "result": "Not applicable",
+        "evidence": "New API without modified existing supported consumer contract."
+      },
+      "A03": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Existing sum unchanged and probe returns12. New mean defect separate."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "New API without modified existing supported consumer contract.",
+        "result": "Not applicable",
+        "evidence": "New API without modified existing supported consumer contract."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "New API without modified existing supported consumer contract.",
+        "result": "Not applicable",
+        "evidence": "New API without modified existing supported consumer contract."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "New API without modified existing supported consumer contract.",
+        "result": "Not applicable",
+        "evidence": "New API without modified existing supported consumer contract."
+      },
+      "A07": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Added invoice output intentional. No supplied construction callers need migration."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "New API without modified existing supported consumer contract.",
+        "result": "Not applicable",
+        "evidence": "New API without modified existing supported consumer contract."
+      }
+    }
+  },
+  {
+    "name": "Check retries for repeated effects",
+    "file": "check-retries-for-repeated-effects.md",
+    "cases": {
+      "A01": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Increment per invocation intentional. No external duplicate effect or idempotency requirement."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access.",
+        "result": "Not applicable",
+        "evidence": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access.",
+        "result": "Not applicable",
+        "evidence": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access.",
+        "result": "Not applicable",
+        "evidence": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access."
+      },
+      "A05": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Satisfied",
+        "evidence": "Repeated disposal explicit; stopped guard service:9-10 and runtime verified."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access.",
+        "result": "Not applicable",
+        "evidence": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access.",
+        "result": "Not applicable",
+        "evidence": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access.",
+        "result": "Not applicable",
+        "evidence": "No realistic duplicated effect requiring idempotency. Pure calculations, harmless clear, intentional count action, snapshot construction or read-only access."
+      }
+    }
+  },
+  {
+    "name": "Bind query values",
+    "file": "bind-query-values.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No database query construction.",
+        "result": "Not applicable",
+        "evidence": "No database query construction."
+      }
+    }
+  },
+  {
+    "name": "Bound file access",
+    "file": "keep-file-access-within-allowed-paths.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      },
+      "A02": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No file access or external paths.",
+        "result": "Not applicable",
+        "evidence": "No file access or external paths."
+      }
+    }
+  },
+  {
+    "name": "Shared state rules in shared actions",
+    "file": "keep-shared-state-rules-in-shared-actions.md",
+    "cases": {
+      "A01": {
+        "selection": "Skipped",
+        "reason": "No several interactions coordinating the same related-state invariant. A04 is one count action.",
+        "result": "Not applicable",
+        "evidence": "No several interactions coordinating the same related-state invariant. A04 is one count action."
+      },
+      "A02": {
+        "selection": "Selected",
+        "reason": "Changed behaviour meets the rule screening scope",
+        "result": "Concern found",
+        "evidence": "SPEC:3 requires both entry points to empty and close. service:2-8 keyboard omits closing, runtime reproduced. Share complete action."
+      },
+      "A03": {
+        "selection": "Skipped",
+        "reason": "No several interactions coordinating the same related-state invariant. A04 is one count action.",
+        "result": "Not applicable",
+        "evidence": "No several interactions coordinating the same related-state invariant. A04 is one count action."
+      },
+      "A04": {
+        "selection": "Skipped",
+        "reason": "No several interactions coordinating the same related-state invariant. A04 is one count action.",
+        "result": "Not applicable",
+        "evidence": "No several interactions coordinating the same related-state invariant. A04 is one count action."
+      },
+      "A05": {
+        "selection": "Skipped",
+        "reason": "No several interactions coordinating the same related-state invariant. A04 is one count action.",
+        "result": "Not applicable",
+        "evidence": "No several interactions coordinating the same related-state invariant. A04 is one count action."
+      },
+      "A06": {
+        "selection": "Skipped",
+        "reason": "No several interactions coordinating the same related-state invariant. A04 is one count action.",
+        "result": "Not applicable",
+        "evidence": "No several interactions coordinating the same related-state invariant. A04 is one count action."
+      },
+      "A07": {
+        "selection": "Skipped",
+        "reason": "No several interactions coordinating the same related-state invariant. A04 is one count action.",
+        "result": "Not applicable",
+        "evidence": "No several interactions coordinating the same related-state invariant. A04 is one count action."
+      },
+      "A08": {
+        "selection": "Skipped",
+        "reason": "No several interactions coordinating the same related-state invariant. A04 is one count action.",
+        "result": "Not applicable",
+        "evidence": "No several interactions coordinating the same related-state invariant. A04 is one count action."
+      }
+    }
+  }
+]

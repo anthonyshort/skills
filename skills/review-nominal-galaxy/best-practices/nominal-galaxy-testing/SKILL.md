@@ -21,7 +21,7 @@ description: Use for Galaxy store and domain-client test setup, reactive schedul
 
 ## Discovery and execution
 
-- Keep ordinary tests beside the implementation with `.test.ts` or `.test.tsx`.
+- Keep ordinary tests beside the implementation with `.test.ts` or `.test.tsx`. When a feature needs several distinct suites, a nearby `tests/` or `perf/` folder is fine. Avoid multiplying filename suffixes and verify discovery in the active runner.
 - Do not put tests in non-API Next.js `pages/` folders. Move testable logic and adjacent tests into `client/`.
 - Check the active Vitest project's inclusion and exclusion patterns. Dedicated browser or bundled projects may differ.
 - Distinguish exact-head local results from CI evidence. Use focused Bazel targets through `./bazelw` according to the current repository setup.

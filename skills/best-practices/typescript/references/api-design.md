@@ -138,6 +138,20 @@ class InvoiceClient {
 
 Update callers and fixtures instead of hiding missing dependencies with casts. Model genuinely optional capabilities explicitly or expose a narrower interface.
 
+## Preserve method receivers in callbacks
+
+When passing a method as a callback, check whether it uses `this`. Preserve its receiver through the existing binding convention.
+
+```typescript
+// Bad when save relies on this and is not already bound.
+onSave(client.save);
+
+// Good: preserves the receiver.
+onSave(() => client.save());
+```
+
+An already-bound method or arrow property can be passed directly. Preserve callback arguments and return values when wrapping methods that need them.
+
 ## Judge the API through real usage
 
 - **Clear calls**: Avoid fake values, confusing flags and unnecessary bookkeeping.

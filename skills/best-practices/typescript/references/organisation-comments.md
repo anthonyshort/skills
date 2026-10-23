@@ -22,6 +22,16 @@
   ```
 
 - Explain constraints and unexpected behaviour without describing obvious code.
+- Use short, direct wording. Remove prompt/plan narration, change-history commentary and text that only restates the code. Preserve useful existing comments.
+
+```typescript
+// Bad: narrates the implementation task.
+// Per the migration plan, we now handle stale selections here.
+
+// Good: explains the constraint.
+// Another client may have deleted the selected panel.
+```
+
 - Document complex algorithms with multi-line JSDoc explaining their invariants and flow. Add an ASCII illustration for very complex algorithms.
 - Use `//` comments for non-obvious phases, ordering constraints or state transitions that the code does not reveal. Name the actual constraint; function length alone does not require comments.
 - Treat formatting as non-blocking unless project instructions require it.

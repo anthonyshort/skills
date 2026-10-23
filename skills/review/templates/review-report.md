@@ -6,7 +6,7 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 
 ## Assessment
 
-{{ Give a short recommendation and explain why. State the number of new bugs and already reported concerns. Highlight blocked or missing execution checks. Say whether the PR should stay together or be split. }}
+{{ Give a short recommendation and explain why. State the number of new bugs and already reported concerns. Highlight blocked or missing execution checks. Say whether the PR should stay together, be simplified or be split. }}
 
 | Area | Conclusion and key evidence |
 | --- | --- |
@@ -15,6 +15,17 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 | Design | {{ Is it reasonably simple and are its APIs clear? }} |
 | Readability | {{ Are names, placement, comments and code clear? }} |
 | Correctness | {{ What works, what fails and what remains unverified? }} |
+
+### Risk and scope
+
+{{ Briefly explain the main risks and whether the PR should stay together, be simplified or be split. Distinguish review effort from production impact. }}
+
+- **Size and scope:** {{ Additions and deletions across the reviewed diff, distinct changes and mechanical or generated portions. }}
+- **Exposure:** {{ Active paths, affected consumers and blast radius. Explain when code is not yet used. }}
+- **Verification:** {{ Evidence that reduces risk, important gaps and relevant non-functional requirements. }}
+- **Recommendation:** {{ Keep together, simplify or split, with a concrete reason. If splitting helps, describe useful boundaries and dependencies. }}
+
+{{ Keep this short for straightforward changes. Do not repeat findings or assign a numerical risk score. }}
 
 ## Findings
 
