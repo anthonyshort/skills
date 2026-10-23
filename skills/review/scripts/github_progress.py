@@ -12,7 +12,6 @@ import uuid
 
 
 MAX_BODY = 60_000
-SIGNATURE = "<sub>Sent with Pi</sub>"
 
 
 class Github:
@@ -122,17 +121,18 @@ def inline_comments(path):
         if item["id"] in ids or type(item["line"]) is not int or item["line"] < 1 or item["side"] not in ("LEFT", "RIGHT"):
             raise ValueError("Inline IDs must be unique, lines positive integers and sides LEFT or RIGHT.")
         ids.add(item["id"])
-        checked_size(f"**{item['id']}**\n\n{item['body'].rstrip()}\n\n{SIGNATURE}")
+        checked_size(f"**{item['id']}**\n\n{item['body'].rstrip()}")
     return items
 
 
 def render(state, title, note="", summary="", report=""):
     link = f"https://github.com/{state['repo']}/commit/{state['head']}"
-    body = f"{title} [{state['head'][:7]}]({link})\n\n## Status\n\n{state['checklist'].rstrip()}\n"
+    body = f"🤖 {title} [{state['head'][:7]}]({link})\n\n---\n\n### Status\n\n{state['checklist'].rstrip()}\n"
     if note:
         body += f"\n{note}\n"
+    body += "\n---\n"
     if summary:
-        body += f"\n{summary.rstrip()}\n"
+        body += f"\n### Result\n\n{summary.rstrip()}\n\n---\n"
     if report:
         body += f"\n<details>\n<summary>Full report</summary>\n\n{report}\n\n</details>\n"
     return body
@@ -151,7 +151,7 @@ class Publisher:
 
     def comment(self, key, body):
         tag = marker(self.state, key)
-        body = checked_size(f"{body.rstrip()}\n\n{tag}\n\n{SIGNATURE}")
+        body = checked_size(f"{body.rstrip()}\n\n{tag}")
         found = self.state["comments"].get(key)
         if not found:
             matches = [item for item in self.api.list(self.issue) if tag in (item.get("body") or "")]
@@ -194,9 +194,9 @@ class Publisher:
                 raise ValueError("An unrelated pending review exists. Leave it intact and resolve publication explicitly.")
             comments = [{key: item[key] for key in ("path", "line", "side", "body")} for item in items]
             for item, comment in zip(items, comments):
-                comment["body"] = f"**{item['id']}**\n\n{comment['body'].rstrip()}\n\n{SIGNATURE}"
+                comment["body"] = f"**{item['id']}**\n\n{comment['body'].rstrip()}"
             review = self.api.api("POST", f"{self.pull}/reviews", {
-                "commit_id": self.state["head"], "event": "COMMENT", "body": f"Verified inline findings.\n\n{tag}\n\n{SIGNATURE}",
+                "commit_id": self.state["head"], "event": "COMMENT", "body": f"Verified inline findings.\n\n{tag}",
                 "comments": comments,
             })
         self.state["inline_review"] = {"id": review["id"], "html_url": review["html_url"]}

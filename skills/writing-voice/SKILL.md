@@ -40,7 +40,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - [ ] **Unresolved findings** - State what still needs checking.
 - [ ] **Supported judgement** - Approve, agree, or defer only when the assessment supports it.
 - [ ] **Own-work notes** - Use brief factual wording.
-- [ ] **GitHub review attribution** - End each review comment, reply and review body with one blank line followed by `<sub>Sent with Pi</sub>`, once at the bottom.
+- [ ] **GitHub review attribution** - Use `🤖 Reviewed {commit}` for the review header. Do not append attribution footers to review bodies, comments or replies.
 
 **Drafting boundary**
 
@@ -92,18 +92,10 @@ Explain the problem before naming the mechanism. Keep the same facts and certain
 | Preparatory read failures enter the uncertain-mutation path. | This can fail before anything is copied, but the error says a draft might have been created. Can we handle that read separately? |
 | The scope requires independent verification boundaries. | Please split this into smaller PRs. Chart editing and template publishing need different checks and can be reviewed separately. |
 
-For GitHub review comments, review replies and review bodies, append exactly one blank line and this footer, once at the bottom. This attribution does not apply to other messages or emails.
-
-```html
-<sub>Sent with Pi</sub>
-```
-
 Example review comment:
 
 ```markdown
 Can we keep the existing panel here? Replacing it resets the editor and drops any unsaved typing.
-
-<sub>Sent with Pi</sub>
 ```
 
 ### Drafting boundary

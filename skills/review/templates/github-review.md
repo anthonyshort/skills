@@ -13,7 +13,8 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 - Use tables only for short comparisons or results. Do not put paragraphs in cells.
 - Include a short code example directly in a finding when it makes the issue or alternative easier to understand. Prefer the smallest relevant excerpt from the reviewed revision. Label proposed code and omitted context. Do not invent an available helper or force an example for a simple nit.
 - Number bugs, required fixes, suggestions, design opportunities and nits in one sequence across the review. Do not restart at each category. Use those numbers in cross-references and related inline comments.
-- Start with `Review on {short commit hash}`. Keep the summary focused on what the author should do.
+- Start with `🤖 Reviewed {short commit hash}`. Keep the summary focused on what the author should do.
+- A clean-review summary can stop at “No new bugs found at this commit. No further changes requested.” Omit resolved-concern recaps, routine verification gaps and descriptions of the report or folds. Mention a verification gap in the summary only when it changes the recommendation or requires a concrete action. Missing verification alone is not a prioritised defect.
 - For a split-only review, lead with the request to split and a short plan. Say the full review is deferred. Omit bug and rule coverage sections rather than pretending they were checked.
 - Put review limits and coverage inside one Verification fold. Its summary must expose the important result or limit without opening it. Keep a material blocker visible in the finding or summary too.
 - Keep notes with the verification overview before its nested coverage folds. Do not append a second notes section at the bottom.
@@ -23,7 +24,7 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 ## Review body
 
 ```markdown
-**Review on `{{ short reviewed commit hash }}`**
+**🤖 Reviewed `{{ short reviewed commit hash }}`**
 
 ## Summary
 
@@ -79,8 +80,6 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 {{ Nest category folds and the one combined rules fold here using the formats below. Leave blank lines around nested blocks and after summary tags so Markdown renders. }}
 
 </details>
-
-<sub>Sent with Pi</sub>
 ```
 
 ## Category coverage
@@ -146,14 +145,14 @@ Name the method used to check each rule. Keep CI status in the saved report. Omi
 - Link an existing thread instead of creating another inline comment for the same concern. State when no new inline comments are needed.
 - Keep findings without valid anchors in the body. Preserve uncertainty and include evidence in inline comments too.
 - Use the finding's shared number when referring between body and inline comments. Do not force a priority prefix.
-- End the review body and every inline comment with one blank line followed by `<sub>Sent with Pi</sub>`.
+- Use the robot emoji in the reviewed-commit header. Do not add attribution footers to the body, inline comments or replies.
 
 ## Short worked example
 
 This illustrates structure, not evidence to copy into another review. A full review includes the verification table, gaps and nested category/rule coverage.
 
 ```markdown
-**Review on `22c8651`**
+**🤖 Reviewed `22c8651`**
 
 ## Summary
 
@@ -184,6 +183,4 @@ This is optional and PR-scoped. A small extraction with regression coverage for 
 Include results, scope notes and nested category/rule folds here.
 
 </details>
-
-<sub>Sent with Pi</sub>
 ```

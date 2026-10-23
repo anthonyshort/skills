@@ -433,6 +433,6 @@ For PR reviews, publish by default unless the user requested local-only or stage
 
 Re-read current threads and the diff. Publish verified new bugs inline where valid anchors exist, using the report's finding IDs. Link existing concerns instead of duplicating them. Keep findings without suitable anchors in the summary. Submit automatic inline findings together as a COMMENT review. Leave unrelated pending reviews alone.
 
-Use the helper to retain the checklist, publish the final summary and embed the canonical report. Edit prose before resorting to linked continuation comments for oversized reports. Keep CI details inside the full report, out of the short summary and inline comments. Return the comment URL, report path and any incomplete publication.
+Use the helper to retain the checklist, publish the final summary and embed the canonical report. Follow the comment template's action-focused summary guidance. Edit prose before resorting to linked continuation comments for oversized reports. Keep CI details inside the full report, out of the short summary and inline comments. Return the comment URL, report path and any incomplete publication.
 
 If the user separately requests staging or submitting a formal review, use [the GitHub review template](templates/github-review.md) and the requested status. Reuse published findings rather than duplicating inline comments. Staging leaves the review pending. Submit APPROVE or REQUEST_CHANGES only when explicitly requested.
