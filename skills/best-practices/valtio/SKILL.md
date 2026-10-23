@@ -13,8 +13,6 @@ Keep Valtio v1 store ownership, tracked reads, mutations, and subscription lifet
 
 ### Ownership and React reads
 
-Apply these rules to the standard Valtio v1 API. Follow applicable project conventions for internal store frameworks; do not assume their event or computed APIs are standard Valtio.
-
 #### Ownership
 
 - Define the initial proxy shape at its domain owner.
