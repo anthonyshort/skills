@@ -2,7 +2,7 @@
 
 Personal agent skills for Codex, Pi and Claude Code. The initial collection contains
 15 code-quality skills and `writing-voice`, extracted from `anthonyshort/pi-config`,
-plus the `galaxy-review` profile migrated from pi-config.
+plus the `review-nominal-galaxy` profile migrated from pi-config.
 
 ## Layout
 
@@ -77,25 +77,21 @@ Claude Code need their own discovery links or `npx skills` installation.
 The source is now this repository. On the original workstation, pi-config retains
 compatibility symlinks at `home/.pi/agent/skills/code-quality` and
 `home/.pi/agent/skills/writing-voice` and
-`home/.pi/agent/skills/galaxy/galaxy-review`. They keep existing personal profiles and
-review-bot paths working; clone this repository alongside pi-config to retain them.
+`home/.pi/agent/skills/galaxy/galaxy-review`. These legacy links live outside this checkout. The old Galaxy link needs updating
+to `skills/review-nominal-galaxy` after this rename.
 The original uncommitted `review/SKILL.md` edits were preserved during extraction.
 Cross-skill links use relative paths across the grouped layout. Galaxy profile delegation uses the resolved
 skill path so the profile can be installed outside the original home directory.
 
-## Work-review profile
+## Galaxy review
 
-`galaxy-review` retains the complete technical references and personal preferences
-from pi-config. Its cross-skill links use this repository's layout. The old
-`~/.pi/agent/skills/galaxy/galaxy-review` path is a compatibility symlink to
-`skills/galaxy-review` here, so the review bot and local agents use the same source.
-Edit this checkout to update the skills; do not maintain a second copy in pi-config.
+`review-nominal-galaxy` runs the main review workflow with Galaxy-specific skills
+and rules. It uses the main report templates and submits comments only when
+requested. Approval remains a human decision.
 
-Local edits, including uncommitted edits, are visible through the symlinks without
-reinstalling. New sessions read the updated files; reload an existing agent session
-if it has already loaded the old instructions. Remote GitHub changes require a
-`git pull` in this checkout. Restart the automation bot after sandbox configuration
-changes; ordinary skill text edits do not need a bot restart.
+Galaxy guidance lives under `skills/review-nominal-galaxy/`. The old
+`skills/galaxy-review` path has been removed. Re-run the linking script when adding
+skills, and update external consumers that still use the old path.
 
 ## Format and installation references
 
