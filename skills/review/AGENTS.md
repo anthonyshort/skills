@@ -29,7 +29,9 @@ A pattern match is not automatically a defect. Require a supported consequence o
 
 - Store report formats in `templates/`, not `assets/`.
 - Let templates define report sections. Avoid repeating their full field lists in the main skill.
-- The saved report leads with an assessment and findings table. GitHub reviews use a short summary, numbered findings and outcome-labelled coverage folds. Keep detailed audit data in the saved report.
+- The saved report leads with an assessment and findings table. GitHub reviews start with the reviewed commit, an action-focused summary and numbered findings in short prose. Nest outcome-labelled coverage folds inside one Verification fold. Keep detailed audit data in the saved report.
+- Use short inline code examples when they clarify findings or design alternatives. Pin current excerpts to the reviewed revision and label proposed code.
+- Prefer inline comments for new bugs with valid current diff anchors. Summarise them in the body with the same finding number. Link existing threads instead of duplicating them.
 - Identify new findings versus existing PR concerns. Keep required fixes, suggestions, design opportunities and nits distinct.
 - Preserve every generated check with guidance references, method, result and evidence or a reason it was not verified.
 - Keep the final report self-contained. Source links supplement the explanation.

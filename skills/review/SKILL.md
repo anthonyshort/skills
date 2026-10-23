@@ -372,13 +372,14 @@ Run this step only when the user requests staging or publishing a review on the 
 
 - Use the final report as the source of findings.
 - Keep existing pending comments and avoid duplicates.
+- Put new, line-specific bugs in inline comments when they have valid current diff anchors. Summarise them in the review body and reference the same finding number. Link existing threads instead of adding duplicate comments. Keep bugs without valid anchors in the body.
 - Staging leaves the review pending. Submit only when requested. Use the requested review status. Ask if the submission status is still unclear.
 
 #### Prepare and publish the review
 
 1. **Check the PR**: Read the current head, diff, review threads and any pending review. If the code has changed, check that the findings still apply.
 2. **Draft the review**: Fill in [the GitHub review template](templates/github-review.md). Use [writing-voice](../writing-voice/SKILL.md) for the body and inline comments. Apply any supplied profile's GitHub layout.
-3. **Check the formatting**: Check sentence case, continuous finding numbers, accurate coverage totals and the distinction between source inspection and executed checks. Remove repeated audit data and raw worker prose using the template's guidance.
+3. **Check the formatting**: Check the reviewed-commit header, action-focused summary, sentence case, continuous finding numbers and accurate coverage totals. Keep verification and coverage in the nested fold. Distinguish source inspection from executed checks. Check that code examples give enough context, match the reviewed revision or are labelled as proposals. Remove repeated audit data and raw worker prose using the template's guidance.
 4. **Stage or submit**: Recheck the head and comments before writing. Update stale findings or anchors, then take the requested action. If an action partly fails, check what was saved before retrying.
 5. **Return the result**: Return the review link and say whether the review is pending or submitted. Report any action that failed or remains incomplete.
 

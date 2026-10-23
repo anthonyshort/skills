@@ -6,68 +6,57 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 
 - Use normal sentence case. Capitalise sentence starts and “I”.
 - Keep the tone conversational and direct. Avoid chat shorthand and forced casual wording.
-- Use short paragraphs for conclusions and labelled lists for triggers, effects, actions and limits.
+- Use action-led finding titles and short explanatory paragraphs. Explain the problem and requested change naturally. Do not force findings into Trigger/Effect/Action fields. Use lists only for separate points.
 - Do not join clauses with semicolons.
 - Use tables only for short comparisons or results. Do not put paragraphs in cells.
+- Include a short code example directly in a finding when it makes the issue or alternative easier to understand. Prefer the smallest relevant excerpt from the reviewed revision. Label proposed code and omitted context. Do not invent an available helper or force an example for a simple nit.
 - Number bugs, required fixes, suggestions, design opportunities and nits in one sequence across the review. Do not restart at each category. Use those numbers in cross-references and related inline comments.
-- Put scope notes and important limits in the summary. Do not append a second notes section after the coverage folds.
+- Start with `Review on {short commit hash}`. Keep the summary focused on what the author should do.
+- Put validation results, gaps and coverage inside one Verification fold. Its summary must expose the important result or limit without opening it. Keep a material blocker visible in the finding or summary too.
+- Keep notes with the verification overview before its nested coverage folds. Do not append a second notes section at the bottom.
 - Keep exact hashes, repeated skill paths, agent bookkeeping and long output in the saved report. The GitHub review should explain the results, not reproduce raw worker reports.
 
 ## Review body
 
 ```markdown
+**Review on `{{ short reviewed commit hash }}`**
+
 ## Summary
 
-{{ One or two sentences on whether the change meets its goal and the main recommendation. }}
+- **{{ finding number }}. {{ Action }}:** {{ Short description. Mark optional work and link existing concerns. }}
 
-- **Needs attention:** {{ Numbered findings that matter, distinguishing new concerns from existing threads. Say when no new supported bugs were found. }}
-- **Validation:** {{ Important executed results. }}
-- **Not verified:** {{ Behaviour that remains unchecked and why it matters. }}
-- **Review scope:** {{ Best-practice skills used and rules checked/skipped. Include relevant research or process limits here. }}
+{{ State when no new supported bugs were found. Keep this summary about actions, not review mechanics. }}
 
 ## Required fixes
 
-### {{ next number }}. {{ Short title }}
+### {{ next number }}. {{ Action-led title }}
 
-**{{ Priority }} · {{ New or Already reported with thread link }}**
+{{ Explain what goes wrong and ask for the correction in one short paragraph. Include priority and whether the concern is new or already reported where useful. Link the existing thread. }}
 
-{{ Direct request or short explanation. }}
-
-- **Trigger:** {{ Conditions that expose the issue. }}
-- **Effect:** {{ Observable consequence. }}
-- **Action:** {{ Concrete correction. }}
-- **Evidence:** {{ Short trace, reproduction or check result with pinned source links. }}
-- **Limit:** {{ Important uncertainty, if any. }}
+{{ Show a short inline code excerpt when it clarifies the problem. Identify its source at the reviewed revision. Follow with the consequence, pinned source link and any important uncertainty. Keep longer evidence folded. }}
 
 ## Bugs
 
-{{ Use the same numbered finding format. Do not repeat bugs listed in Required fixes. }}
+{{ Use the same numbered, paragraph-based format. Do not repeat bugs listed in Required fixes. }}
 
 ## Suggestions
 
-{{ Use the next finding number and a short labelled list. Keep optional changes clearly optional. }}
+{{ Continue the numbering. Explain each optional recommendation and its concrete benefit in short prose. }}
 
 ## Design opportunities
 
-### {{ next number }}. {{ Short title }}
+### {{ next number }}. {{ Action-led title }}
 
-**Optional · {{ PR-scoped improvement or broader opportunity }} · {{ New or existing discussion link }}**
+{{ Propose the alternative and explain what becomes simpler. Clearly label optional PR-scoped improvements or broader opportunities. Link existing discussion. }}
 
-{{ Proposed direction as a short question or recommendation. }}
-
-- **Benefit:** {{ Current friction and complexity removed. }}
-- **Preserve:** {{ Behaviour and caller contracts that must stay intact. }}
-- **First step:** {{ Small feasible action. }}
-- **Cost:** {{ Affected consumers, migration work and regression coverage. }}
-- **Evidence:** {{ Source links or related finding number. }}
-
-{{ Show short before-and-after caller code when proposing an API change. }}
+{{ Show the current code or a clearly labelled proposed alternative when that makes the opportunity concrete. Briefly explain the behaviour to preserve, affected consumers, migration cost and a practical first step. Use short paragraphs or lists when several distinct points need comparison. Show before-and-after caller code for API proposals. }}
 
 ## Nits
 
-{{ Continue the numbering. Use short bullets for optional aesthetic suggestions. }}
+{{ Continue the numbering. Use short prose or bullets for optional aesthetic suggestions. }}
 
-## Verification
+<details>
+<summary>Verification — {{ most important executed result }} · {{ important gap or failure }}</summary>
 
 | Check | Result |
 | --- | --- |
@@ -77,16 +66,23 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 | Review rules | {{ Number checked, outcomes and number skipped across all collections }} |
 | Generated checks | {{ Total, with research/review/rule breakdown when recorded }} |
 
-## Review coverage
+**Gaps and scope notes:**
 
-{{ Add category folds and one combined rules fold using the formats below. }}
+- {{ Important unverified behaviour, missing sources and bounded searches. }}
+- {{ Distinguish source inspection from runtime verification. Include relevant process exceptions concisely. }}
+
+### Review coverage
+
+{{ Nest category folds and the one combined rules fold here using the formats below. Leave blank lines around nested blocks and after summary tags so Markdown renders. }}
+
+</details>
 
 <sub>Sent with Pi</sub>
 ```
 
 ## Category coverage
 
-Use one fold per review category, such as Research, Product, System fit, Simplicity, Readability and Correctness.
+Nest one fold per review category inside Verification, such as Research, Product, System fit, Simplicity, Readability and Correctness.
 
 - Put actual outcome totals in each summary. The denominator includes all items in the category.
 - Use “satisfied” for checks supported by evidence. Reserve “tests passed” for executed tests.
@@ -113,7 +109,7 @@ Use one fold per review category, such as Research, Product, System fit, Simplic
 
 ## Rule coverage
 
-Use one fold for all rule collections, including repository-specific rules. List every rule once, with its outcome and concise evidence or skip reason. Do not add separate folds for each rule or repeat its full assessment.
+Use one fold inside Verification for all rule collections, including repository-specific rules. List every rule once, with its outcome and concise evidence or skip reason. Do not add separate folds for each rule or repeat its full assessment.
 
 When several subchecks are summarised under one rule, retain the material conclusions and limits. Rule totals count rules, not subchecks. Generated-check totals may include subchecks, but make that distinction clear.
 
@@ -141,47 +137,50 @@ Use the actual method if a rule was verified through tests or manual checks. Omi
 ## Evidence and inline comments
 
 - Back findings with pinned source links, short traces, reproduction steps, test results or screenshots where available.
-- Keep the issue, impact and action visible. Use a nearby evidence fold only when the evidence is too long for a short list.
+- Keep the issue, impact and action clear in the finding paragraph. Use a nearby evidence fold only when a short explanation and source links are insufficient.
 - Use GitHub-accessible links or include the relevant excerpt. Do not require the author to open local artefacts.
-- Post new inline comments only on relevant current diff lines. Link existing threads instead of duplicating them.
+- Put new, line-specific bugs inline when a valid current diff anchor exists. Include the problem, consequence, requested correction and concise evidence. Summarise the finding in the body with the same number.
+- Link an existing thread instead of creating another inline comment for the same concern. State when no new inline comments are needed.
 - Keep findings without valid anchors in the body. Preserve uncertainty and include evidence in inline comments too.
 - Use the finding's shared number when referring between body and inline comments. Do not force a priority prefix.
 - End the review body and every inline comment with one blank line followed by `<sub>Sent with Pi</sub>`.
 
 ## Short worked example
 
-This illustrates structure, not evidence to copy into another review. A full review also includes the verification table and coverage folds.
+This illustrates structure, not evidence to copy into another review. A full review includes the verification table, gaps and nested category/rule coverage.
 
 ```markdown
+**Review on `22c8651`**
+
 ## Summary
 
-The optional grid fits the reports index. I'd keep this PR together.
+- **1. Fix hover access:** The card link blocks title and timestamp tooltips. Already reported.
+- **2. Optional cleanup:** Share duplicated Table and Grid bindings.
 
-- **Needs attention:** No new bugs found. Item 1 is already reported. Item 2 is optional.
-- **Validation:** Local UI and Scout checks passed.
-- **Not verified:** Browser interactions and visual changes.
+No new bugs found.
 
 ## Bugs
 
-### 1. Card overlay blocks hover information
+### 1. Keep title and timestamp tooltips reachable
 
-**P2 · Already reported**
+The full-card link sits above the title and timestamp, so hovering them hits the link instead. Can we adjust the hit regions while preserving native navigation and menu access?
 
-Can we keep the title and timestamp reachable beneath the card link?
-
-- **Effect:** The overlay intercepts their pointer events.
-- **Action:** Adjust hit regions while preserving native navigation.
-- **Evidence:** The absolute link sits above the title and content.
-- **Limit:** Source inspection, not a browser reproduction.
+This confirms the existing P2 concern through source inspection. It has not been reproduced in a browser. Include pinned source and discussion links here.
 
 ## Design opportunities
 
-### 2. Share Table and Grid bindings
+### 2. Share the common Table and Grid bindings
 
-**Optional · PR-scoped**
+Could the filter callbacks and empty-state bindings have one owner inside `createTable`? This would remove duplicated wiring without changing the caller API.
 
-- **Benefit:** Removes duplicated filter and empty-state wiring.
-- **Preserve:** Existing caller APIs and behaviour.
-- **First step:** Extract common bindings and check both renderers.
-- **Cost:** Changes to two renderers and regression coverage.
+This is optional and PR-scoped. A small extraction with regression coverage for both renderers would be enough.
+
+<details>
+<summary>Verification — local checks passed · browser interactions not verified</summary>
+
+Include results, scope notes and nested category/rule folds here.
+
+</details>
+
+<sub>Sent with Pi</sub>
 ```
