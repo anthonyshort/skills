@@ -1,9 +1,10 @@
 # Review rules
 
-Use this index to select rules for Step 4 of the review skill. One subagent works through the rules one at a time and returns evidence or a skip reason for every rule. These rules describe trade-offs, not automatic reasons to request changes. Check the evidence and exceptions.
+Use this index to select rules for Step 4 of the review skill. One subagent works through the rules one at a time and returns evidence or a skip reason for every rule. Check the evidence and exceptions. Apply any explicit blocking policies in the rules.
 
 | Rule | When to check |
 | --- | --- |
+| [Fix the code instead of disabling lint checks](fix-code-instead-of-disabling-lint.md) | Changed code is covered by a lint suppression, or the change weakens lint configuration or coverage. |
 | [Avoid storing values that can be calculated](avoid-duplicate-live-state.md) | The change stores a value calculated from other changing state. |
 | [Keep shared operations independent of mounted UI](keep-domain-operations-independent-of-ui.md) | A shared operation requires a component, editor or UI object. |
 | [Use consistent cleanup contracts for similar resources](make-cleanup-contracts-consistent.md) | Callers manage resources with different cleanup shapes. |
