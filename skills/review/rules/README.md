@@ -1,6 +1,6 @@
 # Review rules
 
-Use this index to select rules for Step 4 of the review skill. Assign each relevant rule to its own subagent. These rules describe trade-offs, not automatic reasons to request changes. Check the evidence and exceptions.
+Use this index to select rules for Step 4 of the review skill. One subagent works through the rules one at a time and returns evidence or a skip reason for every rule. These rules describe trade-offs, not automatic reasons to request changes. Check the evidence and exceptions.
 
 | Rule | When to check |
 | --- | --- |

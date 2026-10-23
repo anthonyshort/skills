@@ -289,45 +289,42 @@ Return a **correctness assessment** containing:
 
 ### Step 4: Check review rules
 
-Use a separate subagent to check each relevant rule against the change. This gives each agent one focused task.
+Use one subagent to work through the rules one at a time. Reuse its context across the whole pass, including any repository-specific rule collections.
 
-#### Select the rules
+#### Assign the rule pass
 
-Read [the rule index](rules/README.md) and select rules that apply to the change. Record every rule as selected or skipped, with a reason. Keep the selection decision separate from the check result.
+Give the subagent:
 
-#### Assign the checks
+- [The rule index](rules/README.md) and any additional rule indexes supplied by a wrapper.
+- The repository location, base and head revisions, and full diff.
+- The completed research brief and relevant context gathered by the parent.
+- Relevant requirements, decisions, sources and operational constraints.
 
-Give each subagent:
+#### Work through the rules
 
-- The rule file.
-- The repository location, base and head revisions, and diff.
-- Relevant context and operational constraints.
-- Any requirements or decisions needed to judge that rule, with sources. Do not include the full research report unless needed.
+1. **Read the indexes**: Account for every listed rule across the supplied collections.
+2. **Check relevance**: Use the selection criteria to decide whether each rule applies. Record skipped rules with a reason.
+3. **Check one rule at a time**: Read the full applicable rule, including its examples and exceptions. Inspect the diff, surrounding code and callers as needed. Record the result and evidence before moving on.
+4. **Return the assessment**: Include every rule. Mark missing evidence as not verified rather than skipping a relevant rule. Reuse evidence where rules overlap, but give each rule its own result.
 
-Run agents in batches within the available agent limit.
-
-#### Guidance for rule agents
-
-- **Start with the diff**: Read surrounding code, callers and similar implementations when needed to check the rule.
-- **Check the exceptions**: A matching code pattern does not automatically mean there is a problem.
-- **Support the result**: Explain what you checked and cite the evidence.
-- **Report missing context**: If a requirement or decision could change the result, ask for it or mark the check as not verified.
+A matching pattern does not automatically mean there is a problem. If missing intent could change the result, ask for that context or record the limit.
 
 #### Deliverable
 
-Each subagent returns a **rule assessment** containing:
+Return one **rule assessment** with a row for every rule:
 
-- **Rule**: The rule name and file.
+- **Rule**: Name and file.
+- **Selection**: Selected or skipped, with a reason.
 - **Result**: Satisfied, concern found, not applicable or not verified.
-- **Evidence**: Code locations and the behaviour or relationships checked. State whether the evidence comes from source inspection, executed tests or manual checks.
-- **Finding**: The problem, its effect and a recommended change, if supported.
+- **Evidence**: Code locations and what was checked. Distinguish source inspection from executed tests or manual checks. For skipped rules, explain why the rule does not apply.
+- **Finding**: The problem, effect and recommended change, if supported.
 - **Limits**: Missing information or behaviour that could not be verified.
 
-The parent saves the assessments in the review artefact directory. Include their results in the final report alongside the broader code review assessments. Merge duplicate findings during consolidation.
+The parent saves the assessment in the review artefact directory. Check it against the supplied indexes for missing rules and follow up on weak evidence. Include the results in the final report and merge duplicate findings during consolidation.
 
 ### Step 5: Create the final review report
 
-The parent agent combines the research report, all Step 3 assessments and the Step 4 rule assessments into one final review report.
+The parent agent combines the research report, all Step 3 assessments and the Step 4 rule assessment into one final review report.
 
 #### Rules for a good report
 
@@ -347,7 +344,7 @@ The parent agent combines the research report, all Step 3 assessments and the St
 
 #### Create the report
 
-1. **Read the inputs**: Read the research report, every Step 3 assessment and every Step 4 rule assessment. Wait for agents that are still working. Note any failed or missing assessments.
+1. **Read the inputs**: Read the research report, every Step 3 assessment and the Step 4 rule assessment. Wait for agents that are still working. Note any failed or missing assessments.
 2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Compare their generated checklists with the guidance they used. Follow up on missing checks or weak evidence. Note anything you could not verify.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
@@ -381,8 +378,9 @@ Run this step only when the user requests staging or publishing a review on the 
 
 1. **Check the PR**: Read the current head, diff, review threads and any pending review. If the code has changed, check that the findings still apply.
 2. **Draft the review**: Fill in [the GitHub review template](templates/github-review.md). Use [writing-voice](../writing-voice/SKILL.md) for the body and inline comments. Apply any supplied profile's GitHub layout.
-3. **Stage or submit**: Recheck the head and comments before writing. Update stale findings or anchors, then take the requested action. If an action partly fails, check what was saved before retrying.
-4. **Return the result**: Return the review link and say whether the review is pending or submitted. Report any action that failed or remains incomplete.
+3. **Check the formatting**: Check sentence case, continuous finding numbers, accurate coverage totals and the distinction between source inspection and executed checks. Remove repeated audit data and raw worker prose using the template's guidance.
+4. **Stage or submit**: Recheck the head and comments before writing. Update stale findings or anchors, then take the requested action. If an action partly fails, check what was saved before retrying.
+5. **Return the result**: Return the review link and say whether the review is pending or submitted. Report any action that failed or remains incomplete.
 
 #### Deliverable
 

@@ -20,7 +20,8 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - [ ] **No filler** - Remove corporate phrasing, bot introductions, and praise.
 - [ ] **Useful detail** - Keep replies short; retain detail needed to understand or act.
 - [ ] **Plain English** - Use short sentences and familiar words; explain the user-visible effect before technical details.
-- [ ] **Casual wording** - Use lowercase naturally; do not force catchphrases.
+- [ ] **Sentence case** - Capitalise sentence starts and “I”. Keep the tone conversational without chat shorthand.
+- [ ] **Readable structure** - Use lists for multiple points, conditions or results. Do not join clauses with semicolons.
 - [ ] **Emoji** - Use sparingly when the conversation supports it.
 
 **Meaning and certainty**
@@ -35,7 +36,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - [ ] **Conversational voice** - Use a short, natural question or direct request with the concrete consequence; keep report detail in the report.
 - [ ] **Blocking findings** - State what needs to change and its consequence.
 - [ ] **Advisory findings** - Keep suggestions optional in tone.
-- [ ] **Optional nits** - Use lowercase nit only for non-blocking findings.
+- [ ] **Optional nits** - Use “Nit:” only for non-blocking findings.
 - [ ] **Unresolved findings** - State what still needs checking.
 - [ ] **Supported judgement** - Approve, agree, or defer only when the assessment supports it.
 - [ ] **Own-work notes** - Use brief factual wording.
@@ -52,7 +53,8 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - Lead with the concern and suggested direction. Remove setup or background that does not help the recipient act.
 - Use plain English and one idea per sentence. Name the action, its effect and the suggested fix. Prefer “reopen the panel” and “keeps the zoom” over “loader remount” and “retained view range”. Include identifiers or lifecycle terms only when the recipient needs them to locate or fix the problem; the inline anchor already identifies the code. Keep full technical evidence in the report.
 - Use detail to explain architectural consequences, concrete proposals, product wording, or necessary history; omit ceremonial introductions and praise.
-- Read the draft against the surrounding conversation for natural casual wording and lowercase.
+- Use normal sentence case, including sentence starts and “I”. Keep wording conversational without imitating chat shorthand.
+- Use lists for multiple points, conditions or results. Use separate sentences instead of semicolon joins.
 - Use familiar words such as “kill”, “a bit”, and “jank” only when they fit; do not force catchphrases.
 
 ### Meaning and certainty
@@ -64,16 +66,16 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 ### Review comments
 
-- Write like a conversation with the author: a short question or request, then the concrete consequence they need to understand. Use lowercase naturally. Keep evidence and priority in the saved report; retain enough impact and certainty in the comment to make the concern clear.
+- Write like a conversation with the author: a short question or request, then the concrete consequence they need to understand. Use normal sentence case. Keep evidence and priority in the saved report; retain enough impact and certainty in the comment to make the concern clear.
 - Skip bot introductions, attribution prefixes, checklist/report boilerplate and rule citations. Include a policy link only when the author needs it to act or understand the requirement.
 
 | Intent | Wording |
 | --- | --- |
 | Blocking | “needs to”, followed by the consequence |
-| Advisory | “wonder if”, “might be worth”, or a specific question |
-| Optional | Lowercase `nit` prefix |
+| Advisory | “I wonder if”, “It might be worth”, or a specific question |
+| Optional | `Nit:` prefix |
 | Unresolved | State what still needs checking |
-| Agreement | “same here” or “also this” in an existing thread |
+| Agreement | “Same here” or “Also this” in an existing thread |
 
 - For notes on your own work, focus on the factual outcome and omit conversational framing.
 
@@ -86,7 +88,7 @@ For GitHub review comments, review replies and review bodies, append exactly one
 Example review comment:
 
 ```markdown
-can we keep the existing panel here? replacing it resets the editor and drops any unsaved typing.
+Can we keep the existing panel here? Replacing it resets the editor and drops any unsaved typing.
 
 <sub>Sent with Pi</sub>
 ```

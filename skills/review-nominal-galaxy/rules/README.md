@@ -1,6 +1,6 @@
 # Galaxy review rules
 
-Select relevant rules alongside the main review rules. Verify current APIs and product intent before applying a rule. Assign each selected rule to its own subagent and record evidence and exceptions.
+Select relevant rules alongside the main review rules. Verify current APIs and product intent before applying a rule. Use the same rule-checking subagent for both collections. Work through rules one at a time and record evidence, exceptions or skip reasons.
 
 | Rule | When to check |
 | --- | --- |

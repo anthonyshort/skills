@@ -23,7 +23,7 @@ Include relevant skills from [best-practices](best-practices/) when selecting gu
 ## Step 4: Check review rules
 
 Include [Galaxy rules](rules/README.md) in rule selection.
-Check them through the main skill's rule-subagent process.
+Give both rule collections to the main skill's single rule-checking subagent.
 
 ## Step 5: Create the final report
 
