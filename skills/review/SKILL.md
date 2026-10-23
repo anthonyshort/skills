@@ -20,6 +20,10 @@ The output is a report that evaluates the change against a few different metrics
 
 ## Rules
 
+- Use this skill, its rules and relevant specialist skills as the review criteria. Do not add checks from repository review guides or style documents.
+- Use repository documents to understand intent, behaviour and architecture. Treat them as context, not additional review checklists.
+- Follow operational instructions needed to access the code and run checks, along with any instructions required by the agent environment.
+
 - Do not perform code changes.
 - Only mark checklist items done after verifying.
 - Explain any N/A or blocked checks.
@@ -39,7 +43,7 @@ The output is a report that evaluates the change against a few different metrics
 
 The review should be done on a local branch. If the branch doesn't exist locally you should clone the repo and branch into a new temporary folder and install dependencies.
 
-Create a temporary folder that can be used to store review and research artefacts in a named directory `~/.cache/pi/reviews/`.
+Create a named directory for review artefacts. Use the requested location, or default to `~/.cache/pi/reviews/`. If that location is not writable, use a temporary directory and report its path.
 
 You will need to confirm the review scope and make sure you're reviewing all commits and not just the latest.
 
@@ -50,18 +54,59 @@ You will need to confirm the review scope and make sure you're reviewing all com
 
 ### Step 2: Research
 
-You'll start by assigning a sub-agent to use the [code-research](../code-research/SKILL.md) skill. You need to wait for this agent to finish before continuing. This should be saved to a file in the temporary directory.
+Assign a subagent to gather the context needed for the review. Give it the repository, target and base revisions, full diff and any supplied links. Wait for research to finish before starting the review.
 
-You want to make sure you have a clear understanding of the problem being solved and intended behaviour of the change.
+#### Gather the context
 
-Read the final report and resolve review-critical information for correctness. This will help understand the non-functional requirements, intended design, and the problem that is being solved.
+1. **Read the change**: Read the full diff and PR description. Trace relevant callers and tests to understand current behaviour and affected consumers.
+2. **Read existing discussion**: Read PR comments and review threads. Follow relevant linked issues, documents and related changes. Note concerns already raised and whether they still apply to the reviewed head.
+3. **Search Slack and Notion**: Search both for the PR URL or number, title, feature names and important topics or identifiers from the change. Look for requirements, decisions, design discussions and ongoing work. Follow useful results rather than relying on search snippets. If either source is unavailable, report the gap and continue.
+4. **Check related PRs**: Look for open PRs and recently merged PRs that touch the same files or closely related code. Use the method below. Distinguish file overlap from a real conflict or shared design decision.
+5. **Write the brief**: Return the sourced context, checklist results and open questions. Stop when there is enough context to review the change, or explain which missing evidence prevents a conclusion. Avoid background that cannot affect the review.
+
+#### Find related changes
+
+- **Recently merged changes**: Start with the last 30 days of default-branch history for the changed paths, using `git log --since` with a path filter. Map relevant commits to PRs through merge or squash messages or GitHub's commit-to-PR lookup. Extend the period when an older decision matters.
+- **Open PRs**: Use GitHub to list open PRs and compare their changed file lists with the target. Git alone cannot reliably discover open PRs that have not been fetched. Follow related titles, owners or modules when file overlap misses the same work.
+- **Keep the search bounded**: Start with changed files and expand to nearby code only for a specific question. Report the time period, paths and PRs inspected. If volume or access prevents full coverage, state that limit instead of claiming no related work exists.
+
+#### Research guidance
+
+- Separate the intended behaviour, current behaviour and assumptions.
+- Use repository documents as context, not extra review criteria.
+- Check that older decisions still apply. One existing implementation does not establish the desired direction.
+- Treat search results, unread links and partly read documents as leads, not verified evidence.
+- Say what missing sources prevent you from concluding.
+- Keep research read-only. Do not edit records, message people or publish findings.
+
+#### Verification checklist
+
+- [ ] **Scope and behaviour**: Read the full change and trace relevant callers and tests.
+- [ ] **Intent and decisions**: Establish the user problem, expected behaviour and relevant decisions from sources.
+- [ ] **Existing concerns**: Read review discussion and distinguish active concerns from issues fixed at the reviewed head.
+- [ ] **Slack**: Search for the PR and its topics. Read relevant results or report unavailable access and incomplete coverage.
+- [ ] **Notion**: Search for the PR and its topics. Read relevant results or report unavailable access and incomplete coverage.
+- [ ] **Related changes**: Check open and recently merged PRs for relevant overlap. Record the search scope and any limits.
+- [ ] **Evidence and gaps**: Cite sources, label assumptions and identify unanswered questions that could change the review.
+
+#### Deliverable
+
+Return a **research brief** containing:
+
+- **Problem and intent**: The user task, expected outcome and relevant requirements.
+- **Current behaviour**: Affected owners, callers and consumers, with source locations.
+- **Decisions and direction**: Supported constraints, design decisions and relevant similar implementations. Separate adopted patterns from planned changes.
+- **Existing concerns and related work**: Active review concerns and overlapping PRs, with links and their relevance.
+- **Sources and search coverage**: What was read, Slack and Notion searches, related-PR search scope and checklist results.
+- **Open questions**: Assumptions, missing evidence and their effect on the review.
+
+The parent saves the returned brief to `<review artefact directory>/research.md`. Read-only agents do not need write access.
 
 #### This step is complete when:
-- [ ] **Research completed**: The subagent has completed the research report and written it to a file.
-- [ ] **Read research**: You have read the research report.
-- [ ] **Verify claims**: You have verified the claims in the research report and made any edits or corrections.
-- [ ] **Review scope**: Confirm the target and base; review all commits, not only the latest.
-- [ ] **Intent and consumers**: Establish the goal and affected consumers from sources.
+
+- [ ] The research brief is saved and the parent has read it.
+- [ ] The parent has checked important claims and corrected unsupported conclusions.
+- [ ] Missing context that could change the review is resolved or clearly recorded.
 
 ### Step 3: Code review
 
@@ -71,7 +116,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 
 #### Subagent best practices
 
-- **Give each agent a clear brief**: Include its question, review scope, research findings, relevant project instructions and exact guidance paths.
+- **Give each agent a clear brief**: Include its question, review scope, research findings, relevant context, operational constraints and exact guidance paths.
 - **Ask agents to use relevant skills**: Tell each subagent to look for and use available skills that would help with its task.
 - **Keep context focused**: Give agents what they need for their task. Report templates and writing voice belong to the parent.
 - **Use parallel work after research**: Once Step 2 is complete, independent review tasks can run together within the available agent limit.
@@ -161,6 +206,7 @@ Some things to look for:
 ##### Verification checklist
 
 - [ ] **Complexity assessment**: Count concepts, not just lines. Consider the responsibilities, abstractions and dependencies introduced by the change. Identify unnecessary complexity and explain its cost.
+- [ ] **Unused code**: Identify code and exports made obsolete by the change. Check consumers before recommending removal.
 - [ ] **Simplifications**: Propose concrete removals or substitutions, showing how they preserve the required behaviour.
 - [ ] **Scope assessment**: Recommend keeping the PR together or splitting it; where splitting helps, identify independently reviewable changes and their dependencies.
 - [ ] **Recommendation**: State whether the implementation is reasonably minimal, including any complexity justified by the requirements.
@@ -183,8 +229,8 @@ Review how easy the code is to read and navigate. Recommend changes that make pu
 - [ ] **Names**: Check that files, folders, functions and variables clearly describe their purpose.
 - [ ] **File organisation**: Check that files are placed intentionally and the folder hierarchy makes ownership clear. Avoid unnecessary nesting or fragmentation.
 - [ ] **Readability**: Look for confusing control flow, nesting and indirection. Can we split large blocks into smaller functions to make it easier to read and follow?
-- [ ] **Comments**: Check that comments explain intent or surprising behaviour and follow project conventions.
-- [ ] **Formatting**: Check consistency with the project's style and formatting rules.
+- [ ] **Comments**: Check that comments explain intent or surprising behaviour and follow the selected specialist skill guidance.
+- [ ] **Formatting**: Run the available formatter check. Avoid manual style findings already covered by automated checks.
 
 ##### Deliverable
 
@@ -235,7 +281,7 @@ Use a separate subagent to check each relevant rule against the change. This giv
 
 #### Select the rules
 
-Read [the rule index](rules/README.md) and select rules that apply to the change. Record why other rules do not apply.
+Read [the rule index](rules/README.md) and select rules that apply to the change. Record every rule as selected or skipped, with a reason. Keep the selection decision separate from the check result.
 
 #### Assign the checks
 
@@ -243,7 +289,7 @@ Give each subagent:
 
 - The rule file.
 - The repository location, base and head revisions, and diff.
-- Relevant project instructions.
+- Relevant context and operational constraints.
 - Any requirements or decisions needed to judge that rule, with sources. Do not include the full research report unless needed.
 
 Run agents in batches within the available agent limit.
@@ -261,7 +307,7 @@ Each subagent returns a **rule assessment** containing:
 
 - **Rule**: The rule name and file.
 - **Result**: Satisfied, concern found, not applicable or not verified.
-- **Evidence**: Code locations and the behaviour or relationships checked.
+- **Evidence**: Code locations and the behaviour or relationships checked. State whether the evidence comes from source inspection, executed tests or manual checks.
 - **Finding**: The problem, its effect and a recommended change, if supported.
 - **Limits**: Missing information or behaviour that could not be verified.
 
@@ -272,6 +318,11 @@ The parent saves the assessments in the review artefact directory. Include their
 The parent agent combines the research report, all Step 3 assessments and the Step 4 rule assessments into one final review report.
 
 #### Rules for a good report
+
+- **Use short sentences and lists**: Do not join clauses with semicolons. Use separate sentences for related thoughts and lists for multiple points, conditions or results.
+- Lead with a short assessment and findings table. Put detailed evidence and coverage in foldable sections.
+- Label findings as new or already reported. Link existing PR threads.
+- Separate source inspection from executed checks. State what passed, failed, was blocked or was not run.
 
 - The report must make sense without opening the worker reports.
 - Include the research, evidence and conclusions needed to understand the review.

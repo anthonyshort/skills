@@ -102,7 +102,6 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
   );
   ```
 
-- For ownership or extraction, load [architecture](../architecture-best-practices/SKILL.md).
 
 ### Rendering and recovery
 
@@ -183,5 +182,5 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 - Async transition actions depend on the React version. Transitions do not handle every kind of network loading; handle failures, cancellation, and races explicitly.
 
-- For measured rendering costs, load [performance](../performance-best-practices/SKILL.md).
+- For measured rendering costs, load [TypeScript performance guidance](../typescript-best-practices/SKILL.md#performance-and-resources).
 - For changed interactions, effect cleanup, or races, load [testing](../testing-best-practices/SKILL.md) and apply its coverage and layer-selection rules. Do not request a render test for every changed component. A store/client/helper test is preferable for domain logic; React tests need a specific interaction, DOM, wiring or lifecycle risk that remains uncovered at that layer.

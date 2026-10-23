@@ -2,11 +2,11 @@
 
 ## When to check
 
-A layer mostly forwards calls to another capability.
+A layer mostly forwards calls to another capability, or the change adds or modifies an abstraction.
 
 ## What to check
 
-Check whether the wrapper translates a real boundary or provides useful behaviour or isolation. Consider passing the existing capability directly when it does neither.
+Identify the complexity, invariant or useful boundary the abstraction handles. For wrappers, check whether they translate a real boundary or provide useful behaviour or isolation. Consider passing the existing capability directly when they do neither. Check callers and the whole design before recommending removal. Preserve required behaviour and isolation.
 
 ## Why it matters
 

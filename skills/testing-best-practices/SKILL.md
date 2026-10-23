@@ -7,158 +7,96 @@ description: Write, refactor, or review tests for changed behaviour, bug fixes, 
 
 ## Goal
 
-Show changed behaviour and relevant failure paths with focused, reliable tests.
+Prove intended behaviour with focused, reliable tests. Choose tests that would catch a real mistake.
 
-## Checklist
+## Verification checklist
 
-Track checks in task notes, not here. Mark done only after verifying; explain N/A and report blocked or unverified checks. Run independent checks in parallel where useful.
+Use the checks relevant to the change. Record evidence and explain skipped or blocked checks. Reading this list does not complete a check.
 
-**Coverage and test placement**
+- [ ] **Coverage**: Cover changed behaviour and the boundaries or failures it introduces. Reuse existing tests when they already catch the risk.
+- [ ] **Test layer**: Use the cheapest layer that can catch the regression without bypassing the behaviour.
+- [ ] **Placement**: Keep tests beside the code that owns the behaviour, subject to runner constraints.
+- [ ] **Correct expectations**: Verify the inputs and expected outputs independently of the implementation.
+- [ ] **Useful assertions**: Check that the test rejects both a no-op and plausible wrong results.
+- [ ] **Regression evidence**: Where practical, show that the test fails without the fix for the intended reason.
+- [ ] **Real behaviour**: Keep the behaviour under test real. Mock external effects at their boundary.
+- [ ] **Valid fixtures**: Check that fixtures and mocks represent the claimed case and do not supply the answer.
+- [ ] **Readable cases**: Keep the scenario, action and expected result clear. Avoid helpers and snapshots that hide the contract.
+- [ ] **Isolation and timing**: Reset shared state, release owned resources and control time or promises instead of sleeping.
+- [ ] **Integration risks**: Cover changed wiring and async paths that isolated tests cannot prove.
+- [ ] **Execution**: Run focused checks and report actual results. Keep import and setup costs proportionate.
 
-- [ ] **Store coverage** - Test new or changed store actions, derived state and lifecycle behaviour through their public contracts.
-- [ ] **Client coverage** - Test new or changed application-client operations and their observable results.
-- [ ] **Utility coverage** - Test new or changed utility logic directly, including relevant boundaries.
-- [ ] **Test layer** - Use the cheapest layer that can catch the regression without bypassing the behaviour.
-- [ ] **React test value** - Require a concrete interaction, wiring or lifecycle risk before requesting a React component test.
-- [ ] **Colocated tests** - Put x.test.ts beside x.ts, using x.test.tsx when the test needs JSX.
-- [ ] **Existing coverage** - Reuse tests that already prove the changed contract rather than add duplicate coverage.
+## Choose the right test
 
-**Behaviour and regression evidence**
+| Changed behaviour | What to exercise and assert |
+| --- | --- |
+| Store | Public actions, resulting state, derived values and domain effects. Check related-field invariants, repeated actions and cleanup when affected. |
+| Application client | The real public operation and the resource, content, state or error callers observe. Check request fields when they carry the contract. |
+| Utility | Calculations, conversions, filtering, ordering or validation with independently worked expected values. |
+| Schema or type guard | Relevant accepted and rejected inputs. |
+| Serializer | The output consumers receive. |
+| Component or hook | A concrete UI interaction, wiring or lifecycle risk that lower-layer tests cannot catch. |
+| Integration boundary | Behaviour across changed transport, persistence or cross-module wiring. |
 
-- [ ] **Expected results** - Derive expected values from requirements or domain contracts independently of the implementation.
-- [ ] **Observable results** - Assert behaviour, not implementation details alone.
-- [ ] **No-op implementations** - Check the test fails if the implementation does nothing.
-- [ ] **Regression evidence** - Where practical, show the test fails without the fix.
-- [ ] **Changed risks** - Choose failure and boundary cases from changed or introduced risks.
+- **Test the owning layer**: Prefer stores, clients and pure functions for domain logic. Add undo/redo, persistence or multi-store cases when the change depends on them.
+- **Justify React tests**: Name the interaction, permission, focus, recovery or lifecycle risk. Thin wrappers, styling and prop forwarding alone do not justify another component test. Keep existing useful tests.
+- **Avoid artificial coverage**: Type-only changes, barrel exports, generated code, trivial forwarding and formatting do not need tests solely because they changed. Test a consumer contract if it is at risk.
+- **Keep tests local**: Put `x.test.ts` beside `x.ts`. Use `x.test.tsx` when JSX is needed. Test factories beside the factory and behaviour beside its owner, even when construction uses a factory.
+- **Respect runner constraints**: Follow supported browser or integration test locations. Keep framework-discovered routes thin if their folders cannot contain tests. Do not change suffixes just to select a mock setup.
+- **Make review requests specific**: Name the unprotected behaviour and the cheapest useful test. Do not request a test for every React file or unrelated legacy coverage.
 
-**Test boundaries and fixtures**
+## Check that tests prove the right thing
 
-- [ ] **Input boundaries** - Test changed schemas and type guards with accepted and rejected inputs.
-- [ ] **Serialised results** - Check the observable output of changed serializers.
-- [ ] **External mocks** - Replace external effects at their boundary without replacing the domain behaviour being tested.
-- [ ] **Fixture validity** - Verify fixtures and mocks represent the claimed case without bypassing the behaviour under test.
-- [ ] **Query mocks** - Avoid fragile string matching of production queries.
-- [ ] **Mock isolation** - Keep mutable state separate between tests.
-- [ ] **Supported helpers** - Use them instead of private implementation details.
+- **Derive expectations independently**: Use requirements, domain rules or a small worked example. Current output, copied algorithms and other tests are not independent proof. Report unclear intent.
+- **Assert the result**: Calling an action is not enough. Check the observable state, value or effect. Avoid tests that only assign a plain field and read it back.
+- **Try a wrong implementation**: Could wrong filtering, ordering, arithmetic or state transitions still pass? A no-op check alone is not enough.
+- **Check regressions**: When practical, run the test without the fix and confirm it fails for the intended defect.
+- **Choose relevant cases**: Use empty, missing, duplicate, boundary or precision inputs when the changed contract makes them meaningful.
 
-**Readability and test cost**
+```typescript
+// Contract: the arithmetic mean of all supplied values.
+// Wrong: this expectation repeats a bug in the divisor.
+expect(average([2, 4, 9])).toBe(7.5);
 
-- [ ] **Case names** - Name the input or action and expected outcome.
-- [ ] **Local explanation** - Keep the important setup, action and assertions visible in each case.
-- [ ] **Small fixtures** - Use valid focused fixtures and helpers that do not hide the scenario.
-- [ ] **Independent assertions** - Assert concrete results without copying the implementation or broad incidental snapshots.
-- [ ] **Table cases** - Use parameterised cases only when they share the same behaviour and assertion structure.
-- [ ] **Controlled timing** - Use fake time or controlled promises rather than sleeps and enlarged timeouts.
-- [ ] **Import cost** - Keep pure tests independent of unrelated UI and heavy package imports.
+// Correct: sum 15, count 3, mean 5.
+expect(average([2, 4, 9])).toBe(5);
+```
 
-**Integration and asynchronous paths**
+Require expected failures. An assertion inside `.catch()` never runs if the promise resolves.
 
-- [ ] **Integration evidence** - Test changed boundaries that isolated tests cannot verify.
-- [ ] **Async failures** - Cover races, retries, timeouts, and disconnections introduced by the change.
-- [ ] **Project conventions** - Follow its framework, helpers, and test locations.
+```typescript
+// Weak: passes if readInvoice resolves.
+await readInvoice("missing").catch(error => {
+  expect(error).toBeInstanceOf(InvoiceNotFoundError);
+});
 
-## Guidance
+// Requires rejection. Use the equivalent in the project's test runner.
+await expect(readInvoice("missing")).rejects.toBeInstanceOf(InvoiceNotFoundError);
+```
 
-### Coverage and test placement
+## Set useful test boundaries
 
-- Stores, application-facing clients and utility functions are the default owners of behaviour tests. Require coverage for new or changed rules in these layers; their logic is normally straightforward to exercise without React. Cover a representative success case and the boundaries or failures introduced by the change. Existing tests can satisfy this requirement if they would catch the relevant mistake; a coverage percentage alone cannot.
-- For stores, call public actions and assert resulting state, derived values or published domain effects. Test invariants across related fields, repeated actions and cleanup when those paths change. Add undo/redo, persistence or multi-store cases when the changed behaviour depends on them. Do not write assignment-only tests that set a plain field and read it back.
-- For application-facing clients, exercise the real public operation and assert the resource, content, state or error callers observe. Include meaningful request fields where they carry the contract. Do not prove domain behaviour by mocking that same operation or merely checking which internal helper it calls.
-- Test utility calculations, conversions, filtering, ordering and validation directly with independently worked expected values. Select useful empty, missing, duplicate, boundary or precision cases from the contract. Type-only declarations, barrel exports, generated code, trivial forwarding and formatting-only changes do not require artificial new tests. Test the meaningful consumer contract instead when it is at risk.
-- Prefer stores, clients and pure functions over React rendering for domain logic. Add a component or hook test only when React-specific wiring, an important user interaction, permission gating, focus, recovery or lifecycle can break despite lower-layer tests. Name that risk. Thin wrappers, styling, prop forwarding and behaviour already guaranteed by a reused primitive do not justify another component test. Existing useful component tests remain valid; this is not a blanket request to delete them.
-- Put `x.test.ts` next to the `x.ts` that owns the tested behaviour; use `x.test.tsx` when JSX is needed. Construct the unit through a supported factory when appropriate without moving its behaviour tests away from its implementation. Keep factory-specific tests with the factory. Follow explicit runner constraints for dedicated browser or bundled integration tests and explain the exception; do not use a different suffix just for a different mock setup.
-- Follow scoped project requirements and report conflicts with supplied direction rather than silently inventing an exception. For framework-discovered route folders that cannot contain tests, move testable logic to a normal colocated module and keep the route thin.
-- In a review, name the specific unprotected behaviour and the cheapest useful test. Do not require a test for every React file or flag unrelated legacy coverage merely because the PR touches the package.
+- **Keep the claim real**: Do not mock the operation whose behaviour you claim to test. Keep domain collaborators real when they are part of that claim.
+- **Inject dependencies through supported APIs**: Use constructors, factories or providers. Avoid replacing modules or reaching into private implementation details.
+- **Mock external effects**: Use a boundary handler, such as the project's MSW setup, for network calls. Assert caller-visible results and meaningful wire fields rather than internal helper calls.
+- **Reuse test infrastructure**: Share the supported server and lifecycle. If none exists, configure one through the runner. Avoid duplicate interceptors. Keep unavoidable browser/runtime stand-ins in shared setup.
+- **Handle requests deliberately**: Reset per-case handlers and fail unexpected requests. Do not simulate a database with fragile matching of production query strings.
+- **Keep fixtures honest**: A mock must not bypass the branch being tested or manufacture the expected result. An in-memory collaborator can suit a unit test, but does not prove real transport, persistence or cross-store wiring.
+- **Use call counts selectively**: Assert them when frequency is itself part of the observable contract. Otherwise assert the result.
 
-### Behaviour and regression evidence
+## Keep cases readable and reliable
 
-- Review assertions as claims about intended behaviour. Independently derive expected values from requirements, domain rules, or a small worked example before comparing them with the implementation. Check changed expectations and snapshots against that source; agreement with current output, a copied algorithm, or another test is not proof of correctness. If intent is unclear, report it as unverified.
-- Try a plausible wrong result as well as a no-op: wrong filtering, ordering, arithmetic, or state transitions can still satisfy weak assertions. A passing regression test proves correctness only when its expectation is justified.
+- **Name the scenario and result**: Prefer “keeps zoom when equivalent bounds arrive” over “works”. One case should describe one behaviour. Several assertions may establish that result.
+- **Keep important details visible**: Show the branch-driving inputs, action and assertions in the case. Extract only repeated mechanical setup. Prefer explicit fixture overrides to boolean helper switches or giant shared fixtures.
+- **Choose assertions deliberately**: Prefer concrete expected fields. Use snapshots when the complete stable output matters and can be reviewed. Avoid broad UI or request snapshots that lock down incidental details.
+- **Use tables for one rule**: Parameterise cases with the same behaviour and assertion structure. Keep unrelated scenarios separate.
+- **Control async work**: Use controlled promises and scheduling APIs. Use fake clocks for timers. Await promise assertions. Do not hide flakiness with sleeps or larger timeouts.
+- **Clean up**: Reset mutable fixtures and handlers. Dispose stores and subscriptions owned by the test.
+- **Keep imports light**: Import the implementation directly. Avoid unrelated UI barrels in pure tests.
 
-  ```javascript
-  // Contract: arithmetic mean of every supplied value.
-  // Bad: a passing assertion can endorse the implementation's wrong divisor.
-  assert.equal(average([2, 4, 9]), 7.5);
+## Verify the change
 
-  // Good: independently worked expectation: sum 15, count 3, mean 5.
-  assert.equal(average([2, 4, 9]), 5);
-  ```
-
-- Identify the observable result each test should prove. Check whether assertions could pass without that behaviour; checking that setup ran does not prove the result.
-
-  **Avoid — exercising code without asserting the result**
-
-  ```javascript
-  import { test } from "node:test";
-  import { createCart } from "./cart.js";
-
-  test("adds an item", () => {
-    const cart = createCart();
-    cart.addItem("item-1");
-  });
-  ```
-
-  **Prefer — verifying the public result**
-
-  ```javascript
-  import { test } from "node:test";
-  import assert from "node:assert/strict";
-  import { createCart } from "./cart.js";
-
-  test("adds an item", () => {
-    const cart = createCart();
-    cart.addItem("item-1");
-    assert.deepEqual(cart.getItemIds(), ["item-1"]);
-  });
-  ```
-
-- For regressions, test the unfixed behaviour when practical; confirm the failure shows the intended defect.
-- Trace changed risks to the inputs and failure paths that exercise them. Prefer those cases over unrelated exhaustive coverage.
-
-  **Avoid — checking rejection only if it happens**
-
-  ```javascript
-  import { test } from "node:test";
-  import assert from "node:assert/strict";
-  import { readInvoice, InvoiceNotFoundError } from "./invoices.js";
-
-  test("rejects a missing invoice", async () => {
-    await readInvoice("missing").catch(error => {
-      assert.ok(error instanceof InvoiceNotFoundError);
-    });
-  });
-  ```
-
-  **Prefer — requiring the expected rejection**
-
-  ```javascript
-  import { test } from "node:test";
-  import assert from "node:assert/strict";
-  import { readInvoice, InvoiceNotFoundError } from "./invoices.js";
-
-  test("rejects a missing invoice", async () => {
-    await assert.rejects(() => readInvoice("missing"), InvoiceNotFoundError);
-  });
-  ```
-
-### Test boundaries and fixtures
-
-- Test changed schemas and type guards directly where they accept or reject values. For serializers, assert the output consumers observe.
-- Keep the unit and the domain collaborators whose behaviour is part of the claim real. Supply dependencies through supported constructors or providers rather than replacing modules. Fake a genuinely external effect at its boundary, matching the contract being tested. A controlled callback or clock can be supplied when it is part of the public API; assert internal call counts only when they are themselves an external observable contract.
-- For backend behaviour, use the real client/context with a network-boundary handler, such as the project’s MSW harness. Assert returned state/errors or the relevant wire field, not calls to a mocked internal API client. Reuse a project-owned server and its lifecycle when available. If the package has no shared MSW setup, establish one through the supported runner configuration rather than assume a helper exists or start a second interceptor beside an existing server. Reset per-case handlers and fail unexpected requests. A small in-memory collaborator is suitable for a pure unit test only if it preserves the relevant contract and the test does not claim to verify transport, persistence or cross-store wiring.
-- Verify fixtures represent the claimed inputs and preserve relevant boundary behaviour; do not have a mock supply the answer or bypass the logic the test claims to verify. Avoid simulating a database by parsing production query strings with fragile matching. Keep unavoidable browser/runtime stand-ins in the project’s shared setup rather than repeat module mocks per file.
-- Inspect fixture setup and cleanup for mutable state shared between tests. Use supported helpers so tests do not depend on private implementation details.
-
-### Readability and test cost
-
-- Use names that state the scenario and result, such as “keeps the zoom when equivalent bounds arrive”, rather than “works”. Keep arrange, act and assert easy to follow without compulsory comments for each phase. One test should express one coherent behaviour; several assertions can describe that result.
-- Keep the values driving the branch and the important assertions in the case. Extract repeated mechanical setup into small named fixtures or helpers, and use explicit overrides for the scenario. Avoid giant shared mutable fixtures, boolean helper switches and abstractions that hide which action ran or what is expected.
-- Use explicit expected fields or values for the contract. Use snapshots only for stable output whose complete structure matters and can be reviewed; avoid broad UI or whole-request snapshots that pin incidental details. Use table cases for the same rule with different inputs, not unrelated scenarios forced through one helper.
-- Control asynchronous completion with promises and scheduling APIs; control timers with the runner’s fake clock. Await assertions on promises. Do not make a flaky test pass with real sleeps or larger timeouts. Reset handlers and mutable fixtures between cases, and dispose stores or subscriptions owned by the test.
-- Keep pure modules and their tests light. Import the implementation directly rather than loading an unrelated UI package barrel. Run the focused test file when practical and record execution versus import/setup cost; do not rerun the whole repository to validate a small unit.
-
-### Integration and asynchronous paths
-
-- Trace changed wiring, persistence, and transport boundaries. Add integration coverage where isolated tests cannot demonstrate the required behaviour across them.
-- Exercise races, retries, timeouts, and disconnections when the patch introduces those paths; tie the expected outcome to the changed contract.
-- Read neighbouring tests and project instructions before selecting framework APIs, helpers, or test locations. The examples use Node's test runner; use equivalent assertions in the project's framework.
+- Read nearby tests and use the supported framework, helpers and runner setup. Report conflicts with supplied direction.
+- Exercise races, retries, timeouts and disconnections when the change introduces or alters those risks.
+- Run the focused test file where practical. Check import and setup cost separately when they dominate runtime.
+- Record what ran, what passed or failed and what remains unverified. Expand the run when changed boundaries or failures justify it.

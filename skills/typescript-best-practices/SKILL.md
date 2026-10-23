@@ -1,23 +1,27 @@
 ---
 name: typescript-best-practices
-description: Use when writing, refactoring, or reviewing TypeScript types, narrowing, schemas, async APIs, module boundaries, and file organisation.
+description: Use when writing, refactoring, or reviewing TypeScript API design, classes, interfaces, types, narrowing, schemas, async APIs, performance, resource lifetimes, module boundaries, and file organisation.
 ---
 
 # TypeScript best practices
 
 ## Goal
 
-Keep TypeScript contracts, construction, and validation explicit so incorrect wiring and invalid states are caught before runtime.
+Keep TypeScript contracts, construction, and validation explicit so incorrect wiring and invalid states are caught before runtime. Prevent performance and resource problems using evidence from real workloads.
 
 ## Checklist
 
 Track checks in task notes, not here. Mark done only after verifying; explain N/A and report blocked or unverified checks. Run independent checks in parallel where useful.
 
-**Contracts and construction**
+**API design and construction**
 
-- [ ] **Required dependencies** - Require dependencies needed by supported methods at construction.
-- [ ] **Caller dependencies** - Check production callers and fixtures supply required clients without masking casts.
-- [ ] **Optional capabilities** - Expose absent capabilities in the API or use a narrower client.
+- [ ] **Building blocks** - Prefer functions and plain objects where they keep the design simple.
+- [ ] **Composition** - Make dependencies explicit. Avoid inheritance that pulls in unrelated behaviour.
+- [ ] **Core logic** - Keep calculations and decisions independent of effects when useful.
+- [ ] **Public boundary** - Let the public API own internal wiring and keep coupling at the edges.
+- [ ] **Construction** - Require needed dependencies. Check callers and fixtures without masking casts. Model optional capabilities explicitly or expose a narrower interface.
+- [ ] **Caller experience** - Check real calls for clear inputs, useful results and understandable error, cancellation and cleanup obligations.
+- [ ] **Public surface** - Keep exports and configuration limited to demonstrated caller needs.
 - [ ] **Canonical types** - Search existing types before adding replacement models.
 - [ ] **Public returns** - Preserve return contracts and applicable declaration requirements.
 - [ ] **Type-only imports** - Follow module rules for type-only imports.
@@ -60,6 +64,25 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - [ ] **Algorithm documentation** - Explain complex algorithms in JSDoc; illustrate very complex ones.
 - [ ] **Function flow** - Explain non-obvious phases, ordering or state transitions not revealed by the code.
 
+**Performance and resources**
+
+- [ ] **Workload evidence** - Support performance claims with measurements or a concrete execution path and expected workload.
+- [ ] **Repeated work** - Establish frequency and cost, including expensive work repeated after success.
+- [ ] **Algorithm cost** - Compare work with input growth and identify unnecessary repeated scans.
+- [ ] **Array style** - Prefer `flatMap` over `filter().map()` when it expresses the same operation clearly. This is a style preference, not proof of better performance.
+- [ ] **Cache behaviour** - Preserve freshness, cancellation and failures when caching or batching.
+- [ ] **Bounded growth** - Trace how buffers, caches, queues and concurrent work grow and drain.
+- [ ] **Blocking work** - Identify synchronous work that causes meaningful event-loop delays.
+- [ ] **Task coordination** - Preserve ordering, failures and resource limits when parallelising.
+- [ ] **Owner cleanup** - Release timers, subscriptions and background work when their owner ends. Check expected shutdown.
+- [ ] **Polling changes** - Establish polling cost and preserve update and failure behaviour when replacing it.
+
+**Browser APIs and loading**
+
+- [ ] **Native APIs** - Check supported native APIs and existing dependencies before adding a library or build step.
+- [ ] **DOM safety** - Keep untrusted text out of markup APIs. Use established sanitisation when HTML is intentional.
+- [ ] **Loading costs** - Inspect bundle output and measure affected loading or interaction paths before making performance claims.
+
 **Verification**
 
 - [ ] **Typechecks** - Run applicable typechecks for changed construction sites and consumers.
@@ -68,7 +91,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 ## Guidance
 
-### Contracts and construction
+### API design and construction
 
 #### Tooling and contracts
 
@@ -79,27 +102,153 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 - Use `unknown` when a value's shape is deliberately unspecified.
 
-#### Required dependencies
+Design classes, functions and interfaces as if they belonged to a published package. Make them easy to use without knowing their internals.
 
-- Do not make required constructor inputs optional to preserve tests or ease migration, then throw for missing clients. Update callers and fixtures so typechecks catch missing wiring before deployment.
+Prefer functions and plain objects when they are enough. Classes are useful for state and lifecycle, but avoid deep inheritance hierarchies. Use composition and dependency injection to connect behaviour.
 
-  ```typescript
-  type InvoiceApi = {
-    getTotal(invoiceId: string): Promise<number>;
-  };
+#### Prefer composition over inheritance
 
-  class InvoiceClient {
-    constructor(private readonly invoices: InvoiceApi) {}
+Inject the capabilities an operation needs. Avoid inheriting a large implementation just to reuse one operation.
 
-    getTotal(invoiceId: string): Promise<number> {
-      return this.invoices.getTotal(invoiceId);
-    }
+**Avoid: inheriting unrelated capabilities**
+
+```typescript
+class InvoiceService extends ApplicationServices {
+  async getTotal(id: string): Promise<number> {
+    const invoice = await this.database.loadInvoice(id);
+    return calculateTotal(invoice.lines);
   }
+}
+```
 
-  const client = new InvoiceClient({ getTotal: async () => 100 });
-  ```
+**Prefer: require the specific capability**
 
-- Model genuinely optional capabilities in the public API or expose a narrower client.
+```typescript
+type LoadInvoice = (id: string) => Promise<Invoice>;
+
+function createInvoiceService(loadInvoice: LoadInvoice) {
+  return {
+    async getTotal(id: string): Promise<number> {
+      const invoice = await loadInvoice(id);
+      return calculateTotal(invoice.lines);
+    },
+  };
+}
+```
+
+A class with constructor injection is also fine. The goal is clear dependencies and a small responsibility.
+
+#### Keep core logic independent of effects
+
+Use pure functions for calculations and decisions when this makes them easier to understand, reuse or test. Keep network, storage and framework dependencies outside that core.
+
+**Avoid: requiring a service to perform a calculation**
+
+```typescript
+class InvoiceCalculator {
+  constructor(private readonly database: Database) {}
+
+  async calculateTotal(id: string): Promise<number> {
+    const invoice = await this.database.loadInvoice(id);
+    return invoice.lines.reduce((total, line) => total + line.amount, 0);
+  }
+}
+```
+
+**Prefer: calculate from values**
+
+```typescript
+function calculateTotal(lines: readonly Line[]): number {
+  return lines.reduce((total, line) => total + line.amount, 0);
+}
+
+async function getInvoiceTotal(
+  loadInvoice: LoadInvoice,
+  id: string,
+): Promise<number> {
+  const invoice = await loadInvoice(id);
+  return calculateTotal(invoice.lines);
+}
+```
+
+Do not extract every expression into a helper. Keep small operations together when splitting them adds more concepts than it removes.
+
+#### Own the wiring at the public boundary
+
+Compose internal dependencies inside an exported factory or class. Give callers a simple interface and expose only configuration they need.
+
+**Avoid: making every caller assemble the internals**
+
+```typescript
+const transport = new HttpTransport(fetch);
+const repository = new InvoiceRepository(transport);
+const calculator = new InvoiceCalculator();
+const service = new InvoiceService(repository, calculator);
+
+const total = await service.getTotal("invoice-42");
+```
+
+**Prefer: let the public API assemble them**
+
+```typescript
+const invoices = createInvoiceClient({ fetch });
+const total = await invoices.getTotal("invoice-42");
+```
+
+The factory can connect the internal pieces:
+
+```typescript
+export function createInvoiceClient(options: { fetch: typeof fetch }) {
+  const loadInvoice = createInvoiceLoader(options.fetch);
+
+  return {
+    getTotal: (id: string) => getInvoiceTotal(loadInvoice, id),
+  };
+}
+```
+
+Keep dependencies flowing inward. Core functions should not import the public wrapper or know about its transport.
+
+#### Make construction safe
+
+Require dependencies needed by supported operations. Do not allow incomplete objects that fail later when used.
+
+**Avoid: optional dependencies that are actually required**
+
+```typescript
+class InvoiceClient {
+  constructor(private readonly api?: InvoiceApi) {}
+
+  getTotal(id: string): Promise<number> {
+    if (!this.api) throw new Error("Missing invoice API");
+    return this.api.getTotal(id);
+  }
+}
+```
+
+**Prefer: catch missing wiring during typechecking**
+
+```typescript
+class InvoiceClient {
+  constructor(private readonly api: InvoiceApi) {}
+
+  getTotal(id: string): Promise<number> {
+    return this.api.getTotal(id);
+  }
+}
+```
+
+Update callers and fixtures instead of hiding missing dependencies with casts. Model genuinely optional capabilities explicitly or expose a narrower interface.
+
+#### Judge the API through real usage
+
+- **Clear calls**: Avoid fake values, confusing flags and unnecessary bookkeeping.
+- **Useful results**: Return values callers can use without unpacking implementation details.
+- **Clear obligations**: Make errors, async completion, cancellation and cleanup understandable.
+- **Small surface**: Keep internal helpers private. Add configuration or extension points only for demonstrated needs.
+- **Concrete comparisons**: Show before-and-after caller code when proposing an API change.
+
+Use the published-package test to judge usability. It does not require package infrastructure, builders, registries or versioning.
 
 ### Type models
 
@@ -179,7 +328,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
     : typeof error === "string" ? error : "Internal error";
   ```
 
-- For boundary protection and resource limits, load [security](../security-best-practices/SKILL.md).
+- For HTTP access protection and request limits, use [HTTP API guidance](../http-api-best-practices/SKILL.md). For general resource growth and cleanup, use the performance and resources guidance below.
 
 ### Bounds and conversions
 
@@ -226,9 +375,61 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - Use `//` comments for non-obvious phases, ordering constraints or state transitions that the code does not reveal. Name the actual constraint; function length alone does not require comments.
 - Treat formatting as non-blocking unless project instructions require it.
 
-- For ownership and dependency direction, load [architecture](../architecture-best-practices/SKILL.md).
-- When comparing adapters, plugin lifecycles, events/direct calls, or pure decisions, selectively read [TypeScript design patterns](../design-review/references/typescript-patterns.md). Do not load the design workflow or unrelated examples for ordinary type checks.
+- When comparing specific designs, read only the relevant review rule: [wrappers](../review/rules/remove-wrappers-that-add-no-value.md), [plugin lifecycle](../review/rules/use-registries-for-real-extensions.md), [events and direct calls](../review/rules/await-required-operations.md) or [decision extraction](../review/rules/extract-decisions-only-when-useful.md).
 - For failures and promise handling, load [error handling](../error-handling-best-practices/SKILL.md).
+
+### Performance and resources
+
+#### Workload and repeated work
+
+- Establish the affected workload and required performance. Support findings with measurements or a concrete execution path. Another approach being theoretically faster is not enough.
+- Trace repeated requests or computations to their logical inputs. Establish frequency and cost before proposing caching or batching. Distinguish cheap status checks from expensive encoding, uploads, subscriptions or fetches. Check whether expensive work repeats after success.
+- Check algorithm cost against expected input growth. Prefer a simpler single-pass or greedy approach only when it preserves the required result. Use native loops where they improve clarity or address a demonstrated cost.
+- Prefer `flatMap` over `filter().map()` when it expresses the same operation clearly. Treat this as a style preference. Make performance claims only with workload evidence.
+- When caching or batching, trace freshness, cancellation and failure behaviour through the proposed change.
+
+#### Resources and concurrency
+
+- Trace how buffers, caches, queues and parallel tasks grow and drain. Consider both item count and memory size across inputs and lifetimes.
+- Identify synchronous work blocking a latency-sensitive event loop before recommending asynchronous I/O, yielding or offloading.
+- Before parallelising, show that sequential independent work causes relevant delay. Preserve required ordering, failure handling and resource limits.
+
+#### Background work and cleanup
+
+- Follow timers, subscriptions and background tasks from creation through cleanup. Check for retained resources, work surviving its owner and work preventing expected shutdown.
+- Register returned cleanup with its owner. Clearing a timer does not cancel work already started.
+- Before replacing polling, compare its frequency and cost with an available event mechanism. Preserve required update and failure behaviour.
+
+### Browser APIs and loading
+
+#### Prefer existing capabilities
+
+Check native APIs and existing dependencies before adding a library or build step.
+
+- Use `fetch`, `URL`, `URLSearchParams` and `Intl` when they meet the required behaviour.
+- Preserve errors, retries, cancellation and compatibility when replacing a library.
+- Check the values being copied before using `structuredClone`. It supports dates but cannot copy functions or DOM nodes.
+
+#### Write untrusted text safely
+
+Use text APIs for untrusted text. A `<template>` does not make interpolated markup safe.
+
+```typescript
+// Avoid: input becomes markup.
+message.innerHTML = untrustedText;
+
+// Prefer: input remains text.
+message.textContent = untrustedText;
+```
+
+Use an established sanitiser when the feature intentionally accepts HTML. Do not build a custom escaping system.
+
+#### Check browser loading costs
+
+- Inspect actual bundle output. Import syntax alone does not prove unused code was removed.
+- Split optional features or defer non-critical scripts when this improves loading.
+- Measure affected rendering and interaction paths before claiming a performance improvement.
+- For markup and browser interaction checks, use [HTML guidance](../html-best-practices/SKILL.md). This also applies to JSX.
 
 ### Verification
 

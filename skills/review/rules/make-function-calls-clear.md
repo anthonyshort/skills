@@ -6,7 +6,7 @@ A function API changes or callers supply misleading flags or placeholder values.
 
 ## What to check
 
-Inspect real calls. Look for unnecessary inputs, fake values and caller bookkeeping. Show before-and-after usage, including output handling. Preserve errors and supported capabilities.
+Inspect real calls. Look for unnecessary inputs, fake values and caller bookkeeping. Show before-and-after usage, including output handling. Preserve errors and supported capabilities. Check that callers can understand returned values, errors, cancellation and resource cleanup without knowing internal implementation details.
 
 ## Why it matters
 

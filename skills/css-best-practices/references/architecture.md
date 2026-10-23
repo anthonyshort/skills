@@ -123,5 +123,3 @@
   .card__title { font-size: 1.25rem; }
   .card__title--large { font-size: 1.5rem; }
   ```
-
-- For wider ownership or abstraction changes, load [shared architecture](../../architecture-best-practices/SKILL.md).

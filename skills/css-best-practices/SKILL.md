@@ -60,13 +60,15 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - [ ] **Rendering hints** - Verify traces justify will-change and its lifetime follows the work.
 - [ ] **Containment** - Preserve intended layout, sizing, and painting.
 
+- [ ] **Fonts and stability** - Keep text available, match font payloads to actual use and check layout shifts.
+
 ## Guidance
 
 ### Scope and cascade
 
 Inspect selectors where they are used, including third-party and unlayered styles.
 
-Read [CSS architecture](references/architecture.md) for naming, specificity, layers, imports, nesting, and file organisation. Load [architecture](../architecture-best-practices/SKILL.md) when ownership or dependency boundaries change.
+Read [CSS architecture](references/architecture.md) for naming, specificity, layers, imports, nesting, and file organisation.
 
 ### Tokens and themes
 
@@ -78,7 +80,7 @@ Read [tokens and theming](references/tokens-theming.md) for token tiers, compone
 
 Test layout in its actual component container and scroll hierarchy, including supported embedded runtimes.
 
-Read [layout and responsiveness](references/layout-responsive.md) for flow, spacing, logical properties, sticky positioning, and bounded fluid sizing. Read [reset and compatibility](references/reset-compatibility.md) when resets, native defaults, browser support, or fallbacks change. For CSS versus JavaScript and tooling choices, load [web platform guidance](../web-development-best-practices/SKILL.md#platform-choices).
+Read [layout and responsiveness](references/layout-responsive.md) for flow, spacing, logical properties, sticky positioning, and bounded fluid sizing. Read [reset and compatibility](references/reset-compatibility.md) when resets, native defaults, browser support, or fallbacks change. For presentation-only scripting and font loading, read [CSS performance](references/performance.md). For markup and browser interaction, use [HTML guidance](../html-best-practices/SKILL.md).
 
 ### Accessibility
 
@@ -88,4 +90,4 @@ Read [CSS accessibility](references/accessibility.md) for focus, motion, contras
 
 Use rendering traces to distinguish selector, layout, paint, and compositing costs before accepting more complex code.
 
-Read [CSS performance](references/performance.md) for selectors, animation, containment, and presentation choices. Load [shared performance](../performance-best-practices/SKILL.md) for wider computation, I/O, or resource concerns.
+Read [CSS performance](references/performance.md) for selectors, animation, containment, and presentation choices. Load [TypeScript performance guidance](../typescript-best-practices/SKILL.md#performance-and-resources) for wider computation, I/O, or resource concerns.

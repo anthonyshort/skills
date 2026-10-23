@@ -1,82 +1,109 @@
 # Review: {{ target }}
 
-**Scope:** {{ repository/PR/branch, reviewed files and changes, full base and head revisions, and any exclusions }}
+**Scope:** {{ repository/PR/branch, reviewed changes, full base and head revisions, and exclusions }}
 
-## Review checklist coverage
-
-{{ First section after the title and scope. Account for every Step 3 verification item, every Step 4 rule result and every other selected checklist item, grouped by PR and skill/assessment. Record guidance paths and versions (commit or content hash where unversioned). Link supporting evidence within this report or to exact source revisions. Reading guidance or completing an investigation does not establish that behaviour is correct. }}
-
-{{ Use [x] only for verified satisfactory checks, [ ] for failed/blocked/unverified checks with a reason, and N/A separately with a scope reason. Collapse only categories where every applicable item is satisfactory; identify excluded N/A items. Do not load unrelated guidance just to mark it N/A. If guidance changed after the review, identify retrospective evidence and leave unsupported new checks unverified. }}
-
-- [x] {{ Skill name — fully satisfactory category; supporting evidence and any excluded N/A items. }}
-
-### {{ Skill name — mixed category }}
-
-- [x] **{{ Item label }}** — {{ supporting evidence }}
-- [ ] **{{ Item label }}** — {{ failure, blocked check or unverified behaviour; link existing evidence }}
-- **N/A:** {{ Item label or wholly inapplicable category }} — {{ scope reason }}
-
-## Research context
-
-{{ Summarise the original problem, intended behaviour, relevant requirements and constraints, affected consumers, and relevant ongoing work. Cite sources. Separate established requirements from assumptions and unknown direction. Include enough context to evaluate the findings without reading the research report. }}
+Use short sentences, lists and tables. Do not join clauses with semicolons. Keep the recommendation, findings and important limits visible. Put longer evidence and coverage in foldable sections. Replace placeholders and remove template instructions. Omit empty finding sections. The report must make sense without opening worker reports.
 
 ## Assessment
 
-{{ Parent assessment: proceed, proceed with changes, reconsider the approach, or insufficient evidence, with the reason and material limits. State whether supported defects or redesign opportunities were found. Include whether the PR should remain together or be split, with independently reviewable changes and dependencies if a split is recommended. }}
+{{ Give a short recommendation and explain why. State the number of new bugs and already reported concerns. Highlight blocked or missing execution checks. Say whether the PR should stay together or be split. }}
 
-| Level | Assessment and evidence |
+| Area | Conclusion and key evidence |
 | --- | --- |
-| Product | {{ Does this solve the right user task? Supported alternative, missing intent or N/A reason. }} |
-| Direction | {{ Alignment with supplied direction and actual adoption; unknown where unsupported. }} |
-| Design | {{ Simplicity, consistency, ownership and API usability; justified complexity and supported simplifications; no supported redesign is a valid result. }} |
-| Readability | {{ Names, file placement, clear ownership, readable code, comments and formatting. Separate project conventions from preferences. }} |
-| Correctness | {{ Expected behaviour, defects and verification limits. }} |
+| Product | {{ Does this solve the intended user task? }} |
+| Direction | {{ Does it fit established ownership and supported direction? State unknowns. }} |
+| Design | {{ Is it reasonably simple and are its APIs clear? }} |
+| Readability | {{ Are names, placement, comments and code clear? }} |
+| Correctness | {{ What works, what fails and what remains unverified? }} |
 
-{{ Use the caller's severity definitions if supplied. Otherwise use P0 for show-stopping failures such as crashes, leaks or blocking performance problems. Use P1 for wrong success-path behaviour or an approach that needs substantial revision. Use P2 for potential issues and rare edge cases. Base severity on evidence of impact and likelihood. Keep questions distinct from confirmed defects. Preferences and future opportunities are not blockers on their own. }}
+## Findings
 
-## Required fixes
+{{ Lead with this table. Distinguish new findings from concerns already raised in the PR. Link existing threads. State explicitly if no supported findings were found. }}
 
-{{ Confirmed P0 and P1 findings needing correction, ranked by severity. For each use the finding structure below. }}
+| ID | Type / severity | Finding and impact | New or already reported | Recommended action |
+| --- | --- | --- | --- | --- |
+| {{ ID }} | {{ bug/question/convention/preference and priority if applicable }} | {{ short description and effect }} | {{ New or Already reported with thread link }} | {{ required fix or optional action }} |
 
-### {{ stable finding ID }} — {{ concise title }}
+{{ Use caller-supplied priorities when available. Otherwise P0 means a show-stopping failure, P1 means wrong success-path behaviour or substantial revision, and P2 means a potential issue or rare edge case. Base priority on impact and likelihood. Preferences and future opportunities alone are not blockers. }}
 
-- **Classification:** {{ defect/convention/preference/question; severity where applicable; PR-scoped improvement or broader opportunity }}
-- **Location:** {{ repository-relative path:line and exact revision; locations outside the diff are valid }}
-- **Trigger and consequence:** {{ concrete conditions and observable impact }}
-- **Evidence:** {{ source-backed code trace, reproduction or validation result; relevant requirements and callers }}
-- **Recommendation:** {{ concrete corrective action }}
-- **Limits:** {{ uncertainty, affected consumers or unverified conditions; state none if fully established }}
+{{ For each finding, show its location, trigger, effect and recommendation in short bullets. Keep confirmed bugs distinct from questions. Include exact revisions and valid source locations even outside the diff. Link related evidence instead of repeating it. Do not draft duplicate comments for existing concerns. }}
 
-## Suggestions
+### {{ finding ID }} — {{ short title }}
 
-{{ Non-blocking recommendations and P2 findings, ranked by severity, using the finding structure above. Distinguish confirmed defects, questions, preferences and established conventions. Do not repeat findings from Required fixes. }}
+- **Location:** {{ path:line and exact revision }}
+- **Trigger:** {{ conditions that expose the issue }}
+- **Effect:** {{ observable consequence }}
+- **Action:** {{ concrete recommendation and whether required or optional }}
+- **Limits:** {{ uncertainty and what was not verified }}
+
+<details>
+<summary>Evidence for {{ finding ID }}</summary>
+
+{{ Short source trace, reproduction, expected/actual results, screenshots or test output. Explain how the evidence supports the finding. }}
+
+</details>
 
 ## Design and direction opportunities
 
-{{ Supported product/design alternatives, including opportunities beyond the diff. State current friction, alternative, consumer usage where useful, preserved behaviour, complexity removed, affected consumers, why this change presents the opportunity, migration cost and a feasible first step. Reference related finding IDs rather than repeating findings. Label PR-scoped improvement or broader opportunity separately from severity. Do not invent an inline anchor or make future direction a blocker without a current consequence. Omit when there are no supported proposals. }}
+{{ Use short bullets or a table for supported alternatives. Include current friction, the proposed change, preserved behaviour, complexity removed, affected consumers, migration cost and a practical first step. Show before-and-after caller code for API changes. Label each PR-scoped improvement or broader opportunity. Mark New or Already reported and link existing discussion. Do not make future direction a blocker without a current consequence. }}
 
 ## Nits
 
-{{ Purely aesthetic, non-blocking suggestions. }}
+{{ Short bullets for optional aesthetic suggestions. Label previously reported concerns and link their threads. }}
 
-## Decisions and questions
+## Verification summary
 
-{{ Established decisions with sources, and unresolved questions with the missing evidence, effect on the assessment and next action. Do not present reviewer proposals as agreed decisions. }}
+{{ State what was actually executed, what was only checked in source and what could not be verified. Keep important failures and gaps visible. Do not equate successful execution or passing tests with correctness. }}
 
-## Verification
+| Check | Method | Result | Important limit |
+| --- | --- | --- | --- |
+| {{ check }} | {{ source inspection/test/manual/browser }} | {{ Source checked/Test passed/Test failed/Blocked/Not run }} | {{ concise limit }} |
 
-{{ Summarise verified success/failure paths and callers, reproduction steps and results, and screenshots where useful. Include the relevant evidence here; supporting artefacts are supplementary. }}
+## Supporting details
 
-| Command or check | Revision/environment | Result and evidence |
-| --- | --- | --- |
-| {{ exact command or manual steps }} | {{ reviewed revision and relevant environment }} | {{ passed/failed/blocked/not run, outcome and reason }} |
+<details>
+<summary>Research context and open questions</summary>
 
-{{ Identify missing regression coverage and unverified behaviour, why they remain unverified, and their effect on confidence. Do not equate passing tests with correct behaviour. }}
+{{ Explain the problem, requirements, affected consumers and sources. Separate facts from assumptions. Include decisions with sources and unresolved questions with their effect on the assessment. Do not present proposals as agreed decisions. }}
 
-## Consolidation record
+</details>
 
-{{ List the research report and each Step 3 assessment and Step 4 rule assessment, their source paths and completion status. Identify failed, cancelled or missing inputs and the resulting coverage gaps. Record guidance actually used with its version and result if not already captured in checklist coverage. }}
+<details>
+<summary>Review checklist coverage — {{ short result summary }}</summary>
 
-{{ Briefly record material overlaps merged, contradictions resolved and conclusions excluded, with reasons and evidence. Link concerns already raised in PR comments and explain their disposition. If a contradiction remains unresolved, link the corresponding question or verification gap. Do not copy worker reports here. }}
+{{ Group by PR and skill or assessment. List every selected item with its evidence, method and result. Record guidance paths and versions. Use explicit results: Source checked, Test passed, Test failed, Concern found, Blocked, Not run or N/A with a reason. Source checked means inspected, not runtime verified. Do not collapse away individual outcomes. Do not load unrelated skills just to mark them N/A. If guidance changed after the review, identify retrospective evidence and leave unsupported new checks unverified. }}
 
-The completed report must stand alone: include essential research, evidence and conclusions here rather than requiring readers to open worker reports. Replace all placeholders and remove these template instructions. Omit empty finding sections. Keep Review checklist coverage at the top, collapsing only fully satisfactory categories. Do not invent findings or strengths to fill the template.
+| Skill / checklist and version | Item | Method | Result | Evidence or reason |
+| --- | --- | --- | --- | --- |
+| {{ guidance }} | {{ item }} | {{ source/test/manual/browser }} | {{ explicit result }} | {{ evidence or gap }} |
+
+</details>
+
+<details>
+<summary>Rule coverage — {{ selected count }} checked, {{ skipped count }} skipped</summary>
+
+{{ List every rule in the index, including skipped rules. Selected means assigned for checking, not passed. Use Concern found, Satisfied, Not applicable or Not verified for selected rule results and state the verification method. Explain each skipped rule. }}
+
+| Rule | Selected or skipped | Selection reason | Method | Result and evidence |
+| --- | --- | --- | --- | --- |
+| {{ rule and version }} | {{ Selected/Skipped }} | {{ why }} | {{ source/test/manual/browser or N/A }} | {{ outcome and evidence, or skip reason }} |
+
+</details>
+
+<details>
+<summary>Commands and manual checks</summary>
+
+| Exact command or manual steps | Revision / environment | Result | Evidence or limit |
+| --- | --- | --- | --- |
+| {{ command or steps }} | {{ revision/environment }} | {{ passed/failed/blocked/not run }} | {{ actual output, reproduction result or reason }} |
+
+{{ Identify missing regression coverage and explain its effect on confidence. }}
+
+</details>
+
+<details>
+<summary>Review inputs and consolidation</summary>
+
+{{ List the research report and all Step 3 and Step 4 assessments with paths and completion status. Record missing inputs and coverage gaps. Briefly explain merged overlaps, resolved disagreements and excluded conclusions with reasons. Include essential evidence here rather than requiring readers to open worker files. }}
+
+</details>

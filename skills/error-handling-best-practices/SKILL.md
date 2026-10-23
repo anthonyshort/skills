@@ -34,7 +34,7 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - [ ] **Useful logs** - Verify diagnostics identify the failed operation and preserve its cause.
 - [ ] **Duplicate logs** - Avoid logging the same failure again at every layer.
 - [ ] **Lost diagnostics** - Check propagation or logging changes preserve them.
-- [ ] **Sensitive errors** - Apply security guidance to disclosure and diagnostic data.
+- [ ] **Sensitive errors** - Exclude credentials, tokens and sensitive data from responses and diagnostic logs.
 
 ## Guidance
 
@@ -77,4 +77,4 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 ### Logging and diagnostics
 
 - Trace a representative failure to its diagnostic at the responsible boundary. Verify the operation can be identified and correlated with its original cause; include safe request or resource identifiers where needed to diagnose it. Avoid duplicate logs through every layer and preserve diagnostics when changing propagation. Apply privacy checks before adding context.
-- Apply [security checks](../security-best-practices/SKILL.md) to error disclosure and sensitive diagnostic data.
+- Keep useful diagnostic causes on the server while excluding credentials, tokens and sensitive data from responses and logs. Inspect nested error objects and attached context before logging them.
