@@ -30,6 +30,8 @@ For a split-only review, include Assessment, Risk and scope, a split plan and CI
 
 {{ Keep this short for straightforward changes. Do not repeat findings or assign a numerical risk score. }}
 
+The helper adds the exact structured assessment inside the published Full report fold. Do not duplicate its seven-check table here. Keep detailed risk, evidence and coverage in this report.
+
 ## Findings
 
 {{ Lead with this table. Distinguish new findings from concerns already raised in the PR. Link existing threads. State explicitly if no supported findings were found. }}

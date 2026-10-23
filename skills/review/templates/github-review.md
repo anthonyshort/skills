@@ -1,186 +1,80 @@
 # GitHub review template
 
-Use this layout for a GitHub review. Replace placeholders and omit empty finding sections. A supplied profile may change the layout, but preserve evidence and coverage.
-
-## Writing and structure
-
-- Use normal sentence case. Capitalise sentence starts and “I”.
-- Keep the tone conversational and direct. Avoid chat shorthand and forced casual wording.
-- Explain the problem as you would to a colleague. Start with what the user or caller experiences, then ask for the change. Keep detailed mechanics in the evidence fold.
-- Prefer concrete language. Say “editing this clears the saved colours” rather than “the reconciliation path loses configuration identity”.
-- Use action-led finding titles and short explanatory paragraphs. Explain the problem and requested change naturally. Do not force findings into Trigger/Effect/Action fields. Use lists only for separate points.
-- Do not join clauses with semicolons.
-- Use tables only for short comparisons or results. Do not put paragraphs in cells.
-- Include a short code example directly in a finding when it makes the issue or alternative easier to understand. Prefer the smallest relevant excerpt from the reviewed revision. Label proposed code and omitted context. Do not invent an available helper or force an example for a simple nit.
-- Number bugs, required fixes, suggestions, design opportunities and nits in one sequence across the review. Do not restart at each category. Use those numbers in cross-references and related inline comments.
-- Start with `🤖 Reviewed {short commit hash}`. Keep the summary focused on what the author should do.
-- A clean-review summary can stop at “No new bugs found at this commit. No further changes requested.” Omit resolved-concern recaps, routine verification gaps and descriptions of the report or folds. Mention a verification gap in the summary only when it changes the recommendation or requires a concrete action. Missing verification alone is not a prioritised defect.
-- For a split-only review, lead with the request to split and a short plan. Say the full review is deferred. Omit bug and rule coverage sections rather than pretending they were checked.
-- Put review limits and coverage inside one Verification fold. Its summary must expose the important result or limit without opening it. Keep a material blocker visible in the finding or summary too.
-- Keep notes with the verification overview before its nested coverage folds. Do not append a second notes section at the bottom.
-- Keep exact hashes, repeated skill paths, agent bookkeeping and long output in the saved report. The GitHub review should explain the results, not reproduce raw worker reports.
-- Keep CI status in the saved report. Do not recap it in the review body or inline comments.
+Use the [live comment's findings-first layout](github-progress.md). For separately requested formal reviews, preserve the requested status and reuse published findings. Automatic APPROVE reviews use the same assessed results, folded under Full report with a report link.
 
 ## Review body
 
 ```markdown
 **🤖 Reviewed `{{ short reviewed commit hash }}`**
 
-## Summary
+{{ Short findings summary. State when no new bugs were found. Explain a human-review reason only when it affects the recommendation. }}
 
-- **{{ finding number }}. {{ Action }}:** {{ Short description. Mark optional work and link existing concerns. }}
+#### Next steps
 
-{{ State when no new supported bugs were found. Keep this summary about actions, not review mechanics. }}
+{{ Concrete actions and owners. Omit when there is no action. }}
 
-## Required fixes
+#### Findings
 
-### {{ next number }}. {{ Action-led title }}
+##### P1
 
-{{ Explain what goes wrong and ask for the correction in one short paragraph. Include priority and whether the concern is new or already reported where useful. Link the existing thread. }}
+- **{{ Finding ID }} — {{ Action-led title }}:** {{ Trigger, consequence and requested correction. Link an existing thread or pinned evidence. }}
 
-{{ Show a short inline code excerpt when it clarifies the problem. Identify its source at the reviewed revision. Follow with the consequence, pinned source link and any important uncertainty. Keep longer evidence folded. }}
+##### P2
 
-## Bugs
+- **{{ Finding ID }} — {{ Action-led title }}:** {{ Supported issue and useful action. Mark existing concerns. }}
 
-{{ Use the same numbered, paragraph-based format. Do not repeat bugs listed in Required fixes. }}
+#### Opportunities
 
-## Suggestions
-
-{{ Continue the numbering. Explain each optional recommendation and its concrete benefit in short prose. }}
-
-## Design opportunities
-
-### {{ next number }}. {{ Action-led title }}
-
-{{ Propose the alternative and explain what becomes simpler. Clearly label optional PR-scoped improvements or broader opportunities. Link existing discussion. }}
-
-{{ Show the current code or a clearly labelled proposed alternative when that makes the opportunity concrete. Briefly explain the behaviour to preserve, affected consumers, migration cost and a practical first step. Use short paragraphs or lists when several distinct points need comparison. Show before-and-after caller code for API proposals. }}
-
-## Nits
-
-{{ Continue the numbering. Use short prose or bullets for optional aesthetic suggestions. }}
+{{ Clearly optional improvements without invented severity. Keep the same finding IDs. Omit empty sections. }}
 
 <details>
-<summary>Verification — {{ what was checked }} · {{ important review limit }}</summary>
+<summary>Full report</summary>
 
-| Check | Result |
-| --- | --- |
-| Review scope | {{ Source inspection and any manual checks }} |
-| Best-practice skills | {{ Number actually used, with general/repository-specific breakdown when relevant }} |
-| Review rules | {{ Number checked, outcomes and number skipped across all collections }} |
-| Generated checks | {{ Total, with research/review/rule breakdown when recorded }} |
-
-**Gaps and scope notes:**
-
-- {{ Important unverified behaviour, missing sources and bounded searches. }}
-- {{ Distinguish source inspection from manual checks. }}
-
-### Review coverage
-
-{{ Nest category folds and the one combined rules fold here using the formats below. Leave blank lines around nested blocks and after summary tags so Markdown renders. }}
+{{ Structured assessment with the actual checklist answers and reasons, plus the canonical report or its published link. Detailed evidence and coverage stay here. }}
 
 </details>
 ```
 
-## Category coverage
+Group supported defects by P0, P1 and P2, omitting empty groups. The excerpt shows only P1/P2 for illustration. Do not add an Approval heading, repeat the reviewed commit or show the assessment table outside Full report. The helper owns Next steps for automatic publication, so omit it from summary input.
 
-Nest one fold per review category inside Verification, such as Research, Product, System fit, Simplicity, Readability and Correctness.
+## Findings and evidence
 
-- Put actual outcome totals in each summary. The denominator includes all items in the category.
-- Use “satisfied” for checks supported by evidence. Reading tests does not establish that they passed.
-- Show concerns, skipped, blocked, limited and unverified counts separately. Omit zero counts.
-- Make counts add up. Do not count a blocked or partial check as fully satisfied.
-- Use one short labelled list item per generated check. Name guidance once per category.
-- Include a brief evidence statement or source link. Refer to a numbered finding instead of repeating it.
-- Explain skipped and unverified items. Preserve limits when shortening source results.
-- Do not inflate skill counts with descriptions merely inspected or files merely loaded. Count supporting references under their owning skill. Report workflow skills separately if needed.
-
-```markdown
-<details>
-<summary>{{ Category }} — {{ satisfied }}/{{ total }} satisfied · {{ other outcome counts }}</summary>
-
-**Guidance:** {{ Short names of skills and relevant reference categories actually used. }}
-
-- **✓ {{ Check }}:** {{ One short evidence statement or source link. }}
-- **Concern — {{ Check }}:** {{ See item N, with any distinct consequence. }}
-- **Not verified — {{ Check }}:** {{ Missing evidence or reason. }}
-- **Skipped — {{ Check }}:** {{ Scope reason. }}
-
-</details>
-```
-
-## Rule coverage
-
-Use one fold inside Verification for all rule collections, including repository-specific rules. List every rule once, with its outcome and concise evidence or skip reason. Do not add separate folds for each rule or repeat its full assessment.
-
-When several subchecks are summarised under one rule, retain the material conclusions and limits. Rule totals count rules, not subchecks. Generated-check totals may include subchecks, but make that distinction clear.
-
-```markdown
-<details>
-<summary>Rules — {{ satisfied }}/{{ total rules }} satisfied · {{ concerns, unverified or skipped counts }}</summary>
-
-**Satisfied through source inspection**
-
-- **{{ Rule }}:** {{ Short evidence statement. }}
-
-**Concerns or unverified rules**
-
-- **{{ Rule }}:** {{ Finding number or missing evidence. }}
-
-**Skipped**
-
-- **{{ Rule }}:** {{ Why it does not apply. }}
-
-</details>
-```
-
-Name the method used to check each rule. Keep CI status in the saved report. Omit empty outcome groups.
-
-## Evidence and inline comments
-
-- Back findings with pinned source links, short traces, reproduction steps, test results or screenshots where available.
-- Keep the issue, impact and action clear in the finding paragraph. Use a nearby evidence fold only when a short explanation and source links are insufficient.
-- Use GitHub-accessible links or include the relevant excerpt. Do not require the author to open local artefacts.
-- Put new, line-specific bugs inline when a valid current diff anchor exists. Include the problem, consequence, requested correction and concise evidence. Summarise the finding in the body with the same number.
-- Link an existing thread instead of creating another inline comment for the same concern. State when no new inline comments are needed.
-- Keep findings without valid anchors in the body. Preserve uncertainty and include evidence in inline comments too.
-- Use the finding's shared number when referring between body and inline comments. Do not force a priority prefix.
-- Use the robot emoji in the reviewed-commit header. Do not add attribution footers to the body, inline comments or replies.
+- Explain what happens, why it matters and what should change in short conversational prose. Use action-led titles and concrete language. No forced Trigger/Effect/Action fields or attribution footer.
+- Preserve shared finding IDs across the summary, full report and inline comments. Link existing concerns instead of presenting them as new. Separate required fixes, optional suggestions, questions and nits.
+- Keep priorities tied to supported impact and likelihood. Missing evidence alone is not a prioritised defect. Never invent blockers or severity for optional work.
+- Use a short code example when it clarifies the issue or alternative. Pin current excerpts to the reviewed revision and label proposed code. Put long traces in the report.
+- New line-specific bugs go inline when valid anchors exist. Include the consequence, requested correction and concise evidence. Keep unanchored findings in the body. Do not duplicate published inline comments.
+- Explain human-review recommendations in plain English. Keep wrapper names, publication mechanics and routine gaps inside Full report. Concise actionable CI blockers may appear in the summary or Next steps; no general CI rollup or CI status inline.
+- Preserve all detailed research, individual checks, guidance references, methods, evidence and uncertainty in the [canonical report](review-report.md). Distinguish source inspection, CI and manual checks. Do not imply tests passed merely because they were read.
+- For split-only results, request supported slices and say the full review was deferred. Do not invent implementation findings or an assessed checklist.
 
 ## Short worked example
 
-This illustrates structure, not evidence to copy into another review. A full review includes the verification table, gaps and nested category/rule coverage.
+Illustrative prose, not a current review result:
 
 ```markdown
 **🤖 Reviewed `22c8651`**
 
-## Summary
+No new bugs found. The earlier tooltip concern remains; sharing the bindings is optional.
 
-- **1. Fix hover access:** The card link blocks title and timestamp tooltips. Already reported.
-- **2. Optional cleanup:** Share duplicated Table and Grid bindings.
+#### Next steps
 
-No new bugs found.
+1. Keep the title and timestamp tooltips reachable as described in F1.
 
-## Bugs
+#### Findings
 
-### 1. Keep title and timestamp tooltips reachable
+##### P2
 
-The full-card link sits above the title and timestamp, so hovering them hits the link instead. Can we adjust the hit regions while preserving native navigation and menu access?
+- **F1 — Keep tooltips reachable:** The full-card link intercepts title hover. Already reported. Include the existing thread and pinned source link.
 
-This confirms the existing P2 concern through source inspection. It has not been reproduced in a browser. Include pinned source and discussion links here.
+#### Opportunities
 
-## Design opportunities
-
-### 2. Share the common Table and Grid bindings
-
-Could the filter callbacks and empty-state bindings have one owner inside `createTable`? This would remove duplicated wiring without changing the caller API.
-
-This is optional and PR-scoped. A small extraction with regression coverage for both renderers would be enough.
+- **F2 — Share renderer bindings:** One owner for Table and Grid callbacks would remove duplicated wiring. Optional and PR-scoped.
 
 <details>
-<summary>Verification — source review · browser interactions not verified</summary>
+<summary>Full report</summary>
 
-Include results, scope notes and nested category/rule folds here.
+Include the assessed checklist, evidence, uncertainty and report link here.
 
 </details>
 ```

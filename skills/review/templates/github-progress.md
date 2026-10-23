@@ -1,6 +1,6 @@
 # Live PR comment
 
-The helper renders the linked commit header, `### Status` and `### Result` sections, full-report fold. It adds horizontal rules after the commit header, status section and result section. The Result section appears when a summary is available. Supply only the checklist and summary content, without these headings or rules. These examples show the content, not a fixed workflow.
+The helper renders the linked commit header, Status, Result and Full report fold. Supply the progress checklist and findings summary. The helper inserts Next steps after the summary introduction and keeps the structured assessment inside Full report.
 
 ## Checklist input
 
@@ -19,40 +19,40 @@ Use the spinner beside each active item, keeping both dimensions at 16 pixels to
 
 ## Final summary input
 
-Lead with the verdict and include only findings, opportunities or questions that require an author decision or useful action. If none remain, the entire summary can be:
+Start with a short findings summary, then `#### Findings` grouped under `##### P0`, `##### P1` and `##### P2`. Omit empty groups. Include only supported defects in priority groups. Optional opportunities, questions and nits may follow separately without invented severity.
+
+The input contains a plain introduction followed by the finding headings. Do not supply a Next steps section: the helper inserts it before the first heading using the structured decision. Do not add an Approval heading, repeat the reviewed commit or display the seven-check table. The helper puts the exact assessment inside Full report.
+
+If no actionable findings remain, the entire input can be:
 
 ```markdown
 No new bugs found at this commit. No further changes requested.
 ```
 
-Do not recap resolved concerns, list routine unverified checks or describe what the full-report fold contains. Keep that evidence in the full report. Surface a verification gap here only when it changes the recommendation or requires a concrete action. Explain that consequence instead of adding a generic disclaimer. Missing verification alone is not a defect and must not be assigned a priority just to make it visible.
+Mention a reason for human review or missing verification only when it changes the recommendation. Explain it in plain English. Keep wrapper names, publication mechanics, CI rollups and routine gaps in the full report. Missing evidence is not itself a prioritised defect.
 
 For actionable findings:
 
 ```markdown
-The change needs one correction before merging.
+No new bugs found. The earlier tooltip concern remains; sharing the renderer bindings is optional.
 
 #### Findings
 
-##### P1
-
-- **F1 — Preserve saved colours:** Editing a label clears the custom colour. [Evidence](pinned-source-link).
-
 ##### P2
 
-- **F2 — Keep tooltips reachable:** The card link intercepts title hover. [Already reported](existing-thread-link).
+- **F1 — Keep tooltips reachable:** The card link intercepts title hover. [Already reported](existing-thread-link).
 
 #### Opportunities
 
-- **F3 — Share renderer bindings:** One owner would remove duplicated callbacks. Optional and PR-scoped.
+- **F2 — Share renderer bindings:** One owner would remove duplicated callbacks. Optional and PR-scoped.
 
 #### Open questions
 
-- **F4 — Confirm empty-selection behaviour:** The intended outcome is undocumented.
+- **F3 — Confirm empty-selection behaviour:** The intended outcome is undocumented.
 
 #### Nits
 
-- **F5 — Clarify the callback name:** Use a name that describes the saved value.
+- **F4 — Clarify the callback name:** Use a name that describes the saved value.
 ```
 
 Use P0, P1 and P2 for supported defects, using the report's priority definitions. Omit empty groups and explicitly state when no supported findings were found. Preserve finding IDs across summary, full report and inline comments. Link still-actionable existing concerns instead of presenting them as new. Keep each bullet concise but explain the consequence or benefit. Put CI details and audit coverage in the full report.
@@ -72,16 +72,24 @@ The final comment uses this layout:
 
 ### Result
 
-{{ Action-focused summary }}
+{{ Short findings summary }}
+
+#### Next steps
+
+{{ Helper-rendered actions from the structured decision }}
+
+#### Findings
+
+{{ Supported findings grouped under P0, P1 and P2 }}
 
 ---
 
 <details>
 <summary>Full report</summary>
 
-{{ Complete canonical review-report.md, including its tables and nested folds. }}
+{{ Helper-rendered structured assessment and complete canonical report. }}
 
 </details>
 ```
 
-Do not paste this placeholder into the summary. Pass the report file to the helper. The helper links labelled continuations if it cannot fit the report into one comment.
+The layout above is rendered output, not summary input. Omit empty Next steps or Findings sections. Pass the report file to the helper. The helper links labelled continuations if it cannot fit the report into one comment.

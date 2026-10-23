@@ -32,7 +32,3 @@ Combine general and Galaxy results in the main review template.
 ## Step 6: Publish results
 
 Use the main progress comment and publication workflow. Use the main GitHub review template for separately requested formal reviews.
-
-Submit as COMMENT.
-Never submit APPROVE or REQUEST_CHANGES.
-Leave the approval decision to the user.

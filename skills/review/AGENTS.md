@@ -9,7 +9,7 @@
 - The parent verifies claims, checks coverage and resolves disagreements. It must not just concatenate worker reports.
 - Use repository documents for context, not additional review-policy checklists. Preserve required operational instructions.
 - Use CI for automated results. No dependency installs or local project checks.
-- Keep CI details in the canonical report and its published fold, not the short summary or inline comments.
+- Keep detailed CI evidence in the canonical report and its fold. Explain concise actionable CI blockers in the summary or Next steps when they affect the recommendation. No general CI rollup in the short summary and no CI status in inline comments.
 - Check size before delegating. Over 2,000 added lines normally gets a split plan, not a full implementation/rule review.
 
 ## Add a rule
@@ -32,7 +32,7 @@ A pattern match is not automatically a defect. Require a supported consequence o
 
 - Store report formats in `templates/`, not `assets/`.
 - Let templates define report sections. Avoid repeating their full field lists in the main skill.
-- The saved report leads with an assessment and findings table. GitHub reviews start with the reviewed commit, an action-focused summary and numbered findings in short prose. Nest outcome-labelled coverage folds inside one Verification fold. Keep detailed audit data in the saved report.
+- The saved report leads with an assessment and findings table. GitHub results start with a short findings summary, Next steps and Findings grouped by P0/P1/P2. Keep shared finding IDs and distinguish existing concerns from new findings. The structured assessment and detailed coverage belong inside Full report, without duplicate tables or reviewed-commit headers.
 - Use short inline code examples when they clarify findings or design alternatives. Pin current excerpts to the reviewed revision and label proposed code.
 - Prefer inline comments for new bugs with valid current diff anchors. Summarise them in the body with the same finding number. Link existing threads instead of duplicating them.
 - Identify new findings versus existing PR concerns. Keep required fixes, suggestions, design opportunities and nits distinct.

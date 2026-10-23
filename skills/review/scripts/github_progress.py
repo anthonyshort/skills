@@ -10,8 +10,11 @@ import subprocess
 import sys
 import uuid
 
+from github_approval import CHECKS, read_decision as approval_decision, render_decision, render_next_steps
+
 
 MAX_BODY = 60_000
+APPROVAL_GATES = set(CHECKS)
 
 
 class Github:
@@ -131,6 +134,17 @@ def render(state, title, note="", summary="", report=""):
     if note:
         body += f"\n{note}\n"
     body += "\n---\n"
+    decision = state.get("approval_decision")
+    if decision:
+        heading = re.search(r"(?m)^#{1,6} ", summary)
+        intro = summary[:heading.start()].strip() if heading else summary.strip()
+        findings = summary[heading.start():].strip() if heading else ""
+        actions = render_next_steps(decision, state.get("approval"))
+        summary = "\n\n".join(part for part in (intro, actions, findings) if part)
+        assessment = render_decision(decision, state["head"], state.get("approval"))
+        report = assessment + ("\n\n" + report if report else "")
+    if state.get("report_links"):
+        report += "\n\n" + "\n".join(state["report_links"])
     if summary:
         body += f"\n### Result\n\n{summary.rstrip()}\n\n---\n"
     if report:
@@ -179,6 +193,7 @@ class Publisher:
             raise ValueError("Inline findings changed after publication began. Inspect the existing review before retrying.")
         self.state["inline_digest"] = digest
         save(self.path, self.state)
+
         reviews = self.api.list(f"{self.pull}/reviews")
         matches = [review for review in reviews if tag in (review.get("body") or "")]
         if len(matches) > 1:
@@ -201,6 +216,70 @@ class Publisher:
             })
         self.state["inline_review"] = {"id": review["id"], "html_url": review["html_url"]}
         save(self.path, self.state)
+
+    def approve(self, decision):
+        """Recover this run's approval or check live safeguards before creating it."""
+        previous = self.state.get("approval")
+        if previous and previous["status"] == "withheld":
+            return previous
+
+        def withhold(reason, next_steps, outcome="not_submitted"):
+            self.state["approval"] = {"status": "withheld", "reason": reason,
+                                      "outcome": outcome, "next_steps": next_steps}
+            save(self.path, self.state)
+            return self.state["approval"]
+
+        if decision["outcome"] != "approve":
+            return withhold(decision["reason"], decision["next_steps"], decision["outcome"])
+        viewer = self.api.api("GET", "user")["login"]
+        reviews = self.api.list(f"{self.pull}/reviews")
+        tag = marker(self.state, "approval-review")
+        matches = [review for review in reviews if tag in (review.get("body") or "")]
+        if len(matches) > 1:
+            raise ValueError("Multiple approvals match this run. Inspect them before retrying.")
+        if matches:
+            review = matches[0]
+            if (review["state"] != "APPROVED" or review.get("commit_id") != self.state["head"]
+                    or review.get("user", {}).get("login", "").casefold() != viewer.casefold()):
+                return withhold("This run's approval is no longer valid.", ["The reviewer must inspect the existing review before starting another run."])
+        else:
+            if previous and previous["status"] == "approved":
+                return withhold("The saved approval could not be recovered.", ["The reviewer must inspect the existing submission before starting another run."])
+            if any(review["state"] == "PENDING" for review in reviews):
+                return withhold("An unrelated pending review exists. It was left intact.", ["Ask the pending review owner to resolve it, then request another review."])
+            latest = {}
+            for review in reviews:
+                if review["state"] in ("APPROVED", "CHANGES_REQUESTED", "DISMISSED"):
+                    latest[review["user"]["login"].casefold()] = review["state"]
+            if "CHANGES_REQUESTED" in latest.values():
+                return withhold("An outstanding change request requires human resolution.", ["Address the existing concerns and ask that reviewer to review the fixes."], "human_review")
+            # Fetch after other reads to keep the revision race window small.
+            pull = self.api.api("GET", self.pull)
+            if pull["head"]["sha"] != self.state["head"] or pull["base"]["sha"] != self.state["base"]:
+                return withhold("PR revisions changed. Newer code has not been reviewed.", ["Request a review of the current base and head revisions."])
+            if pull["state"] != "open" or pull["merged"]:
+                return withhold("The PR is closed or merged.", ["No approval can be submitted on this closed or merged PR."])
+            if pull["draft"]:
+                return withhold("The PR is still a draft.", ["Mark the PR ready when appropriate and request another review."])
+            if pull["user"]["login"].casefold() == viewer.casefold():
+                return withhold("Automatic self-approval is disabled.", ["Request approval from another reviewer."], "human_review")
+            changed = pull["additions"] + pull["deletions"]
+            if changed != decision["changed_lines"]:
+                return withhold("Live PR line count differs from the assessment.", ["The reviewer must refresh the full PR assessment before a new submission."])
+            url = self.state["comments"]["main"]["html_url"]
+            review = self.api.api("POST", f"{self.pull}/reviews", {
+                "commit_id": self.state["head"], "event": "APPROVE",
+                "body": checked_size(f"🤖 Reviewed `{self.state['head'][:7]}`\n\n"
+                                     f"**Approved.** {decision['reason']}\n\n"
+                                     f"<details>\n<summary>Full report</summary>\n\n"
+                                     f"{render_decision(decision, self.state['head'], {'status': 'approved'})}\n\n"
+                                     f"[Review and evidence]({url})\n\n</details>\n\n{tag}"),
+            })
+            if review["state"] != "APPROVED":
+                raise ValueError("GitHub did not confirm approval. Inspect the review before retrying.")
+        self.state["approval"] = {"status": "approved", "id": review["id"], "html_url": review["html_url"]}
+        save(self.path, self.state)
+        return self.state["approval"]
 
 
 def run(args, api):
@@ -225,19 +304,43 @@ def run(args, api):
     summary = read(args.summary) if args.command == "finish" else ""
     report = read(args.report) if args.command == "finish" else ""
     items = inline_comments(args.inline) if args.command == "finish" else []
+    approval = approval_decision(args.approval) if args.command == "finish" else None
+    if approval and items:
+        if approval["outcome"] == "split":
+            raise ValueError("A split-only result cannot submit inline findings from an unperformed full review.")
+        if approval["checks"]["clean_review"]["result"] == "Pass":
+            raise ValueError("A passing No required fixes answer cannot include inline bug findings.")
     if args.command == "finish":
         publication = {"summary": summary, "report": report, "inline": items, "checklist": state["checklist"]}
+        if approval is not None:
+            publication["approval"] = approval
         digest = hashlib.sha256(json.dumps(publication, sort_keys=True).encode()).hexdigest()
         if state.get("publication_digest") and state["publication_digest"] != digest:
             raise ValueError("Publication inputs changed after finishing began. Retry identical files, or inspect the existing publication and use a new run.")
         state["publication_digest"] = digest
+        if approval is not None:
+            state["approval_decision"] = approval
     title = "Reviewed" if args.command == "finish" else "Reviewing"
     note = f"**Interrupted:** {args.reason}" if args.command == "interrupt" else ""
     body = render(incomplete(state) if args.command == "interrupt" else state, title, note, summary, report)
     parts = report_parts(report, MAX_BODY - 1000) if len(body) + 500 > MAX_BODY else []
+    if args.command == "finish":
+        preview_state = dict(state)
+        if parts:
+            # Include continuation links before freezing inputs, using full-width IDs.
+            root = f"https://github.com/{state['repo']}/pull/{state['pr']}#issuecomment-"
+            links = [f"- [Full report — part {index}/{len(parts)}]({root}{'9' * 20})"
+                     for index in range(1, len(parts) + 1)]
+            preview_state["report_links"] = links
+        size = len(render(preview_state, title, note, summary)) + len(marker(state, "main")) + 2
+        # Reserve room for publication/revision notes and live submission blockers.
+        if size + 500 > MAX_BODY:
+            raise ValueError("Comment is too large once publication notes and report links are included. Shorten the summary or checklist reasons before publishing.")
     if args.dry_run:
         return {"dry_run": True, "body": body if not parts else render(state, title, note, summary),
-                "report_parts": parts, "inline": items, "publication_digest": state.get("publication_digest")}
+                "report_parts": parts, "inline": items, "approval_decision": approval,
+                "review_event": "APPROVE" if approval and approval["outcome"] == "approve" else ("COMMENT" if items else None),
+                "publication_digest": state.get("publication_digest")}
     state["status"] = "publishing" if args.command == "finish" else ("interrupted" if args.command == "interrupt" else "reviewing")
     save(args.state, state)
     publisher = Publisher(api, state, args.state)
@@ -258,13 +361,18 @@ def run(args, api):
             for index, part in enumerate(parts, 1):
                 url = publisher.comment(f"report-{index}", f"## Full report — part {index}/{len(parts)}\n\n{part}")
                 links.append(f"- [Full report — part {index}/{len(parts)}]({url})")
-            summary += "\n\n### Full report\n\n" + "\n".join(links)
+            state["report_links"] = links
             report = ""
+        if approval is not None:
+            message = "approval not confirmed" if approval["outcome"] == "approve" else "publication incomplete"
+            publisher.comment("main", render(pending, title, f"**Publishing results — {message}.**" + note, summary, report))
+            publisher.approve(approval)
         state["status"] = "complete"
     body = render(incomplete(state) if args.command == "interrupt" else state, title, note.strip(), summary, report)
     url = publisher.comment("main", body)
     save(args.state, state)
-    return {"status": state["status"], "url": url, "inline_review": state.get("inline_review")}
+    return {"status": state["status"], "url": url, "inline_review": state.get("inline_review"),
+            "approval": state.get("approval")}
 
 
 def parser():
@@ -283,6 +391,12 @@ Dry run renders payloads without network calls or state writes. Real operations
 read GitHub and persist recoverable state before writing. Retry the same command
 and state after a failure. Do not run concurrent writers against one state file.
 Finish inputs are frozen once publication begins. Retry with identical files.
+Before an approval retry, refresh discussion and relevant CI as the policy requires.
+Finish --approval accepts the parent's structured decision. See
+SKILL.md, Step 6, for its schema and policy. Supply it for all standard
+review outcomes, including comment-only and split-only results. Omit it only for
+legacy publication or separately requested formal reviews. Dry runs show intent
+only, without checking live eligibility.
 """)
     result.add_argument("--state", required=True, type=Path)
     result.add_argument("--dry-run", action="store_true")
@@ -300,6 +414,7 @@ Finish inputs are frozen once publication begins. Retry with identical files.
     finish.add_argument("--report", required=True, type=Path)
     finish.add_argument("--checklist", type=Path)
     finish.add_argument("--inline", type=Path)
+    finish.add_argument("--approval", type=Path)
     interrupt = commands.add_parser("interrupt", help="Record an incomplete or blocked run")
     interrupt.add_argument("--reason", required=True)
     return result
