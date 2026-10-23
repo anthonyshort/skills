@@ -16,7 +16,7 @@ A focused migration can move the system forward without expanding the PR unneces
 
 Do not require a planned or incomplete replacement. Keep useful intermediate states instead of requiring a wholesale rewrite.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
@@ -27,12 +27,12 @@ type Invoice = { id: string };
 declare const legacy: { loadInvoice(id: string): Promise<Invoice> };
 declare const current: { invoices: { get(id: string): Promise<Invoice> } };
 
-// Before: the touched consumer uses a superseded entrypoint.
+// Bad for this case: the touched consumer uses a superseded entrypoint.
 function loadBefore(id: string): Promise<Invoice> {
   return legacy.loadInvoice(id);
 }
 
-// After: migrate this consumer, not every legacy feature.
+// Good for this case: migrate this consumer, not every legacy feature.
 function loadAfter(id: string): Promise<Invoice> {
   return current.invoices.get(id);
 }

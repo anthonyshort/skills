@@ -20,3 +20,36 @@ A lost response does not mean the operation failed. Retrying can duplicate write
 ## Exceptions
 
 Do not require idempotency infrastructure for every API. Read-only operations, harmless repeated effects and operations without a realistic retry path may not need it. Judge the actual consequence and supported contract.
+
+## Good and bad examples
+
+The caller retries creating an invoice after a lost response.
+
+**Bad: each retry inserts another invoice**
+
+```typescript
+async function createInvoice(input: CreateInvoiceInput): Promise<Invoice> {
+  return invoices.insert(input);
+}
+```
+
+**Good: retry through an atomic, scoped idempotency boundary**
+
+```typescript
+async function createInvoice(
+  accountId: string,
+  requestKey: string,
+  input: CreateInvoiceInput,
+): Promise<Invoice> {
+  return invoiceRequests.createOnce({ accountId, requestKey, input });
+}
+```
+
+Here `createOnce` represents a verified storage contract, not a helper whose name proves safety. It must:
+
+- Commit the invoice and request record atomically.
+- Scope the key to the account and operation.
+- Return the original result for the same key and inputs, including concurrent requests.
+- Reject reuse with different inputs.
+
+A separate “does this key exist?” check followed by an insert is not atomic. For external effects, an atomic database transaction alone is not enough. Check the external service's idempotency or recovery contract too.

@@ -19,12 +19,12 @@ Duplicated coordination makes each caller responsible for remembering the rule. 
 
 Keep simple independent mutations near their interaction. Do not build an action framework for every field assignment. Similar updates may have different requirements and should not be merged solely because they look alike.
 
-## Example
+## Good and bad examples
 
 Requirement: clearing the cart removes its items and closes it.
 
 ```typescript
-// Avoid: each caller must remember both updates.
+// Bad for this case: each caller must remember both updates.
 function clearFromMenu(): void {
   cartStore.itemIds = [];
   cartStore.isOpen = false;
@@ -37,7 +37,7 @@ function clearFromShortcut(): void {
 ```
 
 ```typescript
-// Prefer: one owner enforces the shared rule.
+// Good for this case: one owner enforces the shared rule.
 function clearCart(): void {
   cartStore.itemIds = [];
   cartStore.isOpen = false;

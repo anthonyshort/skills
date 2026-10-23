@@ -16,7 +16,7 @@ Useful separation can improve reuse, but tiny helpers can fragment a clear opera
 
 Keep a small cohesive function when the decision is not needed independently. A pure precheck does not guarantee concurrent safety or idempotency.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
@@ -26,12 +26,12 @@ Separate a meaningful decision from I/O when it removes hidden state and makes t
 type Invoice = { totalCents: number; sent: boolean };
 type Sender = { send(invoice: Invoice): Promise<void> };
 
-// Before: the decision is only accessible through an effectful operation.
+// Bad for this case: the decision is only accessible through an effectful operation.
 async function sendBefore(invoice: Invoice, sender: Sender): Promise<void> {
   if (invoice.totalCents > 0 && !invoice.sent) await sender.send(invoice);
 }
 
-// After: a second caller can use the same decision without performing I/O.
+// Good for this case: a second caller can use the same decision without performing I/O.
 function canSend(invoice: Invoice): boolean {
   return invoice.totalCents > 0 && !invoice.sent;
 }
@@ -39,7 +39,7 @@ async function sendAfter(invoice: Invoice, sender: Sender): Promise<void> {
   if (canSend(invoice)) await sender.send(invoice);
 }
 
-// Avoid: fragmenting the same small decision without separate responsibilities.
+// Bad for this case: fragmenting the same small decision without separate responsibilities.
 const positive = (value: number): boolean => value > 0;
 const not = (value: boolean): boolean => !value;
 const both = (a: boolean, b: boolean): boolean => a && b;
@@ -48,4 +48,4 @@ function fragmented(invoice: Invoice): boolean {
 }
 ```
 
-If no other caller or test needs the decision independently, the original cohesive function may be best. Both forms await the send and propagate rejection; neither guarantees concurrent-send idempotency. Preserve transaction checks at the effect boundary rather than treating a pure precheck as authority. Judge the total concepts and call sites, not the number of pure functions.
+If no other caller or test needs the decision independently, the original cohesive function may be best. Both forms await the send and propagate rejection. Neither guarantees concurrent-send idempotency. Preserve transaction checks at the effect boundary rather than treating a pure precheck as authority. Judge the total concepts and call sites, not the number of pure functions.

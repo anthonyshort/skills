@@ -17,3 +17,32 @@ Untrusted input can change the meaning of a query rather than remain data.
 ## Exceptions
 
 Static query text is not untrusted input. A query builder can supply these guarantees, but verify how raw fragments and identifiers are handled before treating it as safe.
+
+## Good and bad examples
+
+This example uses a PostgreSQL-style driver with `$1` value placeholders. The caller controls the account ID and sort choice.
+
+**Bad: interpolate both values and identifiers**
+
+```typescript
+await db.query(
+  `SELECT id FROM invoices WHERE account_id = '${accountId}' ORDER BY ${sort}`,
+);
+```
+
+**Good: bind the value and map the identifier to fixed SQL**
+
+```typescript
+const sortColumn = sort === "created" ? "created_at"
+  : sort === "total" ? "total_cents"
+  : undefined;
+
+if (!sortColumn) throw new Error("Unsupported sort order");
+
+await db.query(
+  `SELECT id FROM invoices WHERE account_id = $1 ORDER BY ${sortColumn}`,
+  [accountId],
+);
+```
+
+Only a fixed identifier enters the SQL text. Binding a column name as `$1` does not turn it into an SQL identifier. Use the actual driver's supported syntax.

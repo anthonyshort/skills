@@ -16,22 +16,22 @@ Forwarding layers add concepts and call paths without always adding value.
 
 Keep boundaries that enforce access, translate data or errors, provide instrumentation, establish ownership or preserve compatibility.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
-Keep an adapter when it translates a real boundary; remove forwarding that adds no contract or isolation.
+Keep an adapter when it translates a real boundary. Remove forwarding that adds no contract or isolation.
 
 ```typescript
 type Invoice = { id: string; totalCents: number };
 type InvoiceReader = { get(id: string): Promise<Invoice> };
 
-// Before: another name and call frame, but no adaptation.
+// Bad for this case: another name and call frame, but no adaptation.
 function forward(reader: InvoiceReader): InvoiceReader {
   return { get: (id) => reader.get(id) };
 }
 
-// After: pass the existing capability directly at the wiring site.
+// Good for this case: pass the existing capability directly at the wiring site.
 declare const reader: InvoiceReader;
 const featureReader = reader;
 
@@ -49,4 +49,4 @@ function adaptLegacy(legacy: LegacyReader): InvoiceReader {
 }
 ```
 
-The direct wiring adds no new function. The adapter owns a shape mismatch and propagates failures unchanged. If failures differ, map them according to the actual domain contract rather than silently flattening them. Retain an apparently thin boundary when it enforces access, stable ownership, instrumentation, or supported compatibility; inspect consumers before removing it.
+The direct wiring adds no new function. The adapter owns a shape mismatch and propagates failures unchanged. If failures differ, map them according to the actual domain contract rather than silently flattening them. Retain an apparently thin boundary when it enforces access, stable ownership, instrumentation, or supported compatibility. Inspect consumers before removing it.

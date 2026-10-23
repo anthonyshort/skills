@@ -16,7 +16,7 @@ Registries can hide construction order and missing dependencies.
 
 Keep plugin infrastructure when supported extensions need it. Do not add discovery, priorities or dependency resolution without a demonstrated need. Preserve cleanup and original setup errors.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
@@ -26,7 +26,7 @@ For one fixed feature, a registry can hide construction order and missing depend
 type Stop = () => void;
 declare function startAutosave(): Stop;
 
-// Before: dynamic lookup for a single statically known operation.
+// Bad for this case: dynamic lookup for a single statically known operation.
 const registry = new Map<string, () => Stop>([["autosave", startAutosave]]);
 function startBefore(): Stop {
   const start = registry.get("autosave");
@@ -34,7 +34,7 @@ function startBefore(): Stop {
   return start();
 }
 
-// After: construction fails at typecheck if the capability disappears.
+// Good for this case: construction fails at typecheck if the capability disappears.
 function startAfter(): Stop {
   return startAutosave();
 }
@@ -69,4 +69,4 @@ function savePlugin(showSaved: () => void, save: () => void): Plugin {
 }
 ```
 
-Here host stop handles are non-throwing and idempotent, and failed registration leaves no resource behind. Verify those guarantees; otherwise preserve the system's cleanup-error policy without losing the original setup error. The pair does not justify dependency resolvers, priorities, dynamic discovery, or a registry unless supported plugins need them. Keep one lifecycle owner and define what repeated start/stop means.
+Here host stop handles are non-throwing and idempotent, and failed registration leaves no resource behind. Verify those guarantees. Otherwise preserve the system's cleanup-error policy without losing the original setup error. The pair does not justify dependency resolvers, priorities, dynamic discovery, or a registry unless supported plugins need them. Keep one lifecycle owner and define what repeated start/stop means.

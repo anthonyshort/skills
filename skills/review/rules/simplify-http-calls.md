@@ -16,13 +16,14 @@ Transport shapes can create unnecessary work for callers.
 
 Keep genuine commands as commands. POST and GET are not automatically equivalent. Do not migrate a transport for naming alone.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
 A resource-shaped endpoint may remove command envelopes and caller unpacking when it fits the existing HTTP contract.
 
 ```typescript
+// Bad for this case: listing requires a command envelope.
 async function before(): Promise<unknown> {
   const response = await fetch("/commands", {
     method: "POST",
@@ -33,6 +34,7 @@ async function before(): Promise<unknown> {
   return response.json();
 }
 
+// Good for this case: the resource URL expresses the same supported task.
 async function after(): Promise<unknown> {
   const response = await fetch("/accounts/account-7/invoices");
   if (!response.ok) throw new Error(`Request failed: ${response.status}`);
@@ -40,4 +42,4 @@ async function after(): Promise<unknown> {
 }
 ```
 
-These calls deliberately leave the payload untrusted; use the existing boundary schema and error decoder in production. Show the actual response use in a real proposal. Preserve authorisation, pagination, failure distinctions, caching and retry semantics; changing POST to GET is not automatically equivalent. Keep command endpoints for genuine commands, and avoid a transport migration for naming alone.
+These calls deliberately leave the payload untrusted. Use the existing boundary schema and error decoder in production. Show the actual response use in a real proposal. Preserve authorisation, pagination, failure distinctions, caching and retry semantics. Changing POST to GET is not automatically equivalent. Keep command endpoints for genuine commands, and avoid a transport migration for naming alone.

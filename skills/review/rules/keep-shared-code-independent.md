@@ -16,9 +16,20 @@ Shared code becomes harder to reuse and change when it needs knowledge of its co
 
 An integration module may intentionally connect domain code to UI or transport code. Check its responsibility before treating the dependency as a leak. Do not introduce interfaces or adapters when direct code already has a clear owner.
 
-## Example
+## Good and bad examples
 
-A subtotal calculation returns a number. An HTTP handler turns that number into a response.
+A subtotal calculation is needed by HTTP and non-HTTP callers.
+
+**Bad: shared pricing logic returns a transport object**
+
+```typescript
+export function calculateSubtotal(prices: readonly number[]): Response {
+  const subtotal = prices.reduce((sum, price) => sum + price, 0);
+  return Response.json({ subtotal });
+}
+```
+
+**Good: return a domain value and build the response at the HTTP boundary**
 
 ```typescript
 // Shared pricing logic

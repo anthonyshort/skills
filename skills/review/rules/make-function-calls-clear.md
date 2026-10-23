@@ -16,7 +16,7 @@ Clear calls reduce the internal knowledge callers need.
 
 Keep pagination and other real capabilities. Do not add options objects or builders to an already clear API. Migrate callers or preserve compatibility.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
@@ -31,12 +31,12 @@ declare function loadAfter(
 ): Promise<readonly string[]>;
 
 async function labels(): Promise<void> {
-  // Before: callers must know why the empty string is required.
+  // Bad for this case: callers must know why the empty string is required.
   const oldLabels = await loadBefore("invoice-42", true, "");
-  // After: the supported operation needs no pagination placeholder.
+  // Good for this case: the supported operation needs no pagination placeholder.
   const newLabels = await loadAfter("invoice-42", { refresh: true });
   console.log(oldLabels, newLabels);
 }
 ```
 
-Removing the cursor is valid only if this operation does not support pagination. Preserve pagination as a real capability where needed. Keep rejection and refresh semantics unchanged; migrate all callers or retain the established compatibility boundary. A clear `loadLabels(id)` needs neither an options object nor a builder.
+Removing the cursor is valid only if this operation does not support pagination. Preserve pagination as a real capability where needed. Keep rejection and refresh semantics unchanged. Migrate all callers or retain the established compatibility boundary. A clear `loadLabels(id)` needs neither an options object nor a builder.

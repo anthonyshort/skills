@@ -16,7 +16,7 @@ Duplicate mutable state can drift out of sync.
 
 Keep historical snapshots. Keep measured caches when recalculation would be too expensive, with clear invalidation.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
@@ -26,14 +26,14 @@ When a total must always reflect current lines, remove the second mutable value 
 type Line = { amount: number };
 const lines: Line[] = [];
 
-// Before: every mutation must also maintain total.
+// Bad for this case: every mutation must also maintain total.
 let total = 0;
 function addLineBefore(line: Line): void {
   lines.push(line);
   total += line.amount;
 }
 
-// After: one source of truth, including edits and removals.
+// Good for this case: one source of truth, including edits and removals.
 function currentTotal(): number {
   return lines.reduce((sum, line) => sum + line.amount, 0);
 }

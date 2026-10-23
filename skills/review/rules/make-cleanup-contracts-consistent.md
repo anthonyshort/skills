@@ -16,7 +16,7 @@ Inconsistent contracts make cleanup harder to use correctly.
 
 Do not combine unrelated owners or impose UI disposal on shared stores. A wrapper that only renames cleanup is not enough to justify migration.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
@@ -26,14 +26,14 @@ A common stop handle can remove special-case bookkeeping when subscriptions have
 declare function watchA(): { stop(): void };
 declare function watchB(): () => void;
 
-// Before: each owner needs to know both cleanup shapes.
+// Bad for this case: each owner needs to know both cleanup shapes.
 function startBefore(): () => void {
   const a = watchA();
   const stopB = watchB();
   return () => { try { stopB(); } finally { a.stop(); } };
 }
 
-// After migrating watchA's contract: callers own one cleanup shape.
+// Good after migrating watchA's contract: callers own one cleanup shape.
 declare function watchAAfter(): () => void;
 function startAfter(): () => void {
   const stopA = watchAAfter();

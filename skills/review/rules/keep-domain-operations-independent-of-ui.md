@@ -16,7 +16,7 @@ Shared operations should not require fake UI objects or mounted components.
 
 Keep UI ownership for operations that concern local selection or editor undo. Do not add a forwarding helper when callers can use the existing operation.
 
-## Example
+## Good and bad examples
 
 This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
 
@@ -26,12 +26,12 @@ If a domain operation is required without an editor, pass the actual command rat
 type Rename = (id: string, name: string) => Promise<void>;
 type Editor = { selectedId: string; rename: Rename };
 
-// Before: an unrelated caller must obtain an editor.
+// Bad for this case: an unrelated caller must obtain an editor.
 async function renameBefore(editor: Editor, name: string): Promise<void> {
   await editor.rename(editor.selectedId, name);
 }
 
-// After: the UI supplies selection; the operation accepts domain inputs.
+// Good for this case: the UI supplies selection; the operation accepts domain inputs.
 async function renameAfter(rename: Rename, id: string, name: string): Promise<void> {
   await rename(id, name);
 }
