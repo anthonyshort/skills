@@ -6,16 +6,19 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 
 - Use normal sentence case. Capitalise sentence starts and “I”.
 - Keep the tone conversational and direct. Avoid chat shorthand and forced casual wording.
+- Explain the problem as you would to a colleague. Start with what the user or caller experiences, then ask for the change. Keep detailed mechanics in the evidence fold.
+- Prefer concrete language. Say “editing this clears the saved colours” rather than “the reconciliation path loses configuration identity”.
 - Use action-led finding titles and short explanatory paragraphs. Explain the problem and requested change naturally. Do not force findings into Trigger/Effect/Action fields. Use lists only for separate points.
 - Do not join clauses with semicolons.
 - Use tables only for short comparisons or results. Do not put paragraphs in cells.
 - Include a short code example directly in a finding when it makes the issue or alternative easier to understand. Prefer the smallest relevant excerpt from the reviewed revision. Label proposed code and omitted context. Do not invent an available helper or force an example for a simple nit.
 - Number bugs, required fixes, suggestions, design opportunities and nits in one sequence across the review. Do not restart at each category. Use those numbers in cross-references and related inline comments.
 - Start with `Review on {short commit hash}`. Keep the summary focused on what the author should do.
-- Mention material risk or a recommendation to split when it changes what the author should do. Explain the specific concern and useful boundary. Do not flag size alone or repeat the full risk assessment.
-- Put validation results, gaps and coverage inside one Verification fold. Its summary must expose the important result or limit without opening it. Keep a material blocker visible in the finding or summary too.
+- For a split-only review, lead with the request to split and a short plan. Say the full review is deferred. Omit bug and rule coverage sections rather than pretending they were checked.
+- Put review limits and coverage inside one Verification fold. Its summary must expose the important result or limit without opening it. Keep a material blocker visible in the finding or summary too.
 - Keep notes with the verification overview before its nested coverage folds. Do not append a second notes section at the bottom.
 - Keep exact hashes, repeated skill paths, agent bookkeeping and long output in the saved report. The GitHub review should explain the results, not reproduce raw worker reports.
+- Keep CI status in the saved report. Do not recap it in the review body or inline comments.
 
 ## Review body
 
@@ -57,12 +60,11 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 {{ Continue the numbering. Use short prose or bullets for optional aesthetic suggestions. }}
 
 <details>
-<summary>Verification — {{ most important executed result }} · {{ important gap or failure }}</summary>
+<summary>Verification — {{ what was checked }} · {{ important review limit }}</summary>
 
 | Check | Result |
 | --- | --- |
-| {{ Executed test group }} | {{ Actual file/test totals and result }} |
-| {{ Typechecking, lint or formatting }} | {{ Actual result and scope }} |
+| Review scope | {{ Source inspection and any manual checks }} |
 | Best-practice skills | {{ Number actually used, with general/repository-specific breakdown when relevant }} |
 | Review rules | {{ Number checked, outcomes and number skipped across all collections }} |
 | Generated checks | {{ Total, with research/review/rule breakdown when recorded }} |
@@ -70,7 +72,7 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 **Gaps and scope notes:**
 
 - {{ Important unverified behaviour, missing sources and bounded searches. }}
-- {{ Distinguish source inspection from runtime verification. Include relevant process exceptions concisely. }}
+- {{ Distinguish source inspection from manual checks. }}
 
 ### Review coverage
 
@@ -86,7 +88,7 @@ Use this layout for a GitHub review. Replace placeholders and omit empty finding
 Nest one fold per review category inside Verification, such as Research, Product, System fit, Simplicity, Readability and Correctness.
 
 - Put actual outcome totals in each summary. The denominator includes all items in the category.
-- Use “satisfied” for checks supported by evidence. Reserve “tests passed” for executed tests.
+- Use “satisfied” for checks supported by evidence. Reading tests does not establish that they passed.
 - Show concerns, skipped, blocked, limited and unverified counts separately. Omit zero counts.
 - Make counts add up. Do not count a blocked or partial check as fully satisfied.
 - Use one short labelled list item per generated check. Name guidance once per category.
@@ -133,7 +135,7 @@ When several subchecks are summarised under one rule, retain the material conclu
 </details>
 ```
 
-Use the actual method if a rule was verified through tests or manual checks. Omit empty outcome groups.
+Name the method used to check each rule. Keep CI status in the saved report. Omit empty outcome groups.
 
 ## Evidence and inline comments
 
@@ -177,7 +179,7 @@ Could the filter callbacks and empty-state bindings have one owner inside `creat
 This is optional and PR-scoped. A small extraction with regression coverage for both renderers would be enough.
 
 <details>
-<summary>Verification — local checks passed · browser interactions not verified</summary>
+<summary>Verification — source review · browser interactions not verified</summary>
 
 Include results, scope notes and nested category/rule folds here.
 

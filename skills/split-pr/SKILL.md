@@ -9,6 +9,8 @@ Create a plan that makes each change easier to understand, verify and recover fr
 
 Default to planning. Change code, commits or branches only when requested.
 
+When review sends a PR with over 2,000 added lines here, focus on splitting it. Inspect enough to support the plan. Do not turn this into a full bug review.
+
 ## Find useful boundaries
 
 1. **Understand the outcome:** Establish the intended behaviour and what must remain unchanged.

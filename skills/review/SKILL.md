@@ -23,7 +23,7 @@ The output is a report that evaluates the change against a few different metrics
 
 - Use this skill, its rules and relevant specialist skills as the review criteria. Do not add checks from repository review guides or style documents.
 - Use repository documents to understand intent, behaviour and architecture. Treat them as context, not additional review checklists.
-- Follow operational instructions needed to access the code and run checks, along with any instructions required by the agent environment.
+- Follow operational instructions needed to access the code and CI evidence, along with any instructions required by the agent environment.
 
 - Do not perform code changes.
 - Only mark checklist items done after verifying.
@@ -33,6 +33,9 @@ The output is a report that evaluates the change against a few different metrics
 - Do not invent product requirements or require speculative future migrations.
 - Provide evidence for each claim of correctness and completion.
 - Use existing checkouts, Git objects and installed tools.
+- Do not install dependencies or tools. Do not run local builds, tests, linters, formatters or typechecks.
+- Use CI for automated results. This applies to workers and specialist guidance too. Do not trigger jobs.
+- Do not create runtime test harnesses or start local services. Use an existing deployment for manual checks.
 
 ## Deliverable
 
@@ -42,11 +45,17 @@ The output is a report that evaluates the change against a few different metrics
 
 ### Step 1: Setup
 
-The review should be done on a local branch. If the branch doesn't exist locally you should clone the repo and branch into a new temporary folder and install dependencies.
+Check the PR description, changed files and line counts first. Confirm the base and head revisions cover the whole PR.
+
+#### Choose the review depth
+
+- **Over 2,000 added lines:** Require splitting before a full review. Use [split-pr](../split-pr/SKILL.md) to suggest useful boundaries. Read enough code and context to support the plan, then stop.
+- **Exceptions:** Only override for clearly generated or mechanical bulk, or an explicit request to review despite the size. Explain why. Unused new code alone is not an exception.
+- **Split-only output:** Save a short report with the split plan, CI status and what you inspected. Skip Steps 2–5. Do not claim implementation or rule coverage. Publishing still requires the user's request.
+
+For a full review, continue below. Use an existing checkout or fetch the reviewed revisions into an isolated checkout.
 
 Create a named directory for review artefacts. Use the requested location, or default to `~/.cache/pi/reviews/`. If that location is not writable, use a temporary directory and report its path.
-
-You will need to confirm the review scope and make sure you're reviewing all commits and not just the latest.
 
 #### Form an initial risk assessment
 
@@ -88,7 +97,7 @@ Assign a subagent to gather the context needed for the review. Give it the repos
 
 1. **Read the change**: Read the full diff and PR description. Trace relevant callers and tests to understand current behaviour and affected consumers.
 2. **Read existing discussion**: Read PR comments and review threads. Follow relevant linked issues, documents and related changes. Note concerns already raised and whether they still apply to the reviewed head.
-3. **Search Slack and Notion**: Search both for the PR URL or number, title, feature names and important topics or identifiers from the change. Look for requirements, decisions, design discussions and ongoing work. Follow useful results rather than relying on search snippets. If either source is unavailable, report the gap and continue.
+3. **Search Slack, Notion, and Linear**: Search for the PR URL or number, title, feature names and important topics or identifiers from the change. Look for requirements, decisions, design discussions and ongoing work. Follow useful results rather than relying on search snippets. If either source is unavailable, report the gap and continue.
 4. **Check related PRs**: Look for open PRs and recently merged PRs that touch the same files or closely related code. Use the method below. Distinguish file overlap from a real conflict or shared design decision.
 5. **Write the brief**: Return the sourced context, checklist results and open questions. Stop when there is enough context to review the change, or explain which missing evidence prevents a conclusion. Avoid background that cannot affect the review.
 
@@ -101,6 +110,8 @@ Assign a subagent to gather the context needed for the review. Give it the repos
 #### Research guidance
 
 - **Investigate the initial risks:** Establish affected consumers, activation paths and relevant non-functional requirements, such as data integrity, performance and compatibility. Look for evidence that reduces or increases risk. Report missing requirements rather than inventing them.
+- **CI results:** Read checks for the reviewed head or a matching merge commit. Link the runs. Read failure logs before blaming the PR.
+- **CI coverage:** Check which tests ran. Flag old, pending, skipped, cancelled or missing results. Continue with source review if CI is unavailable.
 - Separate the intended behaviour, current behaviour and assumptions.
 - Use repository documents as context, not extra review criteria.
 - Check that older decisions still apply. One existing implementation does not establish the desired direction.
@@ -112,6 +123,7 @@ Assign a subagent to gather the context needed for the review. Give it the repos
 
 - [ ] **Scope and behaviour**: Read the full change and trace relevant callers and tests.
 - [ ] **Risk context**: Trace the main risks to affected paths and consumers. Identify relevant requirements, safeguards and unresolved questions.
+- [ ] **CI evidence**: Link results for the reviewed revision. Record failures and coverage gaps.
 - [ ] **Intent and decisions**: Establish the user problem, expected behaviour and relevant decisions from sources.
 - [ ] **Existing concerns**: Read review discussion and distinguish active concerns from issues fixed at the reviewed head.
 - [ ] **Slack**: Search for the PR and its topics. Read relevant results or report unavailable access and incomplete coverage.
@@ -126,6 +138,7 @@ Return a **research brief** containing:
 - **Problem and intent**: The user task, expected outcome and relevant requirements.
 - **Current behaviour**: Affected owners, callers and consumers, with source locations.
 - **Risk context**: Evidence that updates the initial assessment, relevant non-functional requirements and remaining gaps.
+- **CI status**: Relevant checks, tested revisions, results, links and coverage limits.
 - **Decisions and direction**: Supported constraints, design decisions and relevant similar implementations. Separate adopted patterns from planned changes.
 - **Existing concerns and related work**: Active review concerns and overlapping PRs, with links and their relevance.
 - **Sources and search coverage**: What was read, Slack and Notion searches, related-PR search scope and checklist results.
@@ -147,7 +160,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 
 #### Subagent best practices
 
-- **Give each agent a clear brief**: Include its question, review scope, research findings, relevant context, operational constraints and exact guidance paths.
+- **Give each agent a clear brief**: Include its question, scope, research, CI evidence and exact guidance paths. Pass on the no-install and no-local-check rules.
 - **Ask agents to use relevant skills**: Tell each subagent to inspect the available skills in [best-practices](../best-practices/) and select those relevant to its task. Use their descriptions rather than a fixed list of skill names. Ask it to build a task-specific verification checklist using the process below.
 - **Keep context focused**: Give agents what they need for their task. Report templates and writing voice belong to the parent.
 - **Use parallel work after research**: Once Step 2 is complete, independent review tasks can run together within the available agent limit.
@@ -171,7 +184,7 @@ Each review subagent builds its checklist before checking the code:
 2. **Make the checks concrete**: Turn each applicable instruction into a check naming the affected code or behaviour. Cite the skill section or rule it comes from. Do not copy examples as universal requirements.
 3. **Combine overlaps**: Merge checks that test the same behaviour, including overlaps with the review question's checklist. Keep all source references.
 4. **Account for exclusions**: Note guidance sections that do not apply and why. Leave checks blocked when context or access is missing. Do not remove a check just because it is difficult to verify.
-5. **Verify and return results**: Give each check a method, result and evidence. Use Source checked, Test passed, Test failed, Concern found, Blocked, Not run or N/A. Source inspection alone does not establish runtime success.
+5. **Verify and return results**: Record the method, outcome and evidence. Separate source inspection from CI results. Missing evidence does not mean a check passed.
 
 Return the checklist with the assessment. If new risks appear, add checks and record their results. The parent checks coverage against the selected guidance during consolidation and follows up on missing checks or weak evidence.
 
@@ -277,7 +290,7 @@ Review how easy the code is to read and navigate. Recommend changes that make pu
 - [ ] **File organisation**: Check that files are placed intentionally and the folder hierarchy makes ownership clear. Avoid unnecessary nesting or fragmentation.
 - [ ] **Readability**: Look for confusing control flow, nesting and indirection. Can we split large blocks into smaller functions to make it easier to read and follow?
 - [ ] **Comments**: Check that comments explain intent or surprising behaviour and follow the selected specialist skill guidance.
-- [ ] **Formatting**: Run the available formatter check. Avoid manual style findings already covered by automated checks.
+- [ ] **Formatting**: Read CI formatter and lint results. Avoid repeating automated style findings.
 
 ##### Deliverable
 
@@ -295,7 +308,7 @@ You want to make sure the implementation is correct. Be comprehensive here and t
 - Are there test cases covering the important APIs?
 - Are there any bugs with the code?
 - Does this code follow the best practices?
-- Do the lint, test, format, and typechecking tasks pass?
+- What do CI lint, test, format and typechecking results establish for this revision?
 - Can you follow the callers and confirm that surrounding code won't break?
 - Do tests use the right inputs and expect the correct outputs?
 
@@ -303,13 +316,13 @@ You want to make sure the implementation is correct. Be comprehensive here and t
 
 - [ ] **Behaviour verification**: Trace important success and failure paths through real callers, recording expected behaviour and supporting evidence.
 - [ ] **Findings**: Report defects with their trigger, consequence, source location and a reproduction or code trace.
-- [ ] **Counterexamples**: Try inputs and boundary cases that could expose incorrect behaviour in the changed logic.
+- [ ] **Counterexamples**: Trace inputs and boundary cases through the code. Distinguish a code trace from a reproduced failure.
 - [ ] **Test correctness**: Verify that tests use the right inputs and assert the intended outputs. Check expected values, fixtures and mocks independently of the implementation. Passing tests can encode a bug by expecting the wrong result or testing the wrong behaviour.
 - [ ] **Test coverage**: Identify meaningful gaps in regression coverage.
 - [ ] **Root cause**: Trace bugs to their source and check that the fix addresses the cause rather than hiding a symptom.
 - [ ] **Runtime wiring**: Check inputs, configuration and connections that could compile but fail at runtime.
-- [ ] **CI coverage**: Confirm new tests actually run in CI and generated files are checked for missing or outdated output.
-- [ ] **Validation results**: Record the lint, test, format and typechecking commands run, their results, and any blocked or skipped checks.
+- [ ] **CI coverage**: Check test discovery and generated-file checks. Separate configured coverage from confirmed execution.
+- [ ] **Validation results**: Link CI results for the reviewed revision. Explain failures and incomplete coverage.
 - [ ] **Confidence and gaps**: State what was verified, what remains uncertain and how those gaps affect the assessment.
 
 ##### Deliverable
@@ -319,7 +332,7 @@ Return a **correctness assessment** containing:
 1. **Verdict**: No defects found within the verified scope, defects found, or insufficient evidence, with a short rationale. Passing checks alone do not establish correctness.
 2. **Verified behaviour**: The success and failure paths traced, their callers, expected outcomes and evidence.
 3. **Findings**: Supported defects and unresolved questions with locations, triggers, effects, evidence and recommended actions. Explicitly state when no defects were found.
-4. **Validation results**: A table of exact commands, results and relevant failure details. Include checks not run and why.
+4. **CI status**: Results, links and coverage gaps for the reviewed revision.
 5. **Coverage gaps**: Missing regression coverage, unverified behaviour and the effect of these gaps on confidence.
 
 ### Step 4: Check review rules
@@ -334,6 +347,7 @@ Give the subagent:
 - The repository location, base and head revisions, and full diff.
 - The completed research brief and relevant context gathered by the parent.
 - Relevant requirements, decisions, sources and operational constraints.
+- CI evidence and the no-install and no-local-check rules.
 
 #### Work through the rules
 
@@ -351,7 +365,7 @@ Return one **rule assessment** with a row for every rule:
 - **Rule**: Name and file.
 - **Selection**: Selected or skipped, with a reason.
 - **Result**: Satisfied, concern found, not applicable or not verified.
-- **Evidence**: Code locations and what was checked. Distinguish source inspection from executed tests or manual checks. For skipped rules, explain why the rule does not apply.
+- **Evidence**: Code locations and what was checked. Separate source inspection, CI and manual checks. Give a reason for skipped rules.
 - **Finding**: The problem, effect and recommended change, if supported.
 - **Limits**: Missing information or behaviour that could not be verified.
 
@@ -364,9 +378,10 @@ The parent agent combines the research report, all Step 3 assessments and the St
 #### Rules for a good report
 
 - **Use short sentences and lists**: Do not join clauses with semicolons. Use separate sentences for related thoughts and lists for multiple points, conditions or results.
+- **Explain it like a colleague:** Say what happens, why it matters and what should change. Use code names only when they help locate or explain the issue. Put detailed traces in evidence folds.
 - Lead with a short assessment and findings table. Put detailed evidence and coverage in foldable sections.
 - Label findings as new or already reported. Link existing PR threads.
-- Separate source inspection from executed checks. State what passed, failed, was blocked or was not run.
+- Separate source checks, CI results and manual checks. Keep gaps visible.
 
 - The report must make sense without opening the worker reports.
 - Include the research, evidence and conclusions needed to understand the review.
@@ -380,10 +395,10 @@ The parent agent combines the research report, all Step 3 assessments and the St
 #### Create the report
 
 1. **Read the inputs**: Read the research report, every Step 3 assessment and the Step 4 rule assessment. Wait for agents that are still working. Note any failed or missing assessments.
-2. **Check the agents' claims**: Check important claims against the code, requirements and test results. Compare their generated checklists with the guidance they used. Follow up on missing checks or weak evidence. Note anything you could not verify.
+2. **Check the agents' claims**: Check the code, requirements and CI evidence. Compare checklists with their guidance. Follow up on missing checks or weak evidence. Refresh CI status before writing.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
-5. **Reach an overall conclusion**: Decide whether the change solves the right problem, fits the system, is simple enough, is easy to maintain and works correctly. Revisit the initial risks using the completed review. Explain the main failure modes, evidence that reduces risk and remaining verification gaps. Recommend keeping the PR together, simplifying it or splitting it. Separate required fixes, suggestions and wider improvements.
+5. **Reach an overall conclusion**: Explain whether the change meets its goal, fits the system and works. Revisit risks and coverage gaps. Recommend keeping, simplifying or splitting it. Separate fixes from optional work.
 6. **Write the report**: Use [the review report template](templates/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
 
 #### Deliverable
@@ -407,15 +422,16 @@ Run this step only when the user requests staging or publishing a review on the 
 #### Rules
 
 - Use the final report as the source of findings.
+- Keep CI status in the saved report. Leave it out of the GitHub review and inline comments.
 - Keep existing pending comments and avoid duplicates.
 - Put new, line-specific bugs in inline comments when they have valid current diff anchors. Summarise them in the review body and reference the same finding number. Link existing threads instead of adding duplicate comments. Keep bugs without valid anchors in the body.
 - Staging leaves the review pending. Submit only when requested. Use the requested review status. Ask if the submission status is still unclear.
 
 #### Prepare and publish the review
 
-1. **Check the PR**: Read the current head, diff, review threads and any pending review. If the code has changed, check that the findings still apply.
+1. **Check the PR**: Read the current head, diff, review threads and any pending review. Refresh CI status for the reviewed revision. If the code has changed, check that the findings still apply.
 2. **Draft the review**: Fill in [the GitHub review template](templates/github-review.md). Use [writing-voice](../writing-voice/SKILL.md) for the body and inline comments. Apply any supplied profile's GitHub layout.
-3. **Check the formatting**: Check the reviewed-commit header, action-focused summary, sentence case, continuous finding numbers and accurate coverage totals. Keep verification and coverage in the nested fold. Distinguish source inspection from executed checks. Check that code examples give enough context, match the reviewed revision or are labelled as proposals. Remove repeated audit data and raw worker prose using the template's guidance.
+3. **Check the formatting**: Check the reviewed-commit header, action-focused summary, sentence case, continuous finding numbers and accurate coverage totals. Keep verification and coverage in the nested fold. Distinguish source inspection from manual checks. Check that code examples give enough context, match the reviewed revision or are labelled as proposals. Remove repeated audit data and raw worker prose using the template's guidance.
 4. **Stage or submit**: Recheck the head and comments before writing. Update stale findings or anchors, then take the requested action. If an action partly fails, check what was saved before retrying.
 5. **Return the result**: Return the review link and say whether the review is pending or submitted. Report any action that failed or remains incomplete.
 

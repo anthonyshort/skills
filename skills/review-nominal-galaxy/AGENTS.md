@@ -8,7 +8,7 @@ This skill wraps `review`. Keep it short and describe only Galaxy additions unde
 - Add Galaxy guidance and rules to the main selection processes. Use the same generated-checklist process and single rule-checking subagent.
 - Do not introduce separate orchestration or Galaxy output templates.
 - Do not add merge-confidence scores or automatic approval. Requested submissions are COMMENT only, never APPROVE or REQUEST_CHANGES.
-- Do not restore blanket bans on dependency installation, missing tools, temporary directories or preview testing. Follow the main workflow and actual execution permissions.
+- Follow the main workflow's execution boundaries. Do not add separate Galaxy environment rules or duplicate the CI assessment process.
 
 ## Galaxy best practices
 

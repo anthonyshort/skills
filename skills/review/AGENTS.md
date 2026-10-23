@@ -8,6 +8,9 @@
 - Merge overlapping checks and explain excluded guidance. Keep source inspection distinct from executed tests or browser checks.
 - The parent verifies claims, checks coverage and resolves disagreements. It must not just concatenate worker reports.
 - Use repository documents for context, not additional review-policy checklists. Preserve required operational instructions.
+- Use CI for automated results. No dependency installs or local project checks.
+- Keep CI status in the saved report, not the published review.
+- Check size before delegating. Over 2,000 added lines normally gets a split plan, not a full implementation/rule review.
 
 ## Add a rule
 

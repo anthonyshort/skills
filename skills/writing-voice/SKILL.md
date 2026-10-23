@@ -68,6 +68,8 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 
 - Write like a conversation with the author: a short question or request, then the concrete consequence they need to understand. Use normal sentence case. Keep evidence and priority in the saved report; retain enough impact and certainty in the comment to make the concern clear.
 - Skip bot introductions, attribution prefixes, checklist/report boilerplate and rule citations. Include a policy link only when the author needs it to act or understand the requirement.
+- Translate internal mechanics into a concrete example. Prefer “moving one panel rebuilds the others” to “placement replaces unrelated store identities”. Keep exact API names in code or evidence when needed.
+- Read the comment as a message to a colleague. Cut wording that sounds like a report, such as “source-backed concern”, “preparatory read refusal” or “bounded source visibility”. State uncertainty plainly: “I haven't tested this in the browser.”
 
 | Intent | Wording |
 | --- | --- |
@@ -78,6 +80,17 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 | Agreement | “Same here” or “Also this” in an existing thread |
 
 - For notes on your own work, focus on the factual outcome and omit conversational framing.
+
+### Plain-English examples
+
+Explain the problem before naming the mechanism. Keep the same facts and certainty.
+
+| Avoid | Prefer |
+| --- | --- |
+| Placement replaces unrelated store identities. | Can we leave the other panels alone? Moving one panel currently rebuilds all of them and resets their local state. |
+| The reconciliation path loses configuration identity. | Can we keep the saved colours here? Editing this replaces the existing cells and drops their formatting. |
+| Preparatory read failures enter the uncertain-mutation path. | This can fail before anything is copied, but the error says a draft might have been created. Can we handle that read separately? |
+| The scope requires independent verification boundaries. | Please split this into smaller PRs. Chart editing and template publishing need different checks and can be reviewed separately. |
 
 For GitHub review comments, review replies and review bodies, append exactly one blank line and this footer, once at the bottom. This attribution does not apply to other messages or emails.
 

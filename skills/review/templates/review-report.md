@@ -4,9 +4,11 @@
 
 Use short sentences, lists and tables. Do not join clauses with semicolons. Keep the recommendation, findings and important limits visible. Put longer evidence and coverage in foldable sections. Replace placeholders and remove template instructions. Omit empty finding sections. The report must make sense without opening worker reports.
 
+For a split-only review, include Assessment, Risk and scope, a split plan and CI status. Omit implementation findings and coverage sections. Say what was inspected and that a full review was deferred.
+
 ## Assessment
 
-{{ Give a short recommendation and explain why. State the number of new bugs and already reported concerns. Highlight blocked or missing execution checks. Say whether the PR should stay together, be simplified or be split. }}
+{{ Give a short recommendation and explain why. State the number of new bugs and already reported concerns. Highlight material CI failures, pending checks or missing coverage. Say whether the PR should stay together, be simplified or be split. }}
 
 | Area | Conclusion and key evidence |
 | --- | --- |
@@ -15,6 +17,7 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 | Design | {{ Is it reasonably simple and are its APIs clear? }} |
 | Readability | {{ Are names, placement, comments and code clear? }} |
 | Correctness | {{ What works, what fails and what remains unverified? }} |
+| CI | {{ Overall status for the reviewed revision, relevant failed or incomplete checks and a link to the CI evidence. }} |
 
 ### Risk and scope
 
@@ -50,7 +53,7 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 <details>
 <summary>Evidence for {{ finding ID }}</summary>
 
-{{ Short source trace, reproduction, expected/actual results, screenshots or test output. Explain how the evidence supports the finding. }}
+{{ Show the source trace, CI log or observation supporting the finding. Say whether the failure was observed or inferred from code. }}
 
 </details>
 
@@ -64,11 +67,11 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 
 ## Verification summary
 
-{{ State what was actually executed, what was only checked in source and what could not be verified. Keep important failures and gaps visible. Do not equate successful execution or passing tests with correctness. }}
+{{ Link CI results for the reviewed revision. Flag old or incomplete runs. Separate CI, source inspection and manual checks. Passing CI does not prove correctness. Local checks are outside this review, not a setup failure. }}
 
-| Check | Method | Result | Important limit |
+| Check | Method / tested revision | Result | Evidence and limits |
 | --- | --- | --- | --- |
-| {{ check }} | {{ source inspection/test/manual/browser }} | {{ Source checked/Test passed/Test failed/Blocked/Not run }} | {{ concise limit }} |
+| {{ check }} | {{ CI and revision/source inspection/existing-deployment check }} | {{ actual status }} | {{ CI link, source or observation and coverage limits }} |
 
 ## Supporting details
 
@@ -82,11 +85,11 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 <details>
 <summary>Review checklist coverage — {{ short result summary }}</summary>
 
-{{ Group by PR and skill or assessment. List every generated check with its guidance section references, evidence, method and result. Include excluded sections and their scope reasons. Check that relevant guidance was not silently omitted. Record guidance paths and versions. Use explicit results: Source checked, Test passed, Test failed, Concern found, Blocked, Not run or N/A with a reason. Source checked means inspected, not runtime verified. Do not collapse away individual outcomes. Do not load unrelated skills just to mark them N/A. If guidance changed after the review, identify retrospective evidence and leave unsupported new checks unverified. }}
+{{ Group by PR and skill or assessment. List every generated check with its guidance section references, evidence, method and result. Include excluded sections and their scope reasons. Check that relevant guidance was not silently omitted. Record guidance paths and versions. Use explicit results: Source checked, CI passed, CI failed, CI pending, CI skipped, CI cancelled, Concern found, Blocked, Not run or N/A with a reason. Source checked means inspected, not runtime verified. Attribute CI results to CI and include run links. Do not collapse away individual outcomes. Do not load unrelated skills just to mark them N/A. If guidance changed after the review, identify retrospective evidence and leave unsupported new checks unverified. }}
 
 | Skill / checklist and version | Item | Method | Result | Evidence or reason |
 | --- | --- | --- | --- | --- |
-| {{ guidance }} | {{ item }} | {{ source/test/manual/browser }} | {{ explicit result }} | {{ evidence or gap }} |
+| {{ guidance }} | {{ item }} | {{ source/CI/existing-deployment check }} | {{ explicit result }} | {{ evidence or gap }} |
 
 </details>
 
@@ -97,16 +100,16 @@ Use short sentences, lists and tables. Do not join clauses with semicolons. Keep
 
 | Rule | Selected or skipped | Selection reason | Method | Result and evidence |
 | --- | --- | --- | --- | --- |
-| {{ rule and version }} | {{ Selected/Skipped }} | {{ why }} | {{ source/test/manual/browser or N/A }} | {{ outcome and evidence, or skip reason }} |
+| {{ rule and version }} | {{ Selected/Skipped }} | {{ why }} | {{ source/CI/existing-deployment check or N/A }} | {{ outcome and evidence, or skip reason }} |
 
 </details>
 
 <details>
-<summary>Commands and manual checks</summary>
+<summary>CI evidence and manual checks</summary>
 
-| Exact command or manual steps | Revision / environment | Result | Evidence or limit |
+| CI check / run link or manual steps | Revision / environment | Result | Evidence or limit |
 | --- | --- | --- | --- |
-| {{ command or steps }} | {{ revision/environment }} | {{ passed/failed/blocked/not run }} | {{ actual output, reproduction result or reason }} |
+| {{ CI job and link or existing-deployment steps }} | {{ tested revision/environment }} | {{ passed/failed/pending/skipped/cancelled/unavailable }} | {{ relevant logs, observation or coverage gap }} |
 
 {{ Identify missing regression coverage and explain its effect on confidence. }}
 
