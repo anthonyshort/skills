@@ -2,14 +2,14 @@
 
 ## Main skill
 
-- Keep setup, research, broad code review, focused rule checks, consolidation and optional GitHub publishing as distinct steps.
+- Keep setup, research, broad code review, focused rule checks, consolidation and GitHub publishing as distinct steps.
 - Select best-practice guidance by inspecting available skill descriptions. Do not maintain a fixed list of technology skills in the workflow.
 - Ask review agents to generate concrete checks from selected guidance, cite source sections and return methods, results and evidence.
 - Merge overlapping checks and explain excluded guidance. Keep source inspection distinct from executed tests or browser checks.
 - The parent verifies claims, checks coverage and resolves disagreements. It must not just concatenate worker reports.
 - Use repository documents for context, not additional review-policy checklists. Preserve required operational instructions.
 - Use CI for automated results. No dependency installs or local project checks.
-- Keep CI status in the saved report, not the published review.
+- Keep CI details in the canonical report and its published fold, not the short summary or inline comments.
 - Check size before delegating. Over 2,000 added lines normally gets a split plan, not a full implementation/rule review.
 
 ## Add a rule
@@ -38,4 +38,4 @@ A pattern match is not automatically a defect. Require a supported consequence o
 - Identify new findings versus existing PR concerns. Keep required fixes, suggestions, design opportunities and nits distinct.
 - Preserve every generated check with guidance references, method, result and evidence or a reason it was not verified.
 - Keep the final report self-contained. Source links supplement the explanation.
-- GitHub publishing is optional. Do not add a requirement to copy published comments back into the saved report.
+- PR progress and results publish by default, with a local-only override. Keep lifecycle mechanics in the publication helper and presentation in the comment template. Do not require copying published comments back into the saved report.

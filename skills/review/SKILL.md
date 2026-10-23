@@ -39,7 +39,16 @@ The output is a report that evaluates the change against a few different metrics
 
 ## Deliverable
 
-- Review report with findings, research, and an assessment.
+- Saved review report with findings, research and an assessment.
+- For PR reviews, a live progress comment, final results and verified new inline bugs unless the user requests a local-only review.
+
+## GitHub progress and results
+
+For PR reviews, maintain one live comment per run unless the user requests a local-only review. Requests for staged or pending-only output override automatic publication. Use [the comment template](templates/github-progress.md) and [publication helper](scripts/github_progress.py). Run the helper with `--help` for usage. Keep its state in the review artefact directory so resumed runs update the same comment.
+
+The parent owns publication. Create the comment after identifying the reviewed revision. Update it at meaningful milestones using a checklist that reflects the actual review. Label active, skipped or blocked work. Completed stages describe work performed, not passing checks.
+
+Keep the review pinned to its original revisions and flag newer unreviewed commits. Keep provisional findings out of progress updates. If publication fails, continue the local review and report incomplete publication.
 
 ## How to perform a review
 
@@ -47,15 +56,17 @@ The output is a report that evaluates the change against a few different metrics
 
 Check the PR description, changed files and line counts first. Confirm the base and head revisions cover the whole PR.
 
+Create a named directory for review artefacts. Use the requested location, or default to `~/.cache/pi/reviews/`. If that location is not writable, use a temporary directory and report its path.
+
 #### Choose the review depth
 
-- **Over 2,000 added lines:** Require splitting before a full review. Use [split-pr](../split-pr/SKILL.md) to suggest useful boundaries. Read enough code and context to support the plan, then stop.
+- **Over 2,000 added lines:** Require splitting before a full review. Use [split-pr](../split-pr/SKILL.md) to suggest useful boundaries. Read enough code and context to support the plan. Do not perform a full review.
 - **Exceptions:** Only override for clearly generated or mechanical bulk, or an explicit request to review despite the size. Explain why. Unused new code alone is not an exception.
-- **Split-only output:** Save a short report with the split plan, CI status and what you inspected. Skip Steps 2–5. Do not claim implementation or rule coverage. Publishing still requires the user's request.
+- **Split-only output:** Save a short report with the split plan, CI status and what you inspected. Skip Steps 2–5. Do not claim implementation or rule coverage. Use the shorter workflow in the progress comment and continue to Step 6.
+
+For PR reviews with publication enabled, start the live comment with the chosen workflow and pinned revisions. For a split-only review, do this before preparing the split plan.
 
 For a full review, continue below. Use an existing checkout or fetch the reviewed revisions into an isolated checkout.
-
-Create a named directory for review artefacts. Use the requested location, or default to `~/.cache/pi/reviews/`. If that location is not writable, use a temporary directory and report its path.
 
 #### Form an initial risk assessment
 
@@ -400,6 +411,7 @@ The parent agent combines the research report, all Step 3 assessments and the St
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
 5. **Reach an overall conclusion**: Explain whether the change meets its goal, fits the system and works. Revisit risks and coverage gaps. Recommend keeping, simplifying or splitting it. Separate fixes from optional work.
 6. **Write the report**: Use [the review report template](templates/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
+7. **Reduce prose**: Ask an editorial subagent to shorten the completed report. Preserve findings, evidence, tables, counts, individual check outcomes and uncertainty. Do not introduce conclusions or change priorities. The parent compares the edit with the original, restores lost detail and saves the accepted version as the canonical report.
 
 #### Deliverable
 
@@ -415,26 +427,12 @@ One completed `review-report.md` file saved in the review artefact directory. Fi
 - [ ] Every selected check has a result. All template placeholders are filled in or removed with their optional sections.
 - [ ] The report is saved and its path is returned to the user.
 
-### Step 6: Publish the GitHub review (optional)
+### Step 6: Publish results
 
-Run this step only when the user requests staging or publishing a review on the target PR.
+For PR reviews, publish by default unless the user requested local-only or staged output. Use the final report as the source and [the comment template](templates/github-progress.md) for the summary. Use [writing-voice](../writing-voice/SKILL.md) for published prose.
 
-#### Rules
+Re-read current threads and the diff. Publish verified new bugs inline where valid anchors exist, using the report's finding IDs. Link existing concerns instead of duplicating them. Keep findings without suitable anchors in the summary. Submit automatic inline findings together as a COMMENT review. Leave unrelated pending reviews alone.
 
-- Use the final report as the source of findings.
-- Keep CI status in the saved report. Leave it out of the GitHub review and inline comments.
-- Keep existing pending comments and avoid duplicates.
-- Put new, line-specific bugs in inline comments when they have valid current diff anchors. Summarise them in the review body and reference the same finding number. Link existing threads instead of adding duplicate comments. Keep bugs without valid anchors in the body.
-- Staging leaves the review pending. Submit only when requested. Use the requested review status. Ask if the submission status is still unclear.
+Use the helper to retain the checklist, publish the final summary and embed the canonical report. Edit prose before resorting to linked continuation comments for oversized reports. Keep CI details inside the full report, out of the short summary and inline comments. Return the comment URL, report path and any incomplete publication.
 
-#### Prepare and publish the review
-
-1. **Check the PR**: Read the current head, diff, review threads and any pending review. Refresh CI status for the reviewed revision. If the code has changed, check that the findings still apply.
-2. **Draft the review**: Fill in [the GitHub review template](templates/github-review.md). Use [writing-voice](../writing-voice/SKILL.md) for the body and inline comments. Apply any supplied profile's GitHub layout.
-3. **Check the formatting**: Check the reviewed-commit header, action-focused summary, sentence case, continuous finding numbers and accurate coverage totals. Keep verification and coverage in the nested fold. Distinguish source inspection from manual checks. Check that code examples give enough context, match the reviewed revision or are labelled as proposals. Remove repeated audit data and raw worker prose using the template's guidance.
-4. **Stage or submit**: Recheck the head and comments before writing. Update stale findings or anchors, then take the requested action. If an action partly fails, check what was saved before retrying.
-5. **Return the result**: Return the review link and say whether the review is pending or submitted. Report any action that failed or remains incomplete.
-
-#### Deliverable
-
-A pending or submitted GitHub review on the target PR, as requested. Return its link and status.
+If the user separately requests staging or submitting a formal review, use [the GitHub review template](templates/github-review.md) and the requested status. Reuse published findings rather than duplicating inline comments. Staging leaves the review pending. Submit APPROVE or REQUEST_CHANGES only when explicitly requested.

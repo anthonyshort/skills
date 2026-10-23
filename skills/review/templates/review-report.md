@@ -2,7 +2,7 @@
 
 **Scope:** {{ repository/PR/branch, reviewed changes, full base and head revisions, and exclusions }}
 
-Use short sentences, lists and tables. Do not join clauses with semicolons. Keep the recommendation, findings and important limits visible. Put longer evidence and coverage in foldable sections. Replace placeholders and remove template instructions. Omit empty finding sections. The report must make sense without opening worker reports.
+Use short sentences, lists and tables. Do not join clauses with semicolons. Keep the recommendation, findings and important limits visible. Put longer evidence and coverage in foldable sections. Replace placeholders and remove template instructions. Omit empty finding sections. The report must make sense without opening worker reports. This is the canonical report embedded in the PR comment. Use pinned source links or embedded evidence for readers without local artefact access.
 
 For a split-only review, include Assessment, Risk and scope, a split plan and CI status. Omit implementation findings and coverage sections. Say what was inspected and that a full review was deferred.
 
