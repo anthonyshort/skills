@@ -92,7 +92,7 @@ Consider:
 - **Blast radius:** Which consumers and production paths could be affected? Consider the consequence of failure and how it could be detected and recovered from.
 - **Activation:** Is the new code already used? Check callers, imports, registration and side effects before treating it as inactive.
 
-Record the initial assessment and questions in the review artefact directory. Pass them to research and review agents. Revisit them as evidence arrives. Distinguish review effort from production impact. Do not use a numerical risk score.
+Record the initial assessment and questions in the review artefact directory. Pass them to research and review agents. Revisit them as evidence arrives. Distinguish review effort from production impact. Conclude with a qualitative production risk level (low, medium or high), supported by exposure, consequences and verification gaps. State when evidence is insufficient to assess risk. Do not use a numerical risk score.
 
 #### This step is complete when:
 - [ ] There is a local copy of the code being reviewed.
@@ -420,7 +420,7 @@ The parent agent combines the research report, all Step 3 assessments and the St
 2. **Check the agents' claims**: Check the code, requirements and CI evidence. Compare checklists with their guidance. Follow up on missing checks or weak evidence. Refresh CI status before writing.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
-5. **Reach an overall conclusion**: Explain whether the change meets its goal, fits the system and works. Revisit risks and coverage gaps. Recommend keeping, simplifying or splitting it. Separate fixes from optional work.
+5. **Reach an overall conclusion**: Explain whether the change meets its goal, fits the system and works. Revisit the production risk level and coverage gaps. Summarise rule results from the complete coverage table, keeping concerns, unverified checks and skipped rules distinct from satisfied rules. Recommend keeping, simplifying or splitting it and explain supported alternatives. Separate fixes from optional work.
 6. **Write the report**: Use [the review report template](templates/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
 7. **Reduce prose**: Ask an editorial subagent to shorten the completed report. Preserve findings, evidence, tables, counts, individual check outcomes and uncertainty. Do not introduce conclusions or change priorities. The parent compares the edit with the original, restores lost detail and saves the accepted version as the canonical report.
 
@@ -485,7 +485,7 @@ Publish PR reviews by default, respecting local-only, staged, comment-only and w
    - Count additions plus deletions across the whole PR. Use single-line reasons and actions. `next_steps` must contain an action unless the outcome is `approve`.
 
 4. **Publish with the helper's `finish --approval`.** Supply the decision, summary and canonical report.
-   - Follow [the comment template](templates/github-progress.md) and [writing-voice](../writing-voice/SKILL.md). Supply a plain findings introduction followed by grouped findings. The helper inserts Next steps and keeps the structured assessment inside Full report.
+   - Follow [the comment template](templates/github-progress.md) and [writing-voice](../writing-voice/SKILL.md). Supply the compact high-level assessment and research/approach folds before grouped findings. Derive them from the completed report, including validated reused research. The helper inserts Next steps after the assessment folds and keeps the seven approval checks inside Full report.
    - Submit verified new bugs inline as a COMMENT review, using the report's finding IDs and valid anchors. Link existing concerns. Keep unanchored findings in the summary.
    - For separately requested formal reviews, use [the GitHub review template](templates/github-review.md) and requested status instead. Reuse published findings. Staging leaves the review pending.
    - Before retrying, refresh discussion and CI. Reuse the saved state and unchanged inputs only while the assessment holds. If facts change, inspect this run's existing submission before starting a new assessment. Do not duplicate submitted reviews or edit frozen inputs.

@@ -14,14 +14,17 @@ For a split-only review, include Assessment, Risk and scope, a split plan and CI
 | --- | --- |
 | Product | {{ Does this solve the intended user task? }} |
 | Direction | {{ Does it fit established ownership and supported direction? State unknowns. }} |
-| Design | {{ Is it reasonably simple and are its APIs clear? }} |
+| Design | {{ Is it reasonably simple and are its APIs clear? State supported alternatives and their trade-offs, or that none were found. }} |
+| Rules | {{ Counts of satisfied rules, concerns, unverified rules and skipped rules across all supplied collections. Identify each rule with a concern and why, linking finding IDs where relevant. Keep selected rules found not applicable distinct. }} |
 | Readability | {{ Are names, placement, comments and code clear? }} |
 | Correctness | {{ What works, what fails and what remains unverified? }} |
 | CI | {{ Overall status for the reviewed revision, relevant failed or incomplete checks and a link to the CI evidence. }} |
 
 ### Risk and scope
 
-{{ Briefly explain the main risks and whether the PR should stay together, be simplified or be split. Distinguish review effort from production impact. }}
+**Risk:** {{ Low, medium or high production risk, with a concise reason based on exposure, consequences and verification gaps. Say when evidence is insufficient to assess risk. }}
+
+{{ Explain whether the PR should stay together, be simplified or be split. Distinguish review effort from production impact. }}
 
 - **Size and scope:** {{ Additions and deletions across the reviewed diff, distinct changes and mechanical or generated portions. }}
 - **Exposure:** {{ Active paths, affected consumers and blast radius. Explain when code is not yet used. }}

@@ -246,6 +246,46 @@ class PublicationTests(unittest.TestCase):
                         self.assertNotIn(check["reason"], visible)
                         self.assertIn(check["reason"], report)
 
+    def assessment_summary(self):
+        return (
+            "- **Overall:** The approach solves the saved-colour problem. No new bugs found.\n"
+            "- **Risk:** Low. Only rendering changes.\n"
+            "- **Rules:** 6 satisfied, 0 concerns, 1 unverified, 11 skipped.\n\n"
+            "<details>\n<summary>Research sources</summary>\n\n"
+            "#### Requirements\n\n[Colour issue](https://example.com/issue): Defines persistence.\n\n"
+            "<details>\n<summary>Reused evidence</summary>\n\n"
+            "#### Earlier decision\n\nThe owner remains the same.\n\n</details>\n\n</details>\n\n"
+            "<details>\n<summary>Approach and alternatives</summary>\n\n"
+            "Reuse the existing renderer. A new owner would duplicate state.\n\n</details>\n\n"
+            "```markdown\n#### Example, not a result section\n```\n\n"
+            "~~~markdown\n#### Another example\n~~~\n\n"
+            "<!--\n#### Editorial note\n-->\n\n"
+        )
+
+    def test_next_steps_follow_complete_assessment_before_trailing_sections(self):
+        for trailing in (
+            "#### Findings\n\n##### P2\n\n- **F1 — Keep colours:** Existing concern.\n",
+            "#### Open questions\n\nConfirm persistence requirements.\n",
+            "",
+        ):
+            with self.subTest(trailing=trailing):
+                assessment = self.assessment_summary()
+                decision = self.decision(
+                    outcome="changes_needed", checks=self.checks(clean_review="Fail"),
+                    next_steps=["Resolve F1 and request another review."])
+                state = {"repo": "o/r", "head": "b" * 40, "checklist": "- [x] Review",
+                         "approval_decision": json.loads(decision.read_text())}
+                body = progress.render(state, "Reviewed", summary=assessment + trailing,
+                                       report="Canonical evidence.")
+                visible, hidden = self.visible_and_report(body)
+                self.assertIn(assessment.strip(), visible)
+                self.assertLess(visible.index(assessment.strip()), visible.index("#### Next steps"))
+                if trailing:
+                    self.assertLess(visible.index("#### Next steps"), visible.index(trailing.strip()))
+                self.assertEqual(visible.count("#### Next steps"), 1)
+                self.assert_no_visible_approval_assessment(visible)
+                self.assertIn("Canonical evidence.", hidden)
+
     def test_result_orders_summary_next_steps_findings_then_full_report(self):
         lead = "No new confirmed bugs were found. One earlier issue still needs a fix."
         self.summary.write_text(lead + "\n\n#### Findings\n\n##### P2\n\n"
@@ -360,6 +400,8 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.backend.reviews, [])
 
     def test_large_report_continuations_keep_assessment_and_links_inside_full_report(self):
+        assessment = self.assessment_summary()
+        self.summary.write_text(assessment)
         report = ("## Evidence\n\n" + "Trace and uncertainty. " * 30 + "\n\n") * 12
         self.report.write_text(report)
         self.assert_success(self.start())
@@ -368,6 +410,8 @@ class PublicationTests(unittest.TestCase):
         public = self.backend.comments[0]["body"]
         self.assertGreater(len(self.backend.comments), 1)
         visible, hidden = self.visible_and_report(public)
+        self.assertIn(assessment.strip(), visible)
+        self.assertNotIn("#### Next steps", visible)
         self.assert_no_visible_approval_assessment(visible)
         self.assertIn("**Approved.**", visible)
         self.assertEqual(hidden.count("| Pass |"), 7)

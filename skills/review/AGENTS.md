@@ -32,7 +32,7 @@ A pattern match is not automatically a defect. Require a supported consequence o
 
 - Store report formats in `templates/`, not `assets/`.
 - Let templates define report sections. Avoid repeating their full field lists in the main skill.
-- The saved report leads with an assessment and findings table. GitHub results start with a short findings summary, Next steps and Findings grouped by P0/P1/P2. Keep shared finding IDs and distinguish existing concerns from new findings. The structured assessment and detailed coverage belong inside Full report, without duplicate tables or reviewed-commit headers.
+- The saved report leads with an assessment and findings table. GitHub results start with a compact overall verdict, risk and rule summary, then research and approach folds, Next steps and Findings grouped by P0/P1/P2. Keep shared finding IDs and distinguish existing concerns from new findings. The seven approval checks and detailed coverage belong inside Full report, without duplicate tables or reviewed-commit headers.
 - Use short inline code examples when they clarify findings or design alternatives. Pin current excerpts to the reviewed revision and label proposed code.
 - Prefer inline comments for new bugs with valid current diff anchors. Summarise them in the body with the same finding number. Link existing threads instead of duplicating them.
 - Identify new findings versus existing PR concerns. Keep required fixes, suggestions, design opportunities and nits distinct.

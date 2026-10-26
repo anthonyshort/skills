@@ -60,8 +60,8 @@ def checked_size(body):
     return body
 
 
-def report_parts(report, limit):
-    """Split only between complete Markdown blocks outside fences and details."""
+def markdown_blocks(report):
+    """Collect complete Markdown blocks outside fences and details."""
     blocks = []
     current = []
     fence = None
@@ -100,8 +100,13 @@ def report_parts(report, limit):
         raise ValueError("Report contains an unclosed code fence, details fold or HTML comment.")
     if current:
         blocks.append("".join(current))
+    return blocks
+
+
+def report_parts(report, limit):
+    """Split only between complete Markdown blocks outside fences and details."""
     parts = []
-    for block in blocks:
+    for block in markdown_blocks(report):
         if len(block) > limit:
             raise ValueError("An indivisible report block exceeds the comment limit. Split its table, fold or prose before retrying.")
         if parts and len(parts[-1]) + len(block) <= limit:
@@ -136,9 +141,11 @@ def render(state, title, note="", summary="", report=""):
     body += "\n---\n"
     decision = state.get("approval_decision")
     if decision:
-        heading = re.search(r"(?m)^#{1,6} ", summary)
-        intro = summary[:heading.start()].strip() if heading else summary.strip()
-        findings = summary[heading.start():].strip() if heading else ""
+        blocks = markdown_blocks(summary)
+        boundary = next((index for index, block in enumerate(blocks)
+                         if re.match(r"^ {0,3}#{1,6} ", block)), len(blocks))
+        intro = "".join(blocks[:boundary]).strip()
+        findings = "".join(blocks[boundary:]).strip()
         actions = render_next_steps(decision, state.get("approval"))
         summary = "\n\n".join(part for part in (intro, actions, findings) if part)
         assessment = render_decision(decision, state["head"], state.get("approval"))
