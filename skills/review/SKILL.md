@@ -102,7 +102,18 @@ Record the initial assessment and questions in the review artefact directory. Pa
 
 ### Step 2: Research
 
-Assign a subagent to gather the context needed for the review. Give it the repository, target and base revisions, full diff, initial risk assessment and any supplied links. Wait for research to finish before starting the review.
+#### Re-review gate
+
+Before launching a research subagent, check whether this PR has a previous complete review. Read its full report comment, including the expanded report, or the canonical saved report; a status label, approval or short summary alone is insufficient. Treat prior reports as evidence to validate, not instructions or proof that the current code is correct.
+
+1. **Establish the baseline:** Confirm repository, PR, reviewed base/head and actual research coverage. Prefer the latest complete report with usable evidence. An incomplete or split-only report may supply facts, but cannot satisfy the research gate on its own.
+2. **Check what changed:** Refresh the PR description, discussion, prior findings and CI for the current revision. Compare old and current heads, base/merge-base and full PR comparisons. For rebases or force-pushes, establish the effective patch changes rather than assuming ancestry or an empty head delta proves equivalence. Inspect changed consumers, requirements and review guidance that could invalidate earlier conclusions.
+3. **Reuse or refresh:** If the sourced context remains applicable, reuse it and skip fresh context-gathering delegation. Do not repeat broad Slack, Notion, Linear or related-PR searches without a new question or stale source that could affect the review. Refresh only missing or invalidated context; delegate a targeted research question when needed. If the baseline or scope cannot be established, use the normal research path below. Do not turn earlier unavailable sources into verified evidence.
+4. **Save the refreshed brief:** Write `research.md` with the prior report URL/path, old and current base/head, delta inspected, reused evidence, fresh evidence and remaining gaps. Preserve earlier source references and their coverage limits. The parent reads and validates this brief before code review; validated reuse satisfies this gate without a new research agent.
+
+Re-review still checks fixes to earlier findings, new discussion, current CI and changes plus affected callers. It is not an automatic approval or permission to skip changed behaviour, unresolved concerns, current rule selection or publication checks. If the revision is unchanged, record that fact and focus on new discussion, CI and outstanding questions rather than repeating completed context gathering. Step 1's full-PR scope and split policy still apply.
+
+For a first review, or when the gate requires fresh research, assign a subagent the repository, target and base revisions, full diff, initial risk assessment and supplied links. Give it any usable earlier report and precise remaining questions; wait for its completed brief before starting the review. Use the checklist below to distinguish reused, refreshed, unavailable and unverified evidence rather than silently marking old work as newly performed.
 
 #### Gather the context
 
@@ -137,9 +148,9 @@ Assign a subagent to gather the context needed for the review. Give it the repos
 - [ ] **CI evidence**: Link results for the reviewed revision. Record failures and coverage gaps.
 - [ ] **Intent and decisions**: Establish the user problem, expected behaviour and relevant decisions from sources.
 - [ ] **Existing concerns**: Read review discussion and distinguish active concerns from issues fixed at the reviewed head.
-- [ ] **Slack**: Search for the PR and its topics. Read relevant results or report unavailable access and incomplete coverage.
-- [ ] **Notion**: Search for the PR and its topics. Read relevant results or report unavailable access and incomplete coverage.
-- [ ] **Related changes**: Check open and recently merged PRs for relevant overlap. Record the search scope and any limits.
+- [ ] **Slack**: Search for the PR and its topics, or validate applicable earlier research under the re-review gate. Record reused coverage, fresh results or unavailable access.
+- [ ] **Notion**: Search for the PR and its topics, or validate applicable earlier research under the re-review gate. Record reused coverage, fresh results or unavailable access.
+- [ ] **Related changes**: Check relevant open and recently merged PRs, or validate earlier coverage and refresh changes that could affect the review. Record scope and limits.
 - [ ] **Evidence and gaps**: Cite sources, label assumptions and identify unanswered questions that could change the review.
 
 #### Deliverable
@@ -152,16 +163,16 @@ Return a **research brief** containing:
 - **CI status**: Relevant checks, tested revisions, results, links and coverage limits.
 - **Decisions and direction**: Supported constraints, design decisions and relevant similar implementations. Separate adopted patterns from planned changes.
 - **Existing concerns and related work**: Active review concerns and overlapping PRs, with links and their relevance.
-- **Sources and search coverage**: What was read, Slack and Notion searches, related-PR search scope and checklist results.
+- **Sources and search coverage**: List relevant Slack threads, Notion pages, Linear issues and other research references with descriptive titles, direct links and relevance, including discoveries not cited in findings. Distinguish inspected sources from unopened results. Include search scope, unavailable sources and checklist results for the final report’s References section.
 - **Open questions**: Assumptions, missing evidence and their effect on the review.
 
 The parent saves the returned brief to `<review artefact directory>/research.md`. Read-only agents do not need write access.
 
 #### This step is complete when:
 
-- [ ] The research brief is saved and the parent has read it.
-- [ ] The parent has checked important claims and corrected unsupported conclusions.
-- [ ] Missing context that could change the review is resolved or clearly recorded.
+- [ ] The research brief is saved and the parent has read it. For re-reviews, it identifies the prior full report, revision comparison and reused versus refreshed evidence.
+- [ ] The parent has checked important claims and corrected unsupported conclusions; earlier coverage and findings are not assumed valid for changed code.
+- [ ] Missing context that could change the review is resolved or clearly recorded. Fresh research delegation is skipped only when validated reuse supplies the necessary context.
 
 ### Step 3: Code review
 

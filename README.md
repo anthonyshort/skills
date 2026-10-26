@@ -28,6 +28,12 @@ exports `./skills` as a Pi package. The review workflow uses equivalent agents o
 its documented fallback when its named agents are unavailable. The personal GitHub
 review attribution remains `Sent with Pi` on all agents.
 
+## Communication style
+
+`communication` guides how the assistant explains things: conversational wording, concrete examples and a clear progression from one idea to the next. Its core guidance applies across replies and written work. The skill also covers written formatting, while specialised skills can add document-specific rules. `writing-voice` remains for drafting messages as the user.
+
+Link the skill locally or update your managed skills installation. To make it a default rather than relying only on skill discovery, point your shared agent instructions at `skills/communication/SKILL.md` in this checkout. Reload resources or start a new session after installation.
+
 ## Local authoring
 
 ```sh

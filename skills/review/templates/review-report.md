@@ -75,6 +75,14 @@ The helper adds the exact structured assessment inside the published Full report
 | --- | --- | --- | --- |
 | {{ check }} | {{ CI and revision/source inspection/existing-deployment check }} | {{ actual status }} | {{ CI link, source or observation and coverage limits }} |
 
+## References
+
+{{ List all relevant Slack threads, Notion pages, Linear issues and other research sources found during the review, including those not cited in findings. Group rows by source and deduplicate repeated references. Use a descriptive title linked to the direct source and briefly explain its relevance. Distinguish inspected sources from search results that were not opened. If no references were found, say so. Note unavailable sources separately from searches with no relevant results. }}
+
+| Source | Reference | Relevance |
+| --- | --- | --- |
+| {{ Slack / Notion / Linear / Other }} | [{{ descriptive title }}]({{ direct permalink }}) | {{ What this source establishes and why it matters to the review }} |
+
 ## Supporting details
 
 <details>
