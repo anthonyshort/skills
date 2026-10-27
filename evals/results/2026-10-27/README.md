@@ -1,5 +1,7 @@
 # Validity check — 27 October 2026
 
+This run predates splitting the review skill into units. It used the single `review` skill and the earlier category cases.
+
 The evals should pass with the current review skill and fail when the skill is made worse. We ran them against the real skill and two deliberately broken copies.
 
 | Run | Skill | Cases | Expected | Result |

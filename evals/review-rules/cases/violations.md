@@ -1,6 +1,6 @@
-# Review rules
+# Rule violations
 
-One case per rule in [the rule index](../../../skills/review/rules/README.md) that no other category covers. Each change clearly breaks its rule, so the rule pass should select the rule, read it and record a concern. The architecture and Valtio files cover the remaining three rules.
+One case per rule in [the rule index](../../../skills/review-rules/rules/README.md). Each change clearly breaks its rule, so the rule pass should select the rule, read it and record a concern.
 
 ## lint-suppression: Load the profile when the page opens
 
@@ -46,11 +46,11 @@ export function ProfilePage({ userId }: { userId: string }) {
 ### Must find
 
 - The `react-hooks/exhaustive-deps` suppression hides the missing `userId` dependency, so navigating to another profile keeps showing the first user's profile. Reports it as a required fix and recommends depending on `userId` instead of suppressing the rule.
-- The report's rule results record a concern for the "Fix the code instead of disabling lint checks" rule.
+- Records a concern for the "Fix the code instead of disabling lint checks" rule.
 
 ### Must read
 
-- `review/rules/fix-code-instead-of-disabling-lint.md`
+- `review-rules/rules/fix-code-instead-of-disabling-lint.md`
 
 ## mixed-cleanup-shapes: Watch the network status next to the theme
 
@@ -120,11 +120,11 @@ export function startShell(update: (patch: object) => void): () => void {
 ### Must find
 
 - `watchNetwork` returns `{ dispose() }` while the other watchers return a stop function, so `startShell` needs special-case bookkeeping. Recommends returning a stop function like the others so it joins the same list.
-- The report's rule results record a concern for the "Use consistent cleanup contracts for similar resources" rule.
+- Records a concern for the "Use consistent cleanup contracts for similar resources" rule.
 
 ### Must read
 
-- `review/rules/make-cleanup-contracts-consistent.md`
+- `review-rules/rules/make-cleanup-contracts-consistent.md`
 
 ## select-then-confirm: Duplicate a dashboard
 
@@ -192,11 +192,11 @@ export function DashboardList({ dashboards }: { dashboards: { id: string; name: 
 ### Must find
 
 - The select-then-confirm flow adds a selection state and an extra step that the requirements say isn't needed. Recommends a duplicate button per dashboard that runs the action directly, keeping the spinner, error message and protection against double clicks.
-- The report's rule results record a concern for the "Remove interaction steps the task does not need" rule.
+- Records a concern for the "Remove interaction steps the task does not need" rule.
 
 ### Must read
 
-- `review/rules/remove-unnecessary-interaction-steps.md`
+- `review-rules/rules/remove-unnecessary-interaction-steps.md`
 
 ## placeholder-arguments: Show overdue invoices on the dashboard
 
@@ -252,11 +252,11 @@ export async function loadOverdueInvoices(accountId: string) {
 ### Must find
 
 - The call `fetchInvoices(accountId, false, true, '', 0)` uses positional booleans and placeholder pagination values, so a reader can't tell what it asks for without opening `fetchInvoices`. Recommends a clearer call, such as named options with defaults, showing the caller before and after.
-- The report's rule results record a concern for the "Make function calls clear and direct" rule.
+- Records a concern for the "Make function calls clear and direct" rule.
 
 ### Must read
 
-- `review/rules/make-function-calls-clear.md`
+- `review-rules/rules/make-function-calls-clear.md`
 
 ## command-envelope: Load a project by id
 
@@ -314,11 +314,11 @@ export async function loadProject(id: string) {
 ### Must find
 
 - Reading a project goes through a `POST /api/rpc` command envelope, and the caller unpacks `data.result.project`, unlike the rest of the resource-shaped API. Recommends `GET /api/projects/:id` returning the project, with a 404 for a missing project like the users route.
-- The report's rule results record a concern for the "Simplify HTTP calls without changing their meaning" rule.
+- Records a concern for the "Simplify HTTP calls without changing their meaning" rule.
 
 ### Must read
 
-- `review/rules/simplify-http-calls.md`
+- `review-rules/rules/simplify-http-calls.md`
 
 ## legacy-client: Show the user's avatar in comments
 
@@ -372,11 +372,11 @@ export function CommentAuthor({ userId }: { userId: string }) {
 ### Must find
 
 - The new `CommentAuthor` uses the deprecated `fetchUser` instead of the adopted `client.users.get`, so it misses the auth headers, retries and caching. Recommends switching this caller to `client.users.get` without moving the other legacy callers in this PR.
-- The report's rule results record a concern for the "Migrate callers in small supported steps" rule.
+- Records a concern for the "Migrate callers in small supported steps" rule.
 
 ### Must read
 
-- `review/rules/migrate-callers-in-small-steps.md`
+- `review-rules/rules/migrate-callers-in-small-steps.md`
 
 ## forwarding-service: Add a project service
 
@@ -431,11 +431,11 @@ export async function renameFromPage(id: string, name: string) {
 ### Must find
 
 - `projectService` only forwards to `api.projects` under new names. It adds no validation, translation or boundary. Recommends calling `api.projects` directly from the page and removing the service.
-- The report's rule results record a concern for the "Remove wrappers that add no value" rule.
+- Records a concern for the "Remove wrappers that add no value" rule.
 
 ### Must read
 
-- `review/rules/remove-wrappers-that-add-no-value.md`
+- `review-rules/rules/remove-wrappers-that-add-no-value.md`
 
 ## single-entry-registry: Export a report as CSV
 
@@ -497,11 +497,11 @@ function download(text: string) {
 ### Must find
 
 - The exporter registry has one fixed entry and no real extension need. It hides the dependency on `exportCsv` and turns a missing registration into a runtime error, for example when `ExportButton` is used before `main.ts` registers the exporter. Recommends calling `exportCsv` directly.
-- The report's rule results record a concern for the "Use registries for real extension needs" rule.
+- Records a concern for the "Use registries for real extension needs" rule.
 
 ### Must read
 
-- `review/rules/use-registries-for-real-extensions.md`
+- `review-rules/rules/use-registries-for-real-extensions.md`
 
 ## save-by-event: Save the document from the toolbar
 
@@ -566,11 +566,11 @@ export function Toolbar({ id, body, showStatus }: { id: string; body: string; sh
 ### Must find
 
 - The toolbar emits a save event and shows "Saved" straight away. The listener doesn't await `saveDocument`, so a failed save shows "Saved" and its rejection goes unhandled. Recommends awaiting `saveDocument` from the click handler and showing "Saved" or the error from the result.
-- The report's rule results record a concern for the "Await operations whose results matter" rule.
+- Records a concern for the "Await operations whose results matter" rule.
 
 ### Must read
 
-- `review/rules/await-required-operations.md`
+- `review-rules/rules/await-required-operations.md`
 
 ## fragmented-decision: Decide when to send an invoice reminder
 
@@ -609,11 +609,11 @@ export function shouldSendReminder(invoice: Invoice, now = new Date()): boolean 
 ### Must find
 
 - The decision is split into tiny helpers (`isTrue`, `not`, `both`, `isMoreThan`) with no other callers, which makes a two-condition rule harder to read. Recommends a single direct expression, such as `!invoice.paid && now - dueAt > 7 days`.
-- The report's rule results record a concern for the "Extract decisions only when it helps" rule.
+- Records a concern for the "Extract decisions only when it helps" rule.
 
 ### Must read
 
-- `review/rules/extract-decisions-only-when-useful.md`
+- `review-rules/rules/extract-decisions-only-when-useful.md`
 
 ## changed-error-code: Tidy the invoice API error codes
 
@@ -665,11 +665,11 @@ app.get('/api/invoices/:id', async (req, res) => {
 ### Must find
 
 - The server now returns `NOT_FOUND`, but `openInvoice` still checks for `INVOICE_NOT_FOUND`. A missing invoice now throws instead of offering recovery. Recommends keeping the old code or updating the client in the same change.
-- The report's rule results record a concern for the "Keep API changes compatible with callers" rule.
+- Records a concern for the "Keep API changes compatible with callers" rule.
 
 ### Must read
 
-- `review/rules/keep-api-changes-compatible.md`
+- `review-rules/rules/keep-api-changes-compatible.md`
 
 ## retried-charge: Retry payments on network errors
 
@@ -724,11 +724,11 @@ export async function pay(customerId: string, amountCents: number): Promise<stri
 ### Must find
 
 - If the charge succeeds but the response is lost, the retry sends a new charge request and the customer is charged twice. Recommends an idempotency key created once per checkout and passed through to the payment provider, so a retry returns the original charge.
-- The report's rule results record a concern for the "Check retries for repeated side effects" rule.
+- Records a concern for the "Check retries for repeated side effects" rule.
 
 ### Must read
 
-- `review/rules/check-retries-for-repeated-effects.md`
+- `review-rules/rules/check-retries-for-repeated-effects.md`
 
 ## interpolated-query: Search customers by name
 
@@ -765,11 +765,11 @@ app.get('/api/customers', async (req, res) => {
 ### Must find
 
 - `search` and `sort` come from the query string and are interpolated into the SQL, so a request can inject SQL. Recommends binding `search` as a parameter (`$1`) and mapping `sort` to a fixed set of allowed columns.
-- The report's rule results record a concern for the "Bind query values and restrict dynamic identifiers" rule.
+- Records a concern for the "Bind query values and restrict dynamic identifiers" rule.
 
 ### Must read
 
-- `review/rules/bind-query-values.md`
+- `review-rules/rules/bind-query-values.md`
 
 ## prefix-path-check: Download uploaded files
 
@@ -806,11 +806,11 @@ app.get('/api/files', async (req, res) => {
 ### Must find
 
 - The `startsWith(UPLOADS)` check accepts sibling paths such as `/srv/uploads-private/...`, for example via `?path=../uploads-private/secret`, so files outside the uploads directory can be read. Recommends a segment-aware check using `path.relative`.
-- The report's rule results record a concern for the "Keep file access within allowed paths" rule.
+- Records a concern for the "Keep file access within allowed paths" rule.
 
 ### Must read
 
-- `review/rules/keep-file-access-within-allowed-paths.md`
+- `review-rules/rules/keep-file-access-within-allowed-paths.md`
 
 ## duplicated-logout: Sign out when the session expires
 
@@ -856,8 +856,293 @@ export function handleSessionExpired(): void {
 ### Must find
 
 - `handleSessionExpired` repeats the sign-out field updates but doesn't clear `recentProjectIds`, so the previous user's recent projects remain after expiry. Recommends one shared `signOut` action in the session store that both entry points call.
-- The report's rule results record a concern for the "Keep shared state rules in shared actions" rule.
+- Records a concern for the "Keep shared state rules in shared actions" rule.
 
 ### Must read
 
-- `review/rules/keep-shared-state-rules-in-shared-actions.md`
+- `review-rules/rules/keep-shared-state-rules-in-shared-actions.md`
+
+## domain-operation-needs-editor: Close editor tabs when archiving a project
+
+A domain operation takes a mounted UI object, so the background job has to fake one.
+
+### Requirements
+
+Archiving a project marks it archived and closes any open editor tabs for it. Projects are archived from the project menu and by the nightly inactive-project job.
+
+### Before
+
+```md file=ARCHITECTURE.md
+# Architecture
+
+- `src/domain/` holds business operations. They run in the browser and in background jobs, so they must not depend on React, the DOM or editor UI objects.
+- `src/ui/` holds components and editor integration.
+- `src/jobs/` holds background jobs that run without any UI.
+```
+
+```ts file=src/domain/projects/archiveProject.ts
+import { db } from '../db';
+
+export async function archiveProject(projectId: string): Promise<void> {
+  await db.projects.update(projectId, { archivedAt: new Date() });
+}
+```
+
+```ts file=src/ui/editor/EditorView.ts
+export interface EditorView {
+  openTabs(): { id: string; projectId: string }[];
+  closeTab(tabId: string): void;
+  showToast(message: string): void;
+}
+```
+
+```tsx file=src/ui/projects/ProjectMenu.tsx
+import { archiveProject } from '../../domain/projects/archiveProject';
+
+export function ProjectMenu({ projectId }: { projectId: string }) {
+  return <button onClick={() => archiveProject(projectId)}>Archive</button>;
+}
+```
+
+```ts file=src/jobs/archiveInactiveProjects.ts
+import { archiveProject } from '../domain/projects/archiveProject';
+import { db } from '../domain/db';
+
+export async function archiveInactiveProjects(): Promise<void> {
+  for (const project of await db.projects.inactiveSince(90)) {
+    await archiveProject(project.id);
+  }
+}
+```
+
+### After
+
+```ts file=src/domain/projects/archiveProject.ts
+import { db } from '../db';
+import type { EditorView } from '../../ui/editor/EditorView';
+
+export async function archiveProject(projectId: string, editor: EditorView): Promise<void> {
+  await db.projects.update(projectId, { archivedAt: new Date() });
+  for (const tab of editor.openTabs()) {
+    if (tab.projectId === projectId) editor.closeTab(tab.id);
+  }
+  editor.showToast('Project archived');
+}
+```
+
+```tsx file=src/ui/projects/ProjectMenu.tsx
+import { archiveProject } from '../../domain/projects/archiveProject';
+import { useEditor } from '../editor/useEditor';
+
+export function ProjectMenu({ projectId }: { projectId: string }) {
+  const editor = useEditor();
+  return <button onClick={() => archiveProject(projectId, editor)}>Archive</button>;
+}
+```
+
+```ts file=src/jobs/archiveInactiveProjects.ts
+import { archiveProject } from '../domain/projects/archiveProject';
+import { db } from '../domain/db';
+
+const noEditor = { openTabs: () => [], closeTab: () => {}, showToast: () => {} };
+
+export async function archiveInactiveProjects(): Promise<void> {
+  for (const project of await db.projects.inactiveSince(90)) {
+    await archiveProject(project.id, noEditor);
+  }
+}
+```
+
+### Must find
+
+- `archiveProject` is a domain operation that now depends on the editor UI, and the background job has to pass a fake no-op editor to call it.
+- Recommends keeping `archiveProject` UI-free and closing tabs and showing the toast at the UI call site, or through an event or subscription the editor owns.
+- Records a concern for the "Keep shared operations independent of mounted UI" rule.
+
+### Must read
+
+- `review-rules/rules/keep-domain-operations-independent-of-ui.md`
+
+## shared-imports-feature: Default the date picker to the billing period
+
+A shared component starts importing a feature store. It works today, but every other consumer of the picker now depends on billing.
+
+### Requirements
+
+The date range picker should open on the current billing period on the invoices page. Other pages keep the last-30-days default.
+
+### Before
+
+```md file=ARCHITECTURE.md
+# Architecture
+
+- `src/shared/` holds reusable UI and utilities. It must not import from `src/features/`.
+- `src/features/<name>/` holds one feature. Features may import `src/shared/`. Other features use a feature only through its `index.ts`.
+```
+
+```tsx file=src/shared/ui/DateRangePicker.tsx
+import { useState } from 'react';
+
+export type DateRange = { from: Date; to: Date };
+
+function lastThirtyDays(): DateRange {
+  const to = new Date();
+  return { from: new Date(to.getTime() - 30 * 86_400_000), to };
+}
+
+export function DateRangePicker({ onChange }: { onChange: (range: DateRange) => void }) {
+  const [range, setRange] = useState(lastThirtyDays);
+  const update = (next: DateRange) => {
+    setRange(next);
+    onChange(next);
+  };
+  return <RangeInputs value={range} onChange={update} />;
+}
+
+function RangeInputs({ value, onChange }: { value: DateRange; onChange: (range: DateRange) => void }) {
+  return (
+    <div>
+      <input type="date" value={value.from.toISOString().slice(0, 10)} onChange={e => onChange({ ...value, from: new Date(e.target.value) })} />
+      <input type="date" value={value.to.toISOString().slice(0, 10)} onChange={e => onChange({ ...value, to: new Date(e.target.value) })} />
+    </div>
+  );
+}
+```
+
+```ts file=src/features/billing/store.ts
+import { proxy, useSnapshot } from 'valtio';
+
+export const billingStore = proxy({ periodStart: new Date('2026-10-01'), periodEnd: new Date('2026-10-31') });
+
+export function useBillingPeriod() {
+  const snap = useSnapshot(billingStore);
+  return { from: snap.periodStart, to: snap.periodEnd };
+}
+```
+
+```ts file=src/features/billing/index.ts
+export { useBillingPeriod } from './store';
+```
+
+```tsx file=src/features/invoices/InvoicesPage.tsx
+import { DateRangePicker } from '../../shared/ui/DateRangePicker';
+
+export function InvoicesPage({ onRangeChange }: { onRangeChange: (range: { from: Date; to: Date }) => void }) {
+  return <DateRangePicker onChange={onRangeChange} />;
+}
+```
+
+```tsx file=src/features/reports/ReportsPage.tsx
+import { DateRangePicker } from '../../shared/ui/DateRangePicker';
+
+export function ReportsPage({ onRangeChange }: { onRangeChange: (range: { from: Date; to: Date }) => void }) {
+  return <DateRangePicker onChange={onRangeChange} />;
+}
+```
+
+### After
+
+```tsx file=src/shared/ui/DateRangePicker.tsx
+import { useState } from 'react';
+import { useBillingPeriod } from '../../features/billing/store';
+
+export type DateRange = { from: Date; to: Date };
+
+function lastThirtyDays(): DateRange {
+  const to = new Date();
+  return { from: new Date(to.getTime() - 30 * 86_400_000), to };
+}
+
+export function DateRangePicker({ onChange, useBilling = false }: { onChange: (range: DateRange) => void; useBilling?: boolean }) {
+  const billingPeriod = useBillingPeriod();
+  const [range, setRange] = useState(() => (useBilling ? billingPeriod : lastThirtyDays()));
+  const update = (next: DateRange) => {
+    setRange(next);
+    onChange(next);
+  };
+  return <RangeInputs value={range} onChange={update} />;
+}
+
+function RangeInputs({ value, onChange }: { value: DateRange; onChange: (range: DateRange) => void }) {
+  return (
+    <div>
+      <input type="date" value={value.from.toISOString().slice(0, 10)} onChange={e => onChange({ ...value, from: new Date(e.target.value) })} />
+      <input type="date" value={value.to.toISOString().slice(0, 10)} onChange={e => onChange({ ...value, to: new Date(e.target.value) })} />
+    </div>
+  );
+}
+```
+
+```tsx file=src/features/invoices/InvoicesPage.tsx
+import { DateRangePicker } from '../../shared/ui/DateRangePicker';
+
+export function InvoicesPage({ onRangeChange }: { onRangeChange: (range: { from: Date; to: Date }) => void }) {
+  return <DateRangePicker onChange={onRangeChange} useBilling />;
+}
+```
+
+### Must find
+
+- The shared `DateRangePicker` now imports from `src/features/billing`, reversing the documented dependency direction so every consumer of the shared picker depends on billing.
+- Recommends keeping billing knowledge in the invoices feature, such as passing an initial range prop from `InvoicesPage` using `useBillingPeriod` from the billing `index.ts`.
+- Records a concern for the "Keep shared code independent of its consumers" rule.
+
+### Must read
+
+- `review-rules/rules/keep-shared-code-independent.md`
+
+## stored-derived-total: Remove items from the cart
+
+The store keeps a total in sync by hand, and the new action forgets to update it.
+
+### Requirements
+
+Users can remove an item from the cart. The cart total always equals the sum of the remaining items.
+
+### Before
+
+```json file=package.json
+{ "name": "cart", "private": true, "dependencies": { "react": "18.3.1", "valtio": "1.13.2" } }
+```
+
+```ts file=src/cartStore.ts
+import { proxy } from 'valtio';
+
+export type CartItem = { id: string; priceCents: number };
+
+export const cartStore = proxy({ items: [] as CartItem[], totalCents: 0 });
+
+export function addItem(item: CartItem): void {
+  cartStore.items.push(item);
+  cartStore.totalCents += item.priceCents;
+}
+```
+
+### After
+
+```ts file=src/cartStore.ts
+import { proxy } from 'valtio';
+
+export type CartItem = { id: string; priceCents: number };
+
+export const cartStore = proxy({ items: [] as CartItem[], totalCents: 0 });
+
+export function addItem(item: CartItem): void {
+  cartStore.items.push(item);
+  cartStore.totalCents += item.priceCents;
+}
+
+export function removeItem(id: string): void {
+  cartStore.items = cartStore.items.filter(item => item.id !== id);
+}
+```
+
+### Must find
+
+- `removeItem` does not subtract the removed item's price, so `totalCents` no longer matches the items after a removal.
+- Recommends deriving the total from `items` (for example a getter) instead of storing it, so actions cannot drift from it.
+- Records a concern for the "Avoid storing values that can be calculated" rule.
+
+### Must read
+
+- `review-rules/rules/avoid-duplicate-live-state.md`

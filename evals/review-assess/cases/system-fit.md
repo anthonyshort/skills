@@ -1,4 +1,4 @@
-# Architecture and coupling
+# System fit
 
 Cases where the code works but is in the wrong place, depends on the wrong things or duplicates an owner. Each case gives the reviewer an `ARCHITECTURE.md` so the expected boundaries are written down rather than guessed.
 
@@ -124,11 +124,6 @@ export function InvoicesPage({ onRangeChange }: { onRangeChange: (range: { from:
 
 - The shared `DateRangePicker` now imports from `src/features/billing`, reversing the documented dependency direction so every consumer of the shared picker depends on billing.
 - Recommends keeping billing knowledge in the invoices feature, such as passing an initial range prop from `InvoicesPage` using `useBillingPeriod` from the billing `index.ts`.
-- The report's rule results record a concern for the "Keep shared code independent of its consumers" rule.
-
-### Must read
-
-- `review/rules/keep-shared-code-independent.md`
 
 ## domain-operation-needs-editor: Close editor tabs when archiving a project
 
@@ -225,11 +220,6 @@ export async function archiveInactiveProjects(): Promise<void> {
 
 - `archiveProject` is a domain operation that now depends on the editor UI, and the background job has to pass a fake no-op editor to call it.
 - Recommends keeping `archiveProject` UI-free and closing tabs and showing the toast at the UI call site, or through an event or subscription the editor owns.
-- The report's rule results record a concern for the "Keep shared operations independent of mounted UI" rule.
-
-### Must read
-
-- `review/rules/keep-domain-operations-independent-of-ui.md`
 
 ## import-cycle: Show team names next to user names
 

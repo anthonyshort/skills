@@ -8,14 +8,17 @@ Read the scoped `AGENTS.md` in the area you are editing.
 | Content | Location |
 | --- | --- |
 | General implementation guidance for a technology | `best-practices/<topic>/` |
-| Review workflow, delegation and verification | `review/SKILL.md` |
-| General checks assigned to focused rule agents | `review/rules/` |
-| Saved report and GitHub review formats | `review/templates/` |
+| Review workflow order, delegation and publishing | `review/SKILL.md` |
+| Constraints shared by every review unit | `review/references/constraints.md` |
+| One unit of review work, such as risk, research or rule checking | `review-<unit>/SKILL.md` |
+| General checks assigned to focused rule agents | `review-rules/rules/` |
+| Saved report format | `review-report/templates/` |
+| GitHub progress and review formats | `review/templates/` |
 | Galaxy additions to the main workflow | `review-nominal-galaxy/SKILL.md` |
 | Galaxy APIs, patterns and implementation guidance | `review-nominal-galaxy/best-practices/` |
 | Galaxy-specific review rules | `review-nominal-galaxy/rules/` |
 
-Best-practice skills help with writing, refactoring and reviewing code. Review rules give a focused agent one concrete question to investigate. Keep orchestration in the review workflow.
+Best-practice skills help with writing, refactoring and reviewing code. Review rules give a focused agent one concrete question to investigate. Keep orchestration in the review workflow and each unit of work in its own `review-<unit>` skill.
 
 ## Write concise guidance
 

@@ -1,6 +1,6 @@
 # Review rules
 
-Use this index to select rules for Step 4 of the review skill. One subagent works through the rules one at a time and returns evidence or a skip reason for every rule. Check the evidence and exceptions. Apply any explicit blocking policies in the rules.
+Use this index to select rules in the [review-rules](../SKILL.md) skill. One subagent works through the rules one at a time and returns evidence or a skip reason for every rule. Check the evidence and exceptions. Apply any explicit blocking policies in the rules.
 
 | Rule | When to check |
 | --- | --- |

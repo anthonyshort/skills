@@ -13,9 +13,15 @@ skills use relative links; install the whole collection to retain those links.
 
 ```text
 skills/
-  review/SKILL.md
+  review/SKILL.md            Coordinator for the review workflow
   review/references/
   review/templates/
+  review-risk/SKILL.md       One unit of review work per skill
+  review-research/SKILL.md
+  review-guidance/SKILL.md
+  review-assess/SKILL.md
+  review-rules/SKILL.md
+  review-report/SKILL.md
   best-practices/react/SKILL.md
   writing-voice/SKILL.md
   ...
@@ -91,10 +97,9 @@ skill path so the profile can be installed outside the original home directory.
 
 ## Review evals
 
-[`evals/review`](evals/review/README.md) checks that the review skill catches specific
-kinds of problems, such as architecture and coupling issues, Valtio misuse and
-readability problems. Each category is a Markdown file of small cases. Run
-`python3 evals/review/evals.py list` to see them.
+[`evals/`](evals/README.md) tests each review unit skill on its own, such as risk,
+research, rule checking and the report, plus the coordinator's step order and a
+few end-to-end reviews. Run `python3 evals/run.py list` to see the cases.
 
 ## Galaxy review
 

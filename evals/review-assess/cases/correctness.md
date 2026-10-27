@@ -1,6 +1,6 @@
-# Valtio
+# Correctness
 
-Cases that misuse Valtio v1 in ways that compile but break reactivity, leak work or show stale state.
+Cases that misuse Valtio v1, answered with the Valtio guidance selected, in ways that compile but break reactivity, leak work or show stale state.
 
 ## mutate-snapshot: Add a tag from the tag picker
 
@@ -52,9 +52,14 @@ export function TagPicker() {
 }
 ```
 
+### Guidance
+
+- `best-practices/valtio/SKILL.md`
+
 ### Must find
 
 - The click handler mutates the snapshot (`snap.tags.push`) instead of the `tagStore` proxy. Snapshots are read-only, so the push fails and the store never changes. Recommends writing to `tagStore.tags`.
+
 
 ### Must read
 
@@ -104,9 +109,14 @@ export function Inbox() {
 }
 ```
 
+### Guidance
+
+- `best-practices/valtio/SKILL.md`
+
 ### Must find
 
 - The effect never calls the unsubscribe function returned by `subscribe`. After leaving the inbox the listener keeps running, overwrites the restored title on the next store change and accumulates on every remount. Recommends releasing the subscription in the effect cleanup.
+
 
 ### Must read
 
@@ -164,9 +174,14 @@ export function DraftEditor() {
 }
 ```
 
+### Guidance
+
+- `best-practices/valtio/SKILL.md`
+
 ### Must find
 
 - The timeout saves `snap.text` captured from the render that scheduled it, which is the text before the latest keystroke. The last character typed is not saved. Recommends reading `draftStore.text` when the timer fires.
+
 
 ### Must read
 
@@ -218,9 +233,14 @@ export function InvoiceToolbar() {
 }
 ```
 
+### Guidance
+
+- `best-practices/valtio/SKILL.md`
+
 ### Must find
 
 - `selectedIds` is a native `Set`, which Valtio v1 does not track, so `add` and `delete` do not notify subscribers and the toolbar count does not update. Recommends `proxySet` from `valtio/utils`.
+
 
 ### Must read
 
@@ -272,15 +292,18 @@ export function removeItem(id: string): void {
 }
 ```
 
+### Guidance
+
+- `best-practices/valtio/SKILL.md`
+
 ### Must find
 
 - `removeItem` does not subtract the removed item's price, so `totalCents` no longer matches the items after a removal.
 - Recommends deriving the total from `items` (for example a getter) instead of storing it, so actions cannot drift from it.
-- The report's rule results record a concern for the "Avoid storing values that can be calculated" rule.
+
 
 ### Must read
 
-- `review/rules/avoid-duplicate-live-state.md`
 - `best-practices/valtio/SKILL.md`
 
 ## idiomatic-store: Track which panels are collapsed
@@ -347,9 +370,14 @@ export function Sidebar() {
 }
 ```
 
+### Guidance
+
+- `best-practices/valtio/SKILL.md`
+
 ### Must not flag
 
 - Reports a Valtio misuse as a required fix, such as mutating a snapshot, leaking the subscription, using a non-reactive collection or storing derived state.
+
 
 ### Must read
 
