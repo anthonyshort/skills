@@ -261,7 +261,7 @@ def command_build(args):
     cases = load_cases(args.cases)
     args.out.mkdir(parents=True, exist_ok=False)
     # Reviewers get a copy of the skills so they cannot read the expected answers.
-    shutil.copytree(SKILLS_DIR, args.out / 'skills')
+    shutil.copytree(args.skills, args.out / 'skills')
     dirs = [build_case(case, args.out) for case in cases]
     print(f'Built {len(dirs)} cases in {args.out}')
     return cases, dirs
@@ -296,6 +296,8 @@ def main():
         if name == 'list':
             continue
         sub.add_argument('--out', type=Path, required=True, help='Run directory. build and run need a new path.')
+        if name in ('build', 'run'):
+            sub.add_argument('--skills', type=Path, default=SKILLS_DIR, help='Skills directory to review with. Default: this checkout.')
         if name != 'build':
             sub.add_argument('--jobs', type=int, default=4, help='Cases to review or grade in parallel.')
             sub.add_argument('--grader', default=DEFAULT_GRADER, help=f'Grader command. Reads the prompt on stdin. Default: {DEFAULT_GRADER}')

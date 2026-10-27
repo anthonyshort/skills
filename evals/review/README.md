@@ -87,6 +87,14 @@ The reviewer gets a copy of `skills/` inside the run directory and runs from the
 
 Full reviews are slow because the skill delegates to several subagents. Use `--jobs` to review cases in parallel (default 4) and filter to the category you're changing.
 
+### Other skill versions
+
+`--skills` reviews with a different skills directory, such as a copy with an experimental change. The default is this checkout's `skills/`.
+
+```sh
+python3 evals/review/evals.py run architecture --skills /tmp/skills-experiment --out /tmp/review-evals/experiment
+```
+
 ### Other agents
 
 `--reviewer` and `--grader` take any command that reads a prompt on stdin, so you can compare agents or models. The reviewer runs from the run directory.
