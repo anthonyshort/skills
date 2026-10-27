@@ -4,7 +4,8 @@
 Each case becomes a small Git repository with a base and head commit. A
 reviewer agent reviews it blind with a copy of the skills, then a grader agent
 checks the saved report against the case's "Must find" and "Must not flag"
-criteria.
+criteria. Process checks then confirm from the reviewer's transcript and saved
+files that the review followed every step of the skill.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -22,10 +23,12 @@ CASES_DIR = ROOT / 'cases'
 SKILLS_DIR = ROOT.parents[1] / 'skills'
 
 # Runs from the run directory, so file access is limited to the case repos and the skills copy.
-DEFAULT_REVIEWER = 'claude -p --permission-mode acceptEdits --allowedTools "Bash(git:*)"'
+# The stream-json transcript records every tool call, including subagents', for the process checks.
+DEFAULT_REVIEWER = ('claude -p --output-format stream-json --verbose --permission-mode acceptEdits '
+                    '--allowedTools "Bash(git:*)"')
 DEFAULT_GRADER = 'claude -p'
 
-SECTIONS = {'requirements', 'before', 'after', 'must find', 'must not flag'}
+SECTIONS = {'requirements', 'before', 'after', 'must find', 'must not flag', 'must read'}
 CASE_ID = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
 CODE_BLOCK = re.compile(r'^```[\w-]*\s+file=(\S+)[^\n]*\n(.*?)^```\s*$', re.MULTILINE | re.DOTALL)
 
@@ -40,6 +43,7 @@ class Case:
     after: dict = field(default_factory=dict)
     must_find: list = field(default_factory=list)
     must_not_flag: list = field(default_factory=list)
+    must_read: list = field(default_factory=list)
 
     @property
     def name(self):
@@ -74,7 +78,7 @@ def parse_case(category, chunk):
         elif name in ('before', 'after'):
             setattr(case, name, {path: code for path, code in CODE_BLOCK.findall(text)})
         else:
-            bullets = [line[2:].strip() for line in text.splitlines() if line.startswith('- ')]
+            bullets = [line[2:].strip().strip('`') for line in text.splitlines() if line.startswith('- ')]
             setattr(case, name.replace(' ', '_'), bullets)
 
     if not case.requirements:
@@ -129,6 +133,7 @@ def build_case(case, out):
     git(repo, 'add', '.')
     git(repo, 'commit', '-q', '-m', f'{case.title}\n\n{case.requirements}')
     head = git(repo, 'rev-parse', 'HEAD')
+    (case_dir / 'revisions.json').write_text(json.dumps({'base': base, 'head': head}) + '\n')
     (case_dir / 'prompt.md').write_text(reviewer_prompt(case, out, case_dir, base, head))
     return case_dir
 
@@ -164,7 +169,7 @@ def run_agent(command, prompt, cwd, log, timeout):
 def review_case(case, case_dir, args):
     print(f'Reviewing {case.name}', flush=True)
     run_agent(args.reviewer, (case_dir / 'prompt.md').read_text(), args.out,
-              case_dir / 'reviewer.log', args.timeout)
+              case_dir / 'transcript.jsonl', args.timeout)
 
 
 def grader_prompt(case, report, diff):
@@ -208,8 +213,9 @@ Reply with only this JSON object:
 
 def grade_case(case, case_dir, args):
     report_path = case_dir / 'review-report.md'
+    process = check_process(case, case_dir)
     if not report_path.exists():
-        return save_grade(case, case_dir, {'error': 'No review report was saved.'})
+        return save_grade(case, case_dir, {'error': 'No review report was saved.'}, process)
     repo = case_dir / 'repo'
     diff = git(repo, 'diff', 'HEAD~1', 'HEAD')
     output = run_agent(args.grader, grader_prompt(case, report_path.read_text(), diff), case_dir,
@@ -218,10 +224,10 @@ def grade_case(case, case_dir, args):
         grade = json.loads(output[output.index('{'):output.rindex('}') + 1])
     except ValueError:
         grade = {'error': 'Grader did not return JSON. See grader.log.'}
-    return save_grade(case, case_dir, grade)
+    return save_grade(case, case_dir, grade, process)
 
 
-def save_grade(case, case_dir, grade):
+def save_grade(case, case_dir, grade, process=()):
     # Index rows by criterion id, ignoring any the grader invents for criteria that don't exist.
     found = {row.get('id'): row for row in grade.get('must_find', [])}
     flags = {row.get('id'): row for row in grade.get('must_not_flag', [])}
@@ -230,8 +236,12 @@ def save_grade(case, case_dir, grade):
     error = grade.get('error') or (f'Grader skipped: {"; ".join(ungraded)}' if ungraded else None)
     missed = [text for i, text in enumerate(case.must_find, 1) if i in found and not found[i].get('met')]
     flagged = [text for i, text in enumerate(case.must_not_flag, 1) if i in flags and flags[i].get('violated')]
-    result = {'case': case.name, 'title': case.title, 'passed': not error and not missed and not flagged,
-              'missed': missed, 'wrongly_flagged': flagged, 'error': error, 'grade': grade}
+    findings_passed = not error and not missed and not flagged
+    process_failures = [check for check in process if not check['passed']]
+    result = {'case': case.name, 'title': case.title, 'passed': findings_passed and not process_failures,
+              'findings_passed': findings_passed, 'process_passed': not process_failures,
+              'missed': missed, 'wrongly_flagged': flagged, 'error': error,
+              'process': list(process), 'grade': grade}
     (case_dir / 'grade.json').write_text(json.dumps(result, indent=2) + '\n')
     return result
 
@@ -239,17 +249,148 @@ def save_grade(case, case_dir, grade):
 def summarise(results, out):
     passed = sum(row['passed'] for row in results)
     lines = [f'# Review evals: {passed}/{len(results)} passed', '',
-             '| Case | Result | Notes |', '| --- | --- | --- |']
+             '| Case | Findings | Process | Notes |', '| --- | --- | --- | --- |']
     for row in results:
         notes = [f'Missed: {text}' for text in row['missed']]
         notes += [f'Wrongly flagged: {text}' for text in row['wrongly_flagged']]
         notes += [row['error']] if row['error'] else []
+        notes += [f"Step skipped: {check['check']}: {check['detail']}" for check in row['process'] if not check['passed']]
         cell = '<br>'.join(text.replace('|', '\\|') for text in notes)
-        lines.append(f"| {row['case']} | {'Pass' if row['passed'] else 'Fail'} | {cell} |")
+        mark = lambda passed: 'Pass' if passed else 'Fail'
+        lines.append(f"| {row['case']} | {mark(row['findings_passed'])} | {mark(row['process_passed'])} | {cell} |")
     summary = '\n'.join(lines) + '\n'
     (out / 'summary.md').write_text(summary)
     (out / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
     print(summary)
+
+
+# Process checks
+#
+# Each check is one step the review skill requires. Evidence comes from the
+# reviewer's stream-json transcript and the files it saved, never from what the
+# report claims.
+
+ASSESSMENTS = ['risk.md', 'research.md', 'product.md', 'system-fit.md', 'simplicity.md',
+               'readability.md', 'correctness.md', 'rules.md']
+REPORT_SECTIONS = ['## Assessment', '### Risk and scope', '## Findings', '## Verification summary',
+                   '## References', '## Supporting details']
+# Research, five review questions, the rule pass and the editorial pass.
+MIN_SUBAGENTS = 8
+LOCAL_CHECK = re.compile(r'(^|[\s;&|(])(npm|pnpm|yarn|npx|node|tsc|vitest|jest|eslint|bun|deno)\s')
+RULE_LINK = re.compile(r'^\| \[(.+?)\]\((.+?\.md)\)', re.MULTILINE)
+
+
+@dataclass
+class Transcript:
+    agents: list = field(default_factory=list)   # (position, prompt) for subagents the parent launched
+    reads: list = field(default_factory=list)    # file paths read, or shell commands, by any agent
+    writes: list = field(default_factory=list)   # (position, path) for files written by any agent
+    commands: list = field(default_factory=list)
+    denials: int = 0
+
+
+def read_transcript(path):
+    transcript = Transcript()
+    if not path.exists():
+        return None
+    for position, line in enumerate(path.read_text().splitlines()):
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get('type') == 'system' and event.get('subtype') == 'permission_denied':
+            transcript.denials += 1
+        if event.get('type') != 'assistant':
+            continue
+        for block in event['message'].get('content', []):
+            if not isinstance(block, dict) or block.get('type') != 'tool_use':
+                continue
+            name, tool_input = block['name'], block.get('input', {})
+            if name in ('Agent', 'Task') and event.get('parent_tool_use_id') is None:
+                transcript.agents.append((position, tool_input.get('prompt', '')))
+            elif name == 'Read':
+                transcript.reads.append(tool_input.get('file_path', ''))
+            elif name in ('Write', 'Edit'):
+                transcript.writes.append((position, tool_input.get('file_path', '')))
+            elif name == 'Bash':
+                transcript.commands.append(tool_input.get('command', ''))
+                transcript.reads.append(tool_input.get('command', ''))
+    return transcript if transcript.agents or transcript.reads or transcript.commands else None
+
+
+def check_process(case, case_dir):
+    out = case_dir.parent.parent
+    artefacts = case_dir / 'artefacts'
+    transcript = read_transcript(case_dir / 'transcript.jsonl')
+    checks = []
+
+    def check(name, passed, detail):
+        checks.append({'check': name, 'passed': bool(passed), 'detail': detail})
+
+    def was_read(relative):
+        return transcript and any(f'skills/{relative}' in entry for entry in transcript.reads)
+
+    def first_write(name):
+        positions = [position for position, path in transcript.writes if path.endswith(name)] if transcript else []
+        return min(positions, default=None)
+
+    missing = [name for name in ASSESSMENTS if not (artefacts / name).exists()]
+    check('saved assessments', not missing, 'Missing: ' + ', '.join(missing) if missing else 'All saved.')
+
+    report = case_dir / 'review-report.md'
+    text = report.read_text() if report.exists() else ''
+    absent = [section for section in REPORT_SECTIONS if section not in text]
+    check('report sections', report.exists() and not absent,
+          'Missing: ' + ', '.join(absent) if absent else 'All template sections present.')
+
+    rules = RULE_LINK.findall((out / 'skills/review/rules/README.md').read_text())
+    rule_text = (artefacts / 'rules.md').read_text() if (artefacts / 'rules.md').exists() else ''
+    unaccounted = [title for title, link in rules if title not in rule_text and Path(link).stem not in rule_text]
+    check('every rule accounted for', rule_text and not unaccounted,
+          'Missing: ' + ', '.join(unaccounted) if unaccounted else f'All {len(rules)} rules listed.')
+
+    revisions = json.loads((case_dir / 'revisions.json').read_text())
+    repo = case_dir / 'repo'
+    changed = git(repo, 'status', '--porcelain') or git(repo, 'rev-parse', 'HEAD') != revisions['head']
+    check('no code changes', not changed, 'The repository was modified.' if changed else 'Repository unchanged.')
+
+    if transcript is None:
+        check('transcript', False, 'No stream-json transcript, so the remaining steps cannot be verified.')
+        return checks
+
+    check('subagents', len(transcript.agents) >= MIN_SUBAGENTS,
+          f'{len(transcript.agents)} launched. Expected at least {MIN_SUBAGENTS}: research, five review '
+          'questions, the rule pass and the editorial pass.')
+
+    research = first_write('research.md')
+    check('research delegated', research is not None and any(p < research for p, _ in transcript.agents),
+          'A subagent ran before research.md was saved.' if research is not None else 'research.md never written.')
+
+    skills = sorted({re.search(r'best-practices/[\w-]+', entry).group(0) for entry in transcript.reads
+                     if re.search(r'skills/best-practices/[\w-]+/SKILL\.md', entry)})
+    check('best-practice skills', skills, 'Read: ' + ', '.join(skills) if skills else 'None read.')
+
+    unread = [link for _, link in rules if not was_read(f'review/rules/{link}')]
+    check('rule index', was_read('review/rules/README.md'), 'Rule index read.' if was_read('review/rules/README.md')
+          else 'rules/README.md never read.')
+
+    report_written = first_write('review-report.md')
+    check('editorial pass', report_written is not None and any(p > report_written for p, _ in transcript.agents),
+          'A subagent ran after the report was first saved.' if report_written is not None
+          else 'review-report.md never written.')
+
+    local = [command for command in transcript.commands if LOCAL_CHECK.search(command)]
+    check('no local checks', not local, 'Ran: ' + '; '.join(local) if local else 'No builds, tests or linters run.')
+
+    unread_required = [path for path in case.must_read if not was_read(path)]
+    if case.must_read:
+        check('required guidance read', not unread_required,
+              'Not read: ' + ', '.join(unread_required) if unread_required else 'All read.')
+
+    checks.append({'check': 'rule files read', 'passed': True, 'info': True,
+                   'detail': f'{len(rules) - len(unread)}/{len(rules)} rule files read. '
+                             f'{transcript.denials} permission denials.'})
+    return checks
 
 
 # Commands

@@ -92,7 +92,7 @@ Consider:
 - **Blast radius:** Which consumers and production paths could be affected? Consider the consequence of failure and how it could be detected and recovered from.
 - **Activation:** Is the new code already used? Check callers, imports, registration and side effects before treating it as inactive.
 
-Record the initial assessment and questions in the review artefact directory. Pass them to research and review agents. Revisit them as evidence arrives. Distinguish review effort from production impact. Conclude with a qualitative production risk level (low, medium or high), supported by exposure, consequences and verification gaps. State when evidence is insufficient to assess risk. Do not use a numerical risk score.
+Record the initial assessment and questions in `risk.md` in the review artefact directory. Pass them to research and review agents. Revisit them as evidence arrives. Distinguish review effort from production impact. Conclude with a qualitative production risk level (low, medium or high), supported by exposure, consequences and verification gaps. State when evidence is insufficient to assess risk. Do not use a numerical risk score.
 
 #### This step is complete when:
 - [ ] There is a local copy of the code being reviewed.
@@ -176,7 +176,7 @@ The parent saves the returned brief to `<review artefact directory>/research.md`
 
 ### Step 3: Code review
 
-Use subagents to explore the review questions below. Each subagent must return the named assessment, including checklist results, evidence and reasons for any N/A or blocked checks. The parent agent saves these assessments in the review artefact directory and uses them to create the final report.
+Use subagents to explore the review questions below. Each subagent must return the named assessment, including checklist results, evidence and reasons for any N/A or blocked checks. The parent agent saves these assessments as `product.md`, `system-fit.md`, `simplicity.md`, `readability.md` and `correctness.md` in the review artefact directory and uses them to create the final report.
 
 Use this guidance to plan the review. Adapt it to the change and investigate other risks when needed. These are not exhaustive checklists.
 
@@ -391,7 +391,7 @@ Return one **rule assessment** with a row for every rule:
 - **Finding**: The problem, effect and recommended change, if supported.
 - **Limits**: Missing information or behaviour that could not be verified.
 
-The parent saves the assessment in the review artefact directory. Check it against the supplied indexes for missing rules and follow up on weak evidence. Include the results in the final report and merge duplicate findings during consolidation.
+The parent saves the assessment as `rules.md` in the review artefact directory. Check it against the supplied indexes for missing rules and follow up on weak evidence. Include the results in the final report and merge duplicate findings during consolidation.
 
 ### Step 5: Create the final review report
 

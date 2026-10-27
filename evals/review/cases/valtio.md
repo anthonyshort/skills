@@ -56,6 +56,10 @@ export function TagPicker() {
 
 - The click handler mutates the snapshot (`snap.tags.push`) instead of the `tagStore` proxy. Snapshots are read-only, so the push fails and the store never changes. Recommends writing to `tagStore.tags`.
 
+### Must read
+
+- `best-practices/valtio/SKILL.md`
+
 ## subscription-without-cleanup: Sync the unread count to the page title
 
 The subscription is never released, so each mount adds another listener.
@@ -103,6 +107,10 @@ export function Inbox() {
 ### Must find
 
 - The effect never calls the unsubscribe function returned by `subscribe`. After leaving the inbox the listener keeps running, overwrites the restored title on the next store change and accumulates on every remount. Recommends releasing the subscription in the effect cleanup.
+
+### Must read
+
+- `best-practices/valtio/SKILL.md`
 
 ## stale-snapshot-in-timer: Autosave the draft after typing stops
 
@@ -160,6 +168,10 @@ export function DraftEditor() {
 
 - The timeout saves `snap.text` captured from the render that scheduled it, which is the text before the latest keystroke. The last character typed is not saved. Recommends reading `draftStore.text` when the timer fires.
 
+### Must read
+
+- `best-practices/valtio/SKILL.md`
+
 ## native-set-in-proxy: Select rows in the invoice table
 
 A native `Set` inside a proxy does not notify subscribers when it changes.
@@ -209,6 +221,10 @@ export function InvoiceToolbar() {
 ### Must find
 
 - `selectedIds` is a native `Set`, which Valtio v1 does not track, so `add` and `delete` do not notify subscribers and the toolbar count does not update. Recommends `proxySet` from `valtio/utils`.
+
+### Must read
+
+- `best-practices/valtio/SKILL.md`
 
 ## stored-derived-total: Remove items from the cart
 
@@ -260,6 +276,12 @@ export function removeItem(id: string): void {
 
 - `removeItem` does not subtract the removed item's price, so `totalCents` no longer matches the items after a removal.
 - Recommends deriving the total from `items` (for example a getter) instead of storing it, so actions cannot drift from it.
+- The report's rule results record a concern for the "Avoid storing values that can be calculated" rule.
+
+### Must read
+
+- `review/rules/avoid-duplicate-live-state.md`
+- `best-practices/valtio/SKILL.md`
 
 ## idiomatic-store: Track which panels are collapsed
 
@@ -328,3 +350,7 @@ export function Sidebar() {
 ### Must not flag
 
 - Reports a Valtio misuse as a required fix, such as mutating a snapshot, leaking the subscription, using a non-reactive collection or storing derived state.
+
+### Must read
+
+- `best-practices/valtio/SKILL.md`
