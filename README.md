@@ -89,6 +89,13 @@ The original uncommitted `review/SKILL.md` edits were preserved during extractio
 Cross-skill links use relative paths across the grouped layout. Galaxy profile delegation uses the resolved
 skill path so the profile can be installed outside the original home directory.
 
+## Review evals
+
+[`evals/review`](evals/review/README.md) checks that the review skill catches specific
+kinds of problems, such as architecture and coupling issues, Valtio misuse and
+readability problems. Each category is a Markdown file of small cases. Run
+`python3 evals/review/evals.py list` to see them.
+
 ## Galaxy review
 
 `review-nominal-galaxy` runs the main review workflow with Galaxy-specific skills

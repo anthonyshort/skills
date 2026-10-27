@@ -26,6 +26,8 @@ Include:
 
 Update `rules/README.md` with the rule link and selection criteria. One subagent receives the parent's research and context and checks the rules one at a time across all supplied collections. All rules must be accounted for as selected or skipped, with reasons.
 
+Add a case to [the review evals](../../evals/review/README.md) when a rule or guidance change should catch a new kind of problem.
+
 A pattern match is not automatically a defect. Require a supported consequence or useful simplification. Do not hide missing implementations behind helper names that merely promise safety.
 
 ## Templates
