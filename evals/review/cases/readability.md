@@ -118,10 +118,6 @@ export function ImportButton({ rows, skipUndated }: { rows: { title: string; ts?
 - The function and variable names (`handle`, `d`, `f`, `x`, `tmp`, `res`) do not describe what they hold or do. Suggests descriptive names, such as `importCalendarEvents`, `rows` and `skipUndated`.
 - The generic `src/utils/helpers.ts` location hides that this is calendar import logic. Recommends moving it into `src/calendar/`.
 
-### Must not flag
-
-- Reports a behaviour bug in the import logic.
-
 ## mixed-responsibilities: Create an order from the checkout form
 
 One long handler parses, validates, prices, saves and formats. Each step is simple, but together they are hard to follow and test.

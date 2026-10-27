@@ -475,7 +475,8 @@ export function s3Storage(bucket: string): FileStorage {
 
 ```ts file=src/infrastructure/localDiskStorage.ts
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { FileStorage } from '../domain/ports';
 
 export function localDiskStorage(root: string): FileStorage {
@@ -484,7 +485,7 @@ export function localDiskStorage(root: string): FileStorage {
       const target = join(root, path);
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, contents);
-      return { url: `file://${target}` };
+      return { url: pathToFileURL(resolve(target)).href };
     },
   };
 }

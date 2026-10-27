@@ -93,6 +93,15 @@ class EvalsTest(unittest.TestCase):
             self.assertEqual(result['missed'], case.must_find)
             self.assertEqual(result['wrongly_flagged'], case.must_not_flag)
 
+            extra = {**passing, 'must_not_flag': [{'id': 1, 'violated': False}, {'id': 2, 'violated': True}]}
+            result = evals.grade_case(case, case_dir, Namespace(grader=grader(extra), timeout=30))
+            self.assertTrue(result['passed'], 'criteria the case does not have are ignored')
+
+            skipped = {**passing, 'must_find': []}
+            result = evals.grade_case(case, case_dir, Namespace(grader=grader(skipped), timeout=30))
+            self.assertFalse(result['passed'])
+            self.assertEqual(result['error'], 'Grader skipped: Flags the breaking rename.')
+
 
 if __name__ == '__main__':
     unittest.main()

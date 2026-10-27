@@ -222,12 +222,16 @@ def grade_case(case, case_dir, args):
 
 
 def save_grade(case, case_dir, grade):
-    missed = [case.must_find[row['id'] - 1] for row in grade.get('must_find', []) if not row.get('met')]
-    flagged = [case.must_not_flag[row['id'] - 1] for row in grade.get('must_not_flag', []) if row.get('violated')]
-    graded = 'error' not in grade and len(grade.get('must_find', [])) == len(case.must_find) \
-        and len(grade.get('must_not_flag', [])) == len(case.must_not_flag)
-    result = {'case': case.name, 'title': case.title, 'passed': graded and not missed and not flagged,
-              'missed': missed, 'wrongly_flagged': flagged, 'error': grade.get('error'), 'grade': grade}
+    # Index rows by criterion id, ignoring any the grader invents for criteria that don't exist.
+    found = {row.get('id'): row for row in grade.get('must_find', [])}
+    flags = {row.get('id'): row for row in grade.get('must_not_flag', [])}
+    ungraded = [text for i, text in enumerate(case.must_find, 1) if i not in found] \
+        + [text for i, text in enumerate(case.must_not_flag, 1) if i not in flags]
+    error = grade.get('error') or (f'Grader skipped: {"; ".join(ungraded)}' if ungraded else None)
+    missed = [text for i, text in enumerate(case.must_find, 1) if i in found and not found[i].get('met')]
+    flagged = [text for i, text in enumerate(case.must_not_flag, 1) if i in flags and flags[i].get('violated')]
+    result = {'case': case.name, 'title': case.title, 'passed': not error and not missed and not flagged,
+              'missed': missed, 'wrongly_flagged': flagged, 'error': error, 'grade': grade}
     (case_dir / 'grade.json').write_text(json.dumps(result, indent=2) + '\n')
     return result
 
