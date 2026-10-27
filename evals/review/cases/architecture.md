@@ -438,7 +438,7 @@ A control case. The change follows the documented boundaries, so the review shou
 
 ### Requirements
 
-Users can export a report as CSV. The file is saved through the existing storage adapter so it works with both the S3 and local-disk backends.
+Add a domain operation that exports a report as CSV through the existing storage adapter, so it works with both the S3 and local-disk backends. The export button that calls it is a separate PR.
 
 ### Before
 
@@ -473,10 +473,28 @@ export function s3Storage(bucket: string): FileStorage {
 }
 ```
 
+```ts file=src/infrastructure/localDiskStorage.ts
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import type { FileStorage } from '../domain/ports';
+
+export function localDiskStorage(root: string): FileStorage {
+  return {
+    async save(path, contents) {
+      const target = join(root, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, contents);
+      return { url: `file://${target}` };
+    },
+  };
+}
+```
+
 ```ts file=src/app.ts
+import { localDiskStorage } from './infrastructure/localDiskStorage';
 import { s3Storage } from './infrastructure/s3Storage';
 
-export const storage = s3Storage('reports-prod');
+export const storage = process.env.STORAGE === 's3' ? s3Storage(process.env.REPORTS_BUCKET!) : localDiskStorage('./data');
 ```
 
 ### After
@@ -497,11 +515,12 @@ function csvField(value: string): string {
 ```
 
 ```ts file=src/app.ts
+import { localDiskStorage } from './infrastructure/localDiskStorage';
 import { s3Storage } from './infrastructure/s3Storage';
 import { exportReport } from './domain/reports/exportReport';
 import type { Report } from './domain/reports/report';
 
-export const storage = s3Storage('reports-prod');
+export const storage = process.env.STORAGE === 's3' ? s3Storage(process.env.REPORTS_BUCKET!) : localDiskStorage('./data');
 
 export function exportReportToStorage(report: Report): Promise<string> {
   return exportReport(report, storage);
