@@ -16,7 +16,7 @@ For a split-only review, include Assessment, Risk and scope, a split plan and CI
 | Direction | {{ Does it fit established ownership and supported direction? State unknowns. }} |
 | Design | {{ Is it reasonably simple and are its APIs clear? State supported alternatives and their trade-offs, or that none were found. }} |
 | Rules | {{ Counts of satisfied rules, concerns, unverified rules and skipped rules across all supplied collections. Identify each rule with a concern and why, linking finding IDs where relevant. Keep selected rules found not applicable distinct. }} |
-| Readability | {{ Are names, placement, comments and code clear? }} |
+| Readability | {{ Dedicated pass verdict, concrete body-level evidence and important improvements or gaps. Passing CI is not readability evidence. }} |
 | Correctness | {{ What works, what fails and what remains unverified? }} |
 | CI | {{ Overall status for the reviewed revision, relevant failed or incomplete checks and a link to the CI evidence. }} |
 
@@ -41,9 +41,11 @@ The helper adds the exact structured assessment inside the published Full report
 
 | ID | Type / severity | Finding and impact | New or already reported | Recommended action |
 | --- | --- | --- | --- | --- |
-| {{ ID }} | {{ bug/question/convention/preference and priority if applicable }} | {{ short description and effect }} | {{ New or Already reported with thread link }} | {{ required fix or optional action }} |
+| {{ ID }} | {{ bug/readability/question/convention/preference and priority if applicable }} | {{ short description and effect }} | {{ New or Already reported with thread link }} | {{ required fix or optional action }} |
 
 {{ Use caller-supplied priorities when available. Otherwise P0 means a show-stopping failure, P1 means wrong success-path behaviour or substantial revision, and P2 means a potential issue or rare edge case. Base priority on impact and likelihood. Preferences and future opportunities alone are not blockers. }}
+
+{{ Include substantive readability improvements even without a runtime defect. Explain the reading difficulty and concrete alternative. Keep optional taste in Nits and avoid assigning bug severity to preferences. }}
 
 {{ For each finding, show its location, trigger, effect and recommendation in short bullets. Keep confirmed bugs distinct from questions. Include exact revisions and valid source locations even outside the diff. Link related evidence instead of repeating it. Do not draft duplicate comments for existing concerns. }}
 

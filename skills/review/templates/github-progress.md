@@ -8,6 +8,7 @@ The helper renders the linked commit header, Status, Result and Full report fold
 - [x] Set up and assess scope
 - [ ] <img src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.5/images/loading.gif" width="16" height="16" alt=""> Gather context — in progress
 - [ ] Review product, design and correctness
+- [ ] Review readability in a dedicated pass
 - [ ] Check review rules
 - [ ] Verify findings and write report
 - [ ] Publish results and inline findings
@@ -30,7 +31,7 @@ Keep each visible answer to one or two short sentences. Include these folds even
 - **Research sources:** Link inspected sources with descriptive titles and say what each establishes. Identify validated reused evidence. Distinguish unavailable sources, searches with no relevant results and unopened leads. Summarise large source sets and retain the complete list in Full report.
 - **Approach and alternatives:** Explain problem fit, architectural fit and simplicity in a short paragraph or a few bullets. Include worthwhile alternatives and their trade-offs, or state that no supported alternative was found. Separate required changes from optional improvements. Do not invent alternatives to fill the section.
 
-Then add `#### Findings` grouped under `##### P0`, `##### P1` and `##### P2`. Omit empty groups. Include only supported defects in priority groups. Optional opportunities, questions and nits may follow separately without invented severity. Do not repeat alternatives already explained in the approach fold.
+Then add `#### Findings` grouped under `##### P0`, `##### P1` and `##### P2`. Omit empty groups. Include only supported defects in priority groups. Surface worthwhile readability suggestions separately, including when no bugs were found. Optional opportunities, questions and nits may follow separately without invented severity. Do not repeat alternatives already explained in the approach fold.
 
 Do not supply Next steps: the helper inserts them before the first heading outside folds and code fences, or after the complete input if there is no such heading. Keep the assessment labels as bullets, with headings only inside its folds or for trailing sections. Use blank lines between Markdown blocks and standalone details tags. Do not add an Approval heading, repeat the reviewed commit or display the seven-check approval table outside Full report.
 

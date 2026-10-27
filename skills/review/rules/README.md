@@ -15,7 +15,7 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Remove wrappers that add no value](remove-wrappers-that-add-no-value.md) | A layer forwards calls or the change adds or modifies an abstraction. |
 | [Use registries for real extension needs](use-registries-for-real-extensions.md) | A change introduces a registry, plugin system or dynamic lookup. |
 | [Await operations whose results matter](await-required-operations.md) | Events or callbacks trigger work that later code depends on. |
-| [Extract decisions only when it helps](extract-decisions-only-when-useful.md) | Code mixes a decision with effects, or splits small decisions into helpers. |
+| [Extract decisions only when it helps](extract-decisions-only-when-useful.md) | Code mixes decisions with effects, combines distinct phases or abstraction levels, or splits small operations into helpers. |
 | [Keep shared code independent of its consumers](keep-shared-code-independent.md) | The change adds shared-code dependencies or moves behaviour between shared and feature modules. |
 | [Keep API changes compatible with callers](keep-api-changes-compatible.md) | A function, event or HTTP contract used by supported callers changes. |
 | [Check retries for repeated side effects](check-retries-for-repeated-effects.md) | A changed operation has side effects and a realistic retry or duplicate-request path. |

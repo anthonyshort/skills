@@ -34,6 +34,18 @@ review attribution remains `Sent with Pi` on all agents.
 
 Link the skill locally or update your managed skills installation. To make it a default rather than relying only on skill discovery, point your shared agent instructions at `skills/communication/SKILL.md` in this checkout. Reload resources or start a new session after installation.
 
+## Code readability
+
+[`code-readability`](skills/best-practices/code-readability/SKILL.md) guides naming, comments, control flow, function composition and file organisation when writing, refactoring or reviewing code. The review workflow uses it for its dedicated readability pass.
+
+## Handoffs
+
+[`handoff`](skills/handoff/SKILL.md) creates a Markdown document so a fresh agent can continue a conversation or task. It records goals, scope exclusions, decisions, progress, verification, relevant files, research from the session and related PRs. It defaults to `HANDOFF.md`.
+
+## Pull request descriptions
+
+[`writing-pull-request-description`](skills/writing-pull-request-description/SKILL.md) writes concise PR descriptions with a summary, usage example, short change bullets and the largest risks.
+
 ## Local authoring
 
 ```sh

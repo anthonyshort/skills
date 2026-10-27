@@ -187,6 +187,7 @@ Use this guidance to plan the review. Adapt it to the change and investigate oth
 - **Keep context focused**: Give agents what they need for their task. Report templates and writing voice belong to the parent.
 - **Use parallel work after research**: Once Step 2 is complete, independent review tasks can run together within the available agent limit.
 - **Group work by review question**: Avoid creating an agent for every file or skill. Use a subagent to answer each review question below.
+- **Reserve a readability agent**: Give the readability question its own subagent, separate from correctness, architecture and simplicity. Queue it when slots are full. For changes without readable source, record why the pass is not applicable.
 - **Let agents reach their own conclusions**: Describe the question and relevant context without steering the agent towards a preferred finding.
 - **Follow up when needed**: Ask agents to investigate weak evidence, unanswered questions or newly discovered risks.
 
@@ -304,15 +305,13 @@ Return a **simplicity assessment** containing:
 
 #### Q: Is this code clear and easy to maintain?
 
-Review how easy the code is to read and navigate. Recommend changes that make purpose and ownership clearer. Distinguish project conventions from personal preferences.
+Run a dedicated readability pass using [code-readability](../best-practices/code-readability/SKILL.md), including its example when assessing extraction, and the [extraction rule](rules/extract-decisions-only-when-useful.md) where relevant. Focus on how quickly someone can understand, read and scan the code, including tests. Keep architectural redesign and correctness investigations with their respective agents.
 
 ##### Verification checklist
 
-- [ ] **Names**: Check that files, folders, functions and variables clearly describe their purpose.
-- [ ] **File organisation**: Check that files are placed intentionally and the folder hierarchy makes ownership clear. Avoid unnecessary nesting or fragmentation.
-- [ ] **Readability**: Look for confusing control flow, nesting and indirection. Can we split large blocks into smaller functions to make it easier to read and follow?
-- [ ] **Comments**: Check that comments explain intent or surprising behaviour and follow the selected specialist skill guidance.
-- [ ] **Formatting**: Read CI formatter and lint results. Avoid repeating automated style findings.
+- [ ] **Reading pass**: Read changed bodies and surrounding code, not just declarations or the diff. Apply each relevant readability check and record evidence or an exclusion reason.
+- [ ] **Concrete improvements**: Identify the reading difficulty, location and a specific alternative. For extractions, name the operations and explain what a reader no longer has to track.
+- [ ] **Assessment evidence**: Support a positive verdict with evidence from inspected bodies. Clear names, one feature, correct branches and passing tests do not establish cohesion. Report supported readability problems even without a runtime bug. Separate substantive improvements, conventions and optional polish.
 
 ##### Deliverable
 
@@ -321,7 +320,9 @@ Return a **readability assessment** containing:
 1. **Verdict**: Clear and easy to maintain, or improvements recommended, with a short reason.
 2. **Names and placement**: Explain any unclear names, misplaced files or folder structures that hide ownership. Include source locations and concrete alternatives.
 3. **Readability and style**: Identify code, comments or formatting that make the change harder to understand. Distinguish broken conventions from preferences.
-4. **Recommended changes**: Explain what each change would make clearer or simpler. State when no improvements are supported.
+4. **Recommended changes**: Explain what each change would make clearer or simpler. For proposed extractions, name the operations and the complexity they remove. Support a no-improvements conclusion with concrete evidence.
+
+Include inspected files and bodies, individual check results and coverage gaps. The parent saves this as `readability.md` in the review artefact directory.
 
 #### Q: Is this implementation correct?
 
@@ -419,6 +420,7 @@ The parent agent combines the research report, all Step 3 assessments and the St
 1. **Read the inputs**: Read the research report, every Step 3 assessment and the Step 4 rule assessment. Wait for agents that are still working. Note any failed or missing assessments.
 2. **Check the agents' claims**: Check the code, requirements and CI evidence. Compare checklists with their guidance. Follow up on missing checks or weak evidence. Refresh CI status before writing.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
+   - Check readability coverage explicitly. Keep useful readability improvements visible even when no bugs are found. Merge overlaps with simplicity, system fit and extraction rules without losing the reading difficulty or concrete recommendation. Missing readability assessment or body-level evidence is a coverage gap.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
 5. **Reach an overall conclusion**: Explain whether the change meets its goal, fits the system and works. Revisit the production risk level and coverage gaps. Summarise rule results from the complete coverage table, keeping concerns, unverified checks and skipped rules distinct from satisfied rules. Recommend keeping, simplifying or splitting it and explain supported alternatives. Separate fixes from optional work.
 6. **Write the report**: Use [the review report template](templates/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
