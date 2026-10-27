@@ -42,7 +42,7 @@ export function ProjectRow({ project }: { project: { id: string; name: string } 
 ### Must find
 
 - The change archives one project at a time, so a customer with hundreds of projects still needs hundreds of clicks. It doesn't meet the bulk-archiving requirement.
-- Recommends adjusting the approach, such as selecting several projects and archiving them in one action, and notes the confirmation step isn't needed because archiving can be undone.
+- Recommends adjusting the approach, such as selecting several projects and archiving them in one action.
 
 ## solves-the-problem: Show which invoices are overdue
 

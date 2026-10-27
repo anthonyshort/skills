@@ -289,11 +289,15 @@ def grade_case(case, unit, directory, args):
     else:
         diff = git(directory / 'repo', 'diff', 'HEAD~1', 'HEAD')
         prompt = grader_prompt(case, output_path.name, output_path.read_text(), diff, case.inputs)
-        output = run_agent(args.grader, prompt, directory, directory / 'grader.log', args.timeout)
-        try:
-            grade = json.loads(output[output.index('{'):output.rindex('}') + 1])
-        except ValueError:
-            grade = {'error': 'Grader did not return JSON. See grader.log.'}
+        # Retry once when the grader returns no JSON or skips a criterion.
+        for attempt in range(2):
+            output = run_agent(args.grader, prompt, directory, directory / 'grader.log', args.timeout)
+            try:
+                grade = json.loads(output[output.index('{'):output.rindex('}') + 1])
+            except ValueError:
+                grade = {'error': 'Grader did not return JSON. See grader.log.'}
+            if not save_result(case, directory, grade, checks)['error']:
+                break
     return save_result(case, directory, grade, checks)
 
 
@@ -362,6 +366,14 @@ class Transcript:
 
     def first_read(self, needle):
         return min((position for position, entry in self.reads if needle in entry), default=None)
+
+    def first_file_read(self, path):
+        # A shell command can read a file by a relative path, or through a glob over its folder.
+        relative = Path(path)
+        glob = f'{relative.parent.name}/*{relative.suffix}'
+        return min((position for position, entry in self.reads
+                    if str(relative) in entry or (entry in self.commands and (relative.name in entry or glob in entry))),
+                   default=None)
 
     def first_skill_read(self, skill):
         # Also counts shell loops such as `for s in review-risk review-assess; do cat skills/$s/SKILL.md`.
@@ -434,7 +446,7 @@ def run_checks(case, unit, directory):
     local = [command for command in transcript.commands if LOCAL_CHECK.search(command)]
     check('no local checks', not local, 'Ran: ' + '; '.join(local) if local else 'No builds, tests or linters run.')
 
-    unread = [path for path in case.must_read if transcript.first_read(f'skills/{path}') is None]
+    unread = [path for path in case.must_read if transcript.first_file_read(path) is None]
     if case.must_read:
         check('required guidance read', not unread, 'Not read: ' + ', '.join(unread) if unread else 'All read.')
     checks.append({'check': 'permissions', 'passed': True, 'info': True,

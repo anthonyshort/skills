@@ -184,6 +184,10 @@ class CheckTest(unittest.TestCase):
                 tool('Read', file_path=str(skills / 'review-rules/rules/keep-api-changes-compatible.md'))])
             self.assertEqual(failed(case, unit, case_dir), [])
 
+            for command in ['cd rules && cat keep-api-changes-compatible.md', 'for f in review-rules/rules/*.md; do cat $f; done']:
+                write_transcript(case_dir, [tool('Read', file_path=str(index)), tool('Bash', command=command)])
+                self.assertEqual(failed(case, unit, case_dir), [], command)
+
             (case_dir / 'artefacts/rules.md').write_text(index.read_text().replace('bind-query-values', '')
                                                          .replace('Bind query values', ''))
             (case_dir / 'repo/src/total.ts').write_text('changed')
