@@ -6,7 +6,7 @@ The review is split into unit skills, and each one has its own evals. A unit eva
 | --- | --- | --- |
 | [review](review/cases/) | [review](../skills/review/SKILL.md) coordinator, with every unit replaced by a short version | Steps run in order, each with its unit skill, delegated where required, and none skipped. Includes the split-only path. |
 | [review-risk](review-risk/cases/) | [review-risk](../skills/review-risk/SKILL.md) | Risk levels that size alone gets wrong, inactive code and PRs mixing unrelated changes. |
-| [review-research](review-research/cases/) | [review-research](../skills/review-research/SKILL.md) | Finding decisions and conflicts in Slack, Notion, Linear and GitHub exports, preferring newer decisions, and reporting unavailable or unread sources honestly. |
+| [review-research](review-research/cases/) | [review-research](../skills/review-research/SKILL.md) | Not part of the validated set. Research depends on live tools, so it's tested by hand on real PRs. These cases with exported sources remain as a starting point. |
 | [review-guidance](review-guidance/cases/) | [review-guidance](../skills/review-guidance/SKILL.md) | Choosing the right best-practice skills, and not the irrelevant ones. |
 | [review-assess](review-assess/cases/) | [review-assess](../skills/review-assess/SKILL.md) | One file per review question: product, system fit, simplicity, readability and correctness. |
 | [review-rules](review-rules/cases/) | [review-rules](../skills/review-rules/SKILL.md) | A violation case for every rule, plus cases where a rule's exception applies. |
