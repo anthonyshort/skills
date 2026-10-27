@@ -9,6 +9,7 @@ Each file in [`cases/`](cases/) covers one category:
 | [architecture.md](cases/architecture.md) | Dependency direction, import cycles, domain code coupled to UI, duplicated business rules and order placement coupled to its side effects. |
 | [valtio.md](cases/valtio.md) | Mutating snapshots, leaked subscriptions, stale snapshots in callbacks, native collections and stored derived state. |
 | [readability.md](cases/readability.md) | Deep nesting, vague names and long functions with mixed responsibilities. |
+| [rules.md](cases/rules.md) | One case for each [review rule](../../skills/review/rules/README.md) that the other files don't cover. |
 
 Every category includes a control case: good code that the review should leave alone.
 
@@ -44,11 +45,37 @@ What the change is meant to do. The reviewer sees this as the PR description.
 ### Must not flag
 
 - Something the report must not raise as a required fix.
+
+### Must read
+
+- `best-practices/valtio/SKILL.md`
 ````
 
 The heading is `## <id>: <PR title>`. The id is kebab-case and unique within its file. Code blocks need a `file=` path. Files in **After** replace files with the same path from **Before**.
 
 A case needs at least one **Must find** or **Must not flag** bullet. A case with only **Must not flag** bullets is a control case.
+
+**Must read** is optional. It lists guidance files, relative to `skills/`, that the review must open for this case. The transcript shows whether it did. Every rule in the rule index must appear in some case's **Must read**, which a unit test enforces.
+
+## Process checks
+
+A case passes only when the report meets its criteria and the review followed the skill. The process checks use the reviewer's stream-json transcript and the files it saved, not what the report claims:
+
+| Check | Passes when |
+| --- | --- |
+| Saved assessments | `risk.md`, `research.md`, the five question assessments and `rules.md` are in the artefact directory. |
+| Report sections | The report has every required section of the template. |
+| Every rule accounted for | `rules.md` names every rule in the rule index. |
+| No code changes | The case repository is unchanged. |
+| Subagents | The review launched at least eight: research, five questions, the rule pass and the editorial pass. |
+| Research delegated | A subagent ran before `research.md` was saved. |
+| Best-practice skills | At least one best-practice skill was read. |
+| Rule index | `rules/README.md` was read. |
+| Editorial pass | A subagent ran after the report was first saved. |
+| No local checks | No builds, tests, linters or package managers were run. |
+| Required guidance read | Every **Must read** file was opened. |
+
+The summary also reports how many rule files were read and any permission denials. A reviewer command that doesn't produce a stream-json transcript fails the transcript checks.
 
 ## Running
 
@@ -71,15 +98,16 @@ python3 evals/review/evals.py grade --out /tmp/review-evals/try-1
 The run directory ends up with:
 
 ```text
-summary.md           Pass or fail for each case, with what was missed or wrongly flagged.
+summary.md           Findings and process results for each case, with what was missed, wrongly flagged or skipped.
 results.json         The same results with the grader's evidence.
 skills/              The copy of the skills the reviewer used.
 <category>/<id>/
   repo/              The case repository.
   prompt.md          What the reviewer was asked.
   review-report.md   The review report.
-  grade.json         Each criterion, whether it passed and the quoted evidence.
-  reviewer.log       Reviewer output.
+  grade.json         Each criterion and process check, whether it passed and the evidence.
+  transcript.jsonl   Reviewer transcript, including subagents' tool calls.
+  artefacts/         The review's saved assessments.
   grader.log         Grader output.
 ```
 
@@ -100,7 +128,7 @@ python3 evals/review/evals.py run architecture --skills /tmp/skills-experiment -
 `--reviewer` and `--grader` take any command that reads a prompt on stdin, so you can compare agents or models. The reviewer runs from the run directory.
 
 ```sh
-python3 evals/review/evals.py run valtio --out /tmp/review-evals/sonnet --reviewer 'claude -p --model sonnet --permission-mode acceptEdits --allowedTools "Bash(git:*)"'
+python3 evals/review/evals.py run valtio --out /tmp/review-evals/sonnet --reviewer 'claude -p --model sonnet --output-format stream-json --verbose --permission-mode acceptEdits --allowedTools "Bash(git:*)"'
 ```
 
 The default reviewer auto-accepts file edits and only allows `git` in Bash. The review skill doesn't run builds or tests, so that's all it needs.
