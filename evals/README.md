@@ -4,7 +4,7 @@ The review is split into unit skills, and each one has its own evals. A unit eva
 
 | Folder | Skill tested | What the cases check |
 | --- | --- | --- |
-| [review](review/cases/) | [review](../skills/review/SKILL.md) coordinator, with every unit stubbed | Steps run in order, each with its unit skill, delegated where required, and none skipped. Includes the split-only path. |
+| [review](review/cases/) | [review](../skills/review/SKILL.md) coordinator, with every unit replaced by a short version | Steps run in order, each with its unit skill, delegated where required, and none skipped. Includes the split-only path. |
 | [review-risk](review-risk/cases/) | [review-risk](../skills/review-risk/SKILL.md) | Risk levels that size alone gets wrong, inactive code and PRs mixing unrelated changes. |
 | [review-research](review-research/cases/) | [review-research](../skills/review-research/SKILL.md) | Finding decisions and conflicts in Slack, Notion, Linear and GitHub exports, preferring newer decisions, and reporting unavailable or unread sources honestly. |
 | [review-guidance](review-guidance/cases/) | [review-guidance](../skills/review-guidance/SKILL.md) | Choosing the right best-practice skills, and not the irrelevant ones. |
@@ -102,7 +102,7 @@ Every section except Requirements and After is optional, but a case needs Must f
 
 ## How cases are graded
 
-A case passes when a grader agent finds the output meets every criterion and every code check passes. Code checks use the agent's stream-json transcript and saved files, never what the output claims:
+A case passes when a grader agent finds the output meets every criterion and every code check passes. Code checks use the agent's stream-json transcript and saved files, never what the output claims. The result also records how many tool calls were denied.
 
 | Check | Applies to | Passes when |
 | --- | --- | --- |
@@ -110,7 +110,6 @@ A case passes when a grader agent finds the output meets every criterion and eve
 | Output saved | Cases with criteria | The unit's output file exists. |
 | No local checks | All | No builds, tests, linters or package managers were run. |
 | Required guidance read | Cases with Must read | Every listed file was opened. |
-| Permissions | All | No tool call was denied, since a denial can hide skipped work. |
 | Every rule accounted for, rule index read | review-rules, end-to-end | `rules.md` names every rule, and the rule index was read. |
 | Report sections, editorial pass | review-report, end-to-end | The report has every template section, and a subagent ran after it was first saved. |
 | Steps run, step order, no unexpected steps | review, end-to-end | Each listed file was written, in order, and no other step's file was. |

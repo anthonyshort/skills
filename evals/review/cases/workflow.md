@@ -1,6 +1,6 @@
 # Workflow order
 
-The review coordinator runs with every unit replaced by a stub that only writes its output file. These cases check that the coordinator runs each step in order, uses the right unit skill for each step, delegates the steps it should and skips nothing. They don't test review quality.
+The review coordinator runs with every unit replaced by a short version in `review/stubs/`, so each step is quick. The short versions read like ordinary skills, so the coordinator can't tell it's being tested. These cases check that the coordinator runs each step in order, uses the right unit skill for each step, delegates the steps it should and skips nothing. They don't test review quality.
 
 ## full-review: Show the invoice due date
 

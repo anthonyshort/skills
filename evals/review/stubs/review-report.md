@@ -1,10 +1,12 @@
 ---
 name: review-report
-description: Stub of review-report for testing the review workflow's order.
+description: Combine review assessments into a review report. Part of the review workflow.
 ---
 
-# review-report (stub)
+# Review report
 
-This is a stub for testing the review workflow. Do not review anything.
+Keep this short. Read every saved assessment. Write a short report with an assessment, a findings table and the gaps. Then ask a subagent to shorten it.
 
-Write `review-report.md` in the review artefact directory containing one line: `stub review-report`, followed by a list of the inputs you were given. If you were given a subagent task, return the same text to the parent instead of writing the file, unless your brief tells you to write it. Then stop.
+## Deliverable
+
+Return a few bullets for `review-report.md`. Keep the whole answer under 150 words.

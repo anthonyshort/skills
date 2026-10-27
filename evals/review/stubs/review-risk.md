@@ -1,10 +1,12 @@
 ---
 name: review-risk
-description: Stub of review-risk for testing the review workflow's order.
+description: Assess the size and production risk of a code change. Part of the review workflow.
 ---
 
-# review-risk (stub)
+# Review risk assessment
 
-This is a stub for testing the review workflow. Do not review anything.
+Keep this short. Count the changed lines and name the distinct changes. Give a production risk level (low, medium or high) with one reason.
 
-Write `risk.md` in the review artefact directory containing one line: `stub review-risk`, followed by a list of the inputs you were given. If you were given a subagent task, return the same text to the parent instead of writing the file, unless your brief tells you to write it. Then stop.
+## Deliverable
+
+Return a few bullets for `risk.md`. Keep the whole answer under 150 words.

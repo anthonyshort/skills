@@ -1,10 +1,12 @@
 ---
 name: review-rules
-description: Stub of review-rules for testing the review workflow's order.
+description: Check a code change against the review rules. Part of the review workflow.
 ---
 
-# review-rules (stub)
+# Review rules check
 
-This is a stub for testing the review workflow. Do not review anything.
+Keep this short. Read the rule index. List each rule as relevant or not relevant, with one reason each.
 
-Write `rules.md` in the review artefact directory containing one line: `stub review-rules`, followed by a list of the inputs you were given. If you were given a subagent task, return the same text to the parent instead of writing the file, unless your brief tells you to write it. Then stop.
+## Deliverable
+
+Return a few bullets for `rules.md`. Keep the whole answer under 150 words.

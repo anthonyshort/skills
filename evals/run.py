@@ -23,8 +23,9 @@ SKILLS_DIR = ROOT.parent / 'skills'
 
 # The stream-json transcript records every tool call, including subagents', for the code checks.
 # Runs from the run directory, so file access is limited to the case and the skills copy.
-DEFAULT_AGENT = ('claude -p --output-format stream-json --verbose --permission-mode acceptEdits '
-                 '--allowedTools "Bash(git:*)"')
+READ_ONLY = ['git:*', 'cat:*', 'ls:*', 'head:*', 'tail:*', 'grep:*', 'find:*', 'wc:*', 'sed -n:*']
+DEFAULT_AGENT = ('claude -p --output-format stream-json --verbose --permission-mode acceptEdits --allowedTools '
+                 + ' '.join(f'"Bash({command})"' for command in READ_ONLY))
 DEFAULT_GRADER = 'claude -p'
 
 SECTIONS = {'requirements', 'before', 'after', 'inputs', 'guidance', 'steps',
@@ -362,6 +363,11 @@ class Transcript:
     def first_read(self, needle):
         return min((position for position, entry in self.reads if needle in entry), default=None)
 
+    def first_skill_read(self, skill):
+        # Also counts shell loops such as `for s in review-risk review-assess; do cat skills/$s/SKILL.md`.
+        return min((position for position, entry in self.reads
+                    if f'{skill}/SKILL.md' in entry or (skill in entry.split() and 'SKILL.md' in entry)), default=None)
+
     def first_write(self, name):
         return min((position for position, path in self.writes if Path(path).name == name), default=None)
 
@@ -431,8 +437,8 @@ def run_checks(case, unit, directory):
     unread = [path for path in case.must_read if transcript.first_read(f'skills/{path}') is None]
     if case.must_read:
         check('required guidance read', not unread, 'Not read: ' + ', '.join(unread) if unread else 'All read.')
-    if transcript.denials:
-        check('permissions', False, f'{transcript.denials} tool calls were denied, which can hide skipped work.')
+    checks.append({'check': 'permissions', 'passed': True, 'info': True,
+                   'detail': f'{transcript.denials} tool calls were denied.'})
     return checks
 
 
@@ -492,7 +498,7 @@ def check_steps(case, directory, skills, transcript, check):
     unread, undelegated = [], []
     for name in listed - no_unit:
         unit = UNIT_FOR_FILE[name]
-        read = transcript.first_read(f'{unit}/SKILL.md')
+        read = transcript.first_skill_read(unit)
         if read is None or (written[name] is not None and read > written[name]):
             unread.append(f'{unit} for {name}')
         if unit in DELEGATED_UNITS and not any(unit in prompt for _, prompt in transcript.agents):

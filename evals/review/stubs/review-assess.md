@@ -1,10 +1,12 @@
 ---
 name: review-assess
-description: Stub of review-assess for testing the review workflow's order.
+description: Answer one review question about a code change and return a short assessment. Part of the review workflow.
 ---
 
-# review-assess (stub)
+# Review assessment
 
-This is a stub for testing the review workflow. Do not review anything.
+Answer the question you were given: product, system-fit, simplicity, readability or correctness. Read the diff and give a verdict with one or two reasons.
 
-Return one line, `stub review-assess <question>`, where the question is product, system-fit, simplicity, readability or correctness, followed by a list of the inputs you were given. The parent saves it as `<question>.md`. Then stop.
+## Deliverable
+
+Return a few bullets for `<question>.md`. Keep the whole answer under 150 words.
