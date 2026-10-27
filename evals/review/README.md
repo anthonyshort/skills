@@ -115,6 +115,12 @@ The default reviewer auto-accepts file edits and only allows `git` in Bash. The 
 
 When a case fails, read `review-report.md` before changing the skill. The criterion may be too strict, or the problem may be too subtle for the change as written.
 
+## Checking the evals are valid
+
+A case is only useful if a worse skill fails it. To check, run the cases against a copy of `skills/` with a deliberate regression using `--skills`. Cases with problems to find should fail when the skill is told to ignore that category. Control cases should fail when the skill gains a bad standard that condemns good code. Telling the reviewer to invent findings doesn't work, because it refuses.
+
+- [27 October 2026](results/2026-10-27/README.md): 16/16 passed with the current skill. 10/13 failed with a blind skill and 3/3 controls failed with bad standards.
+
 ## Relation to the benchmark
 
 [`benchmarks/review`](../../benchmarks/review/README.md) is a separate blind benchmark of eight bug and false-positive cases with runtime oracles. These evals are about catching categories of design and quality problems, which can't be checked by running code, so an LLM grades them instead.
