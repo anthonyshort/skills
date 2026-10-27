@@ -430,7 +430,7 @@ export async function placeOrder(order: Order): Promise<void> {
 ### Must find
 
 - The Slack call is awaited without handling errors, so a Slack failure rejects `placeOrder` after the order is saved, which breaks the requirement that notifications must not fail order placement.
-- Order placement is directly coupled to each downstream consumer (inventory, email, analytics and now Slack). Recommends handling the notification outside the core operation, such as an `orderPlaced` event or post-placement hook, or at least isolating it like the receipt.
+- Points out that order placement now calls each downstream consumer directly (inventory, email, analytics and Slack), and proposes decoupling them, such as an `orderPlaced` event or post-placement hook, at least as an optional opportunity.
 
 ## injected-adapter: Export reports through the storage adapter
 
