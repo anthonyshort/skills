@@ -24,6 +24,12 @@ const input = parseReviewInput({
   runId: "test",
   invocationId: "test",
 });
+test("default resources select the experimental skill without redirecting the original", () => {
+  assert.equal(input.skillRoot, "/package/skills/review-workflow");
+  assert.equal(input.supportRoot, "/package/scripts/review");
+  assert.deepEqual(input.notification, { messageKey: "review:test" });
+});
+
 const common = {
   base: input.base,
   head: input.head,

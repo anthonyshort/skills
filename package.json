@@ -8,9 +8,9 @@
     "build:check": "node --import tsx scripts/build/workflow.ts --check",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\"",
-    "test:workflow": "node --import tsx --test tests/review-workflow.test.ts tests/review-stages.test.ts",
+    "test:workflow": "node --import tsx --test tests/review-workflow.test.ts tests/review-stages.test.ts tests/review-publication.test.ts",
     "test:unit": "node --import tsx --test tests/review-bundle.test.ts",
-    "test": "npm run typecheck && npm run build:check && npm run test:workflow && npm run test:unit && python3 -m unittest discover -s skills/review/scripts -p test_*.py"
+    "test": "npm run typecheck && npm run build:check && npm run test:workflow && npm run test:unit && python3 -m unittest discover -s skills/review/scripts -p test_*.py && python3 -m unittest discover -s skills/review-workflow/scripts -p test_*.py"
   },
   "keywords": [
     "pi-package"

@@ -18,7 +18,12 @@ test("complete review uses all required stages and validates real saved files", 
     assert.equal(result.value.status, "complete");
     assert.equal(state.calls[0], "setup:1");
     assert.ok(
-      state.calls.indexOf("research:1") < state.calls.indexOf("product:1"),
+      state.calls.indexOf("research:1") <
+        state.calls.indexOf("research-check:1"),
+    );
+    assert.ok(
+      state.calls.indexOf("research-check:1") <
+        state.calls.indexOf("product:1"),
     );
     for (const name of questions) {
       assert.ok(
@@ -501,16 +506,16 @@ test("workers load their assigned sections from the packaged review skill", () =
     assert.equal(result.value.status, "complete");
     assert.equal(
       state.instructions.get("research"),
-      path.join(state.args.skillRoot, "SKILL.md") + "#step-2-research",
+      path.join(state.args.skillRoot, "criteria.md") + "#step-2-research",
     );
     assert.equal(
       state.instructions.get("correctness"),
-      path.join(state.args.skillRoot, "SKILL.md") +
+      path.join(state.args.skillRoot, "criteria.md") +
         "#q-is-this-implementation-correct",
     );
     assert.equal(
       state.instructions.get("rules"),
-      path.join(state.args.skillRoot, "SKILL.md") +
+      path.join(state.args.skillRoot, "criteria.md") +
         "#step-4-check-review-rules",
     );
   }));
@@ -586,3 +591,214 @@ test("template source evidence survives stage validation and persistence", () =>
       );
     },
   ));
+
+test("research acceptance failure stops assessments and preserves the initial brief", () =>
+  scenario({ fail: (name) => name === "research-check" }, async (state) => {
+    const result = await state.run();
+    assert.equal(result.value.status, "incomplete");
+    assert.ok(state.bundle.stages.research);
+    assert.equal(state.calls.includes("product:1"), false);
+    assert.equal(
+      state.calls.filter((name) => name.startsWith("research-check:")).length,
+      2,
+    );
+  }));
+
+test("GitHub progress starts after setup and final publication follows the real save gate", () =>
+  scenario({ github: true, notify: true }, async (state) => {
+    const result = await state.run();
+    assert.equal(result.status, "completed", result.error);
+    assert.equal(result.value.publication.status, "confirmed");
+    assert.equal(result.value.publication.approval?.status, "withheld");
+    const checklist = readFileSync(
+      `${state.args.artifacts}/github-checklist.md`,
+      "utf8",
+    );
+    assert.match(checklist, /\[x\] publication: complete/);
+    assert.doesNotMatch(checklist, /publication: running/);
+    const start = state.calls.findIndex((name) =>
+      name.startsWith("github:start:"),
+    );
+    const finish = state.calls.findIndex((name) =>
+      name.startsWith("github:finish:"),
+    );
+    assert.ok(start > state.calls.indexOf("setup:1"));
+    assert.ok(start < state.calls.indexOf("research:1"));
+    assert.ok(finish > state.calls.indexOf("save-artefacts"));
+    assert.equal(
+      state.calls.filter((name) => name.startsWith("github:finish:")).length,
+      1,
+    );
+    const terminal = state.prompts.get("notify:review:complete");
+    assert.ok(terminal);
+    assert.match(
+      terminal,
+      /https:\/\/github.com\/fixture\/app\/pull\/7#issuecomment-1/,
+    );
+    assert.match(terminal, /Approval submission: withheld/);
+    assert.equal(result.value.approval?.outcome, "human_review");
+  }));
+
+for (const publication of ["local-only", "staged"] as const) {
+  test(`${publication} saves review output without scheduling either delivery destination`, () =>
+    scenario({ github: true, notify: true, publication }, async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "complete");
+      assert.equal(result.value.publication.status, "skipped");
+      assert.deepEqual(result.value.notifications, []);
+      assert.equal(
+        state.calls.some((name) => /^(github|notify):/.test(name)),
+        false,
+      );
+      assert.ok(readFileSync(result.value.reportPath!, "utf8"));
+    }));
+}
+
+for (const deliveryFailure of ["start", "update", "finish"] as const) {
+  test(`lost GitHub ${deliveryFailure} response leaves assessments and host notifications running`, () =>
+    scenario({ github: true, notify: true, deliveryFailure }, async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "complete");
+      assert.equal(
+        state.calls.filter((name) => name === "correctness:1").length,
+        1,
+      );
+      assert.ok(state.calls.includes("notify:review:complete"));
+      assert.equal(
+        result.value.publication.status,
+        deliveryFailure === "finish" ? "uncertain" : "confirmed",
+      );
+      if (deliveryFailure === "finish") {
+        assert.equal(
+          state.calls.filter((name) => name.startsWith("github:finish:"))
+            .length,
+          1,
+        );
+        assert.match(result.value.publication.reason, /Inspect .*github.json/);
+      }
+    }));
+}
+
+test("failed saving interrupts progress and never publishes final GitHub results", () =>
+  scenario(
+    {
+      github: true,
+      corrupt: ({ root }) => rmSync(path.join(root, "review-report.md")),
+    },
+    async (state) => {
+      const result = await state.run();
+      assert.equal(result.status, "failed");
+      assert.equal(
+        state.calls.some((name) => name.startsWith("github:finish:")),
+        false,
+      );
+      assert.ok(
+        state.calls.some((name) => name.startsWith("github:interrupt:")),
+      );
+      const checklist = readFileSync(
+        `${state.args.artifacts}/github-checklist.md`,
+        "utf8",
+      );
+      assert.match(checklist, /\[x\] report: complete/);
+      assert.match(checklist, /save-artefacts: blocked/);
+    },
+  ));
+
+test("incomplete review interrupts GitHub and returns accepted partial evidence", () =>
+  scenario(
+    { github: true, fail: (name) => name === "readability" },
+    async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "incomplete");
+      assert.equal(result.value.publication.status, "rejected");
+      assert.ok(state.bundle.stages.correctness);
+      assert.equal(
+        state.calls.some((name) => name.startsWith("github:finish:")),
+        false,
+      );
+    },
+  ));
+
+test("missing host notify tool records rejected delivery without preventing GitHub publication", () =>
+  scenario(
+    { github: true, notify: true, notificationAvailable: false },
+    async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "complete");
+      assert.equal(result.value.publication.status, "confirmed");
+      assert.ok(
+        result.value.notifications.every(
+          (entry) => entry.receipt.status === "rejected",
+        ),
+      );
+    },
+  ));
+
+test("changing notification scope is reported as uncertain rather than claiming one-message updates", () =>
+  scenario(
+    { notify: true, notificationScope: (attempt) => `session-${attempt}` },
+    async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "complete");
+      assert.equal(result.value.notifications[0].receipt.status, "confirmed");
+      assert.equal(result.value.notifications[1].receipt.status, "uncertain");
+      assert.match(
+        result.value.notifications[1].receipt.reason,
+        /scope changed/,
+      );
+      for (const entry of result.value.notifications) {
+        assert.equal(entry.receipt.broadcast?.messageKey, "fixture-run");
+      }
+    },
+  ));
+
+test("unaccepted setup saves incomplete evidence without starting delivery", () =>
+  scenario(
+    { github: true, notify: true, fail: (name) => name === "setup" },
+    async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "incomplete");
+      assert.equal(result.value.publication.status, "skipped");
+      assert.equal(
+        state.calls.some((name) => /^(github|notify):/.test(name)),
+        false,
+      );
+    },
+  ));
+
+test("freshness refusal preserves its reason and stops GitHub progress as blocked", () =>
+  scenario(
+    {
+      github: true,
+      publicationRefusal: "New discussion contradicts the accepted scope",
+    },
+    async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "complete");
+      assert.equal(result.value.publication.status, "rejected");
+      assert.match(result.value.publication.reason, /New discussion/);
+      const finish = state.calls.findIndex((name) =>
+        name.startsWith("github:finish:"),
+      );
+      assert.ok(
+        state.calls
+          .slice(finish + 1)
+          .some((name) => name.startsWith("github:interrupt:")),
+      );
+      assert.equal(
+        state.calls.filter((name) => name.startsWith("github:finish:")).length,
+        1,
+      );
+    },
+  ));
+
+test("omitted notification settings still schedule host updates with a stable run key", () =>
+  scenario({}, async (state) => {
+    Reflect.deleteProperty(state.args, "notification");
+    const result = await state.run();
+    assert.equal(result.value.status, "complete");
+    assert.ok(result.value.notifications.length > 0);
+    for (const entry of result.value.notifications) {
+      assert.equal(entry.receipt.broadcast?.messageKey, "review:fixture-run");
+    }
+  }));

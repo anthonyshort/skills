@@ -15,7 +15,7 @@ import type {
 } from "./contracts.js";
 
 /**
- * The stage-to-skill map. Criteria remain in SKILL.md; these instructions limit
+ * The stage-to-skill map. Criteria remain in criteria.md; these instructions limit
  * each worker to its assigned part of the coordinator’s process.
  */
 export const stageDefinitions = {
@@ -30,6 +30,12 @@ export const stageDefinitions = {
     reference: "step-2-research",
     instructions:
       "Complete fresh research or validate prior complete review evidence using the re-review gate. Missing external sources must be recorded, not invented.",
+  },
+  "research-check": {
+    group: "Research",
+    reference: "step-2-research",
+    instructions:
+      "Act as the parent accepting the research brief. Independently check its important claims against the cited sources, scope and current CI. Validate any reused prior research. Return a corrected self-contained brief with supported conclusions and remaining gaps for the assessments. Reading the brief alone does not complete this check. Do not repeat broad searches without a specific missing or stale source.",
   },
   product: {
     group: "Assessments",
@@ -96,7 +102,7 @@ export const stageDefinitions = {
     group: "Decision",
     reference: "step-6-publish-results",
     instructions:
-      "Perform the final approval assessment from Step 6 without publishing. Return approval in the documented seven-check schema, summaryMarkdown following templates/github-progress.md, and inlineComments for verified new bugs with valid diff anchors only. Each inline ID must exactly match a retained reportId whose source is a new bug. Required retained findings and unresolved findings cannot pass clean_review. Do not introduce new findings. For split-only output use outcome split, checks null and no inline comments. Count additions plus deletions across the whole diff. This stage returns an assessment only. The caller owns any later publication or approval submission.",
+      "Perform the final approval assessment from Step 6 without publishing. Return approval in the documented seven-check schema, summaryMarkdown following templates/github-progress.md, and inlineComments for verified new bugs with valid diff anchors only. Each inline ID must exactly match a retained reportId whose source is a new bug. Required retained findings and unresolved findings cannot pass clean_review. Do not introduce new findings. For split-only output use outcome split, checks null and no inline comments. Count additions plus deletions across the whole diff. This stage returns an assessment only. A later workflow delivery worker owns publication and approval submission. Honour input.publication: local-only, staged and comment-only never allow automatic approval; if all checks pass use not_submitted with the restriction as its reason and next step.",
   },
 } satisfies Record<
   StageName,
@@ -116,12 +122,13 @@ export function stagePrompt(
   const definition = stageDefinitions[name];
   return [
     `You are the ${name} worker for one pinned code review.`,
-    `Read shared review constraints in ${input.skillRoot}/SKILL.md#rules. Do not perform its coordinator steps.`,
-    `Assigned instructions: ${input.skillRoot}/SKILL.md#${definition.reference}`,
+    `Read shared review constraints in ${input.skillRoot}/criteria.md#rules. Do not perform its coordinator steps.`,
+    `Assigned instructions: ${input.skillRoot}/criteria.md#${definition.reference}`,
     "Read the assigned section and perform only its task. Coordinator steps outside that section are not part of your assignment.",
     `Wrapper guidance: ${JSON.stringify(input.wrapperSkillRoots.map((root) => `${root}/SKILL.md`))}.`,
     "Execute only your assigned stage. Do not recursively run the review or delegate more agents.",
-    "Accepted prior reports are supplied inline below and saved later by the writer. Editing happens in later stages. Publication belongs to the caller. Do not treat unsaved intermediate files or future stages as missing evidence.",
+    "For assessments and later stages, research-check is the accepted corrected research brief and takes precedence over the initial research result. Preserve remaining evidence gaps.",
+    "Accepted prior reports are supplied inline below and saved later by the writer. Editing happens in later stages. Publication belongs to the workflow delivery worker. Do not treat unsaved intermediate files or future stages as missing evidence.",
     `Read supplied scope and requirements files: ${JSON.stringify(input.contextFiles)}. Apply caller restrictions, cite the files and record unavailable external context rather than inventing sources.`,
     "Finish by calling StructuredOutput with markdown, individual checks, findings and gaps. Text outside that tool call is discarded. Do not substitute a prose final answer.",
     "Read relevant best-practice skill descriptions and select guidance for this question. Cite guidance sections and versions.",

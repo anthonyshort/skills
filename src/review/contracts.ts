@@ -35,8 +35,18 @@ export const ReviewInputSchema = z
     invocationId: identifier,
     wrapperSkillRoots: z.array(absolutePath).max(20).default([]),
     contextFiles: z.array(absolutePath).max(20).default([]),
+    github: z
+      .strictObject({
+        repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
+        pr: z.number().int().positive(),
+      })
+      .nullable()
+      .default(null),
+    publication: z
+      .enum(["publish", "local-only", "staged", "comment-only"])
+      .default("publish"),
     notification: z
-      .strictObject({ destination: text, messageKey: text })
+      .strictObject({ messageKey: text.max(200) })
       .nullable()
       .default(null),
   })
@@ -72,9 +82,14 @@ export function parseReviewInput(value: unknown): ReviewInput {
       tsxLoader: absolutePath.optional(),
     })
     .parse(value);
+  const supplied = z.record(z.string(), z.unknown()).parse(value);
   return ReviewInputSchema.parse({
-    ...z.record(z.string(), z.unknown()).parse(value),
-    skillRoot: roots.skillRoot ?? `${roots.packageRoot}/skills/review`,
+    ...supplied,
+    notification:
+      supplied.notification === undefined
+        ? { messageKey: `review:${supplied.runId}` }
+        : supplied.notification,
+    skillRoot: roots.skillRoot ?? `${roots.packageRoot}/skills/review-workflow`,
     supportRoot: roots.supportRoot ?? `${roots.packageRoot}/scripts/review`,
     tsxLoader:
       roots.tsxLoader ??
@@ -185,6 +200,7 @@ export const assessmentNames = [
 export const stageNames = [
   "setup",
   "research",
+  "research-check",
   ...assessmentNames,
   "rules",
   "consolidation",
@@ -215,6 +231,10 @@ export const StageSchemas = {
     rulePaths: z.array(text).max(1000),
   }),
   research: z.strictObject({ ...envelope, stage: z.literal("research") }),
+  "research-check": z.strictObject({
+    ...envelope,
+    stage: z.literal("research-check"),
+  }),
   product: z.strictObject({ ...envelope, stage: z.literal("product") }),
   "system-fit": z.strictObject({ ...envelope, stage: z.literal("system-fit") }),
   simplicity: z.strictObject({ ...envelope, stage: z.literal("simplicity") }),
@@ -249,6 +269,7 @@ export const StageSchemas = {
 export const StageSchema = z.discriminatedUnion("stage", [
   StageSchemas.setup,
   StageSchemas.research,
+  StageSchemas["research-check"],
   StageSchemas.product,
   StageSchemas["system-fit"],
   StageSchemas.simplicity,
@@ -269,6 +290,7 @@ export type StageResults = {
 export const StageResultsSchema = z.strictObject({
   setup: StageSchemas.setup.optional(),
   research: StageSchemas.research.optional(),
+  "research-check": StageSchemas["research-check"].optional(),
   product: StageSchemas.product.optional(),
   "system-fit": StageSchemas["system-fit"].optional(),
   simplicity: StageSchemas.simplicity.optional(),
@@ -288,9 +310,29 @@ export const AttemptSchema = z.strictObject({
   attempt: z.number().int().positive(),
   reason: text,
 });
+/**
+ * Receipt returned by the host's keyed notification broadcast. The host chooses
+ * destinations from the authenticated session; callers supply no recipient.
+ */
+export const NotificationBroadcastSchema = z.object({
+  scope: text,
+  messageKey: text.optional(),
+  deliveries: z
+    .array(
+      z.object({
+        deliveryId: text,
+        destination: text,
+        status: z.enum(["in-flight", "confirmed", "rejected", "uncertain"]),
+        externalId: z.string().nullable(),
+        duplicate: z.boolean(),
+      }),
+    )
+    .max(100),
+});
 export const NotificationReceiptSchema = z.strictObject({
   status: z.enum(["confirmed", "rejected", "uncertain"]),
   reason: text,
+  broadcast: NotificationBroadcastSchema.nullable().default(null),
 });
 export const NotificationSchema = z.strictObject({
   stage: text,

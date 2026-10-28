@@ -13,6 +13,7 @@ const metadata = `export const meta = {
     { title: "Setup" }, { title: "Research" }, { title: "Assessments" },
     { title: "Rules" }, { title: "Consolidation" }, { title: "Reporting" },
     { title: "Decision" }, { title: "Save artefacts" },
+    { title: "Progress" }, { title: "Publication" },
   ],
 }`;
 const output = await build({

@@ -2,8 +2,9 @@
  * Coordinate the packaged review inside Pi's restricted workflow VM.
  *
  * The generated workflow calls this module with agent, parallel and phase host
- * capabilities. Filesystem work goes through the gated artefact writer. Failed review stages retain accepted partial evidence, while
- * persistence failures reject the run without claiming success.
+ * capabilities. Filesystem work goes through the gated artefact writer. Failed
+ * review stages retain accepted partial evidence; persistence failures reject
+ * the run without claiming success.
  */
 import {
   assessmentNames,
@@ -46,32 +47,45 @@ type ReviewRun = {
   attempts: Bundle["attempts"];
   progress: ReturnType<typeof createProgressReporter>;
   activeStage: string;
-  reportStatus(stage: string, status: string): Promise<void>;
 };
 
 /**
  * Run one pinned review through the saved Pi workflow host.
  *
  * Review-stage failures receive one fresh retry, then produce incomplete saved
- * output. Writer failures stop the run without retrying a possibly completed write. A returned complete review may still contain defects or evidence gaps.
+ * output. Writer failures stop the run without retrying a possibly completed
+ * write. A returned complete review may still contain defects or evidence gaps.
  */
 export async function runReviewWorkflow(host: WorkflowHost, args: unknown) {
   const run = createReviewRun(host, args);
   await executeReviewGraph(run);
   const bundle = await prepareReviewOutput(run);
   const result = createReviewResult(bundle);
-  const validationCommand = await saveArtifacts(
-    host,
-    run.input,
+  let validationCommand: string;
+  try {
+    validationCommand = await saveArtifacts(
+      host,
+      run.input,
+      bundle,
+      result,
+      run.progress.update,
+    );
+  } catch (error) {
+    await run.progress.interrupt(errorMessage(error));
+    throw error;
+  }
+  const publication = await run.progress.finish(
     bundle,
     result,
-    run.reportStatus,
+    validationCommand,
   );
   return {
     ...result,
+    approval: bundle.stages.decision?.approval ?? null,
+    publication,
     validationCommand,
     failures: bundle.failures,
-    notifications: bundle.notifications,
+    notifications: run.progress.notifications,
   };
 }
 
@@ -81,7 +95,7 @@ export async function runReviewWorkflow(host: WorkflowHost, args: unknown) {
 function createReviewRun(host: WorkflowHost, args: unknown): ReviewRun {
   const input = parseReviewInput(args);
   const progress = createProgressReporter(input, host);
-  const run: ReviewRun = {
+  return {
     host,
     input,
     progress,
@@ -89,9 +103,7 @@ function createReviewRun(host: WorkflowHost, args: unknown): ReviewRun {
     failures: [],
     attempts: [],
     activeStage: "setup",
-    reportStatus: (stage, status) => progress.update(stage, status),
   };
-  return run;
 }
 
 /**
@@ -108,7 +120,7 @@ async function runStageWithRetry(
   if (trackStage) {
     run.activeStage = name;
     run.host.phase(definition.group);
-    await run.reportStatus(name, "running");
+    await run.progress.update(name, "running");
   }
   let feedback = "";
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -129,14 +141,14 @@ async function runStageWithRetry(
       const result = StageSchemas[name].parse(output);
       validateStage(result, context, run.input);
       if (trackStage) {
-        await run.reportStatus(name, "complete");
+        await run.progress.update(name, "complete");
       }
       return result;
     } catch (error) {
       feedback = errorMessage(error);
       run.attempts.push({ stage: name, attempt, reason: feedback });
       if (trackStage && attempt === 1) {
-        await run.reportStatus(name, "retrying");
+        await run.progress.update(name, "retrying");
       }
     }
   }
@@ -166,10 +178,11 @@ async function runSequentialStages(
 async function runAssessmentBarrier(run: ReviewRun): Promise<void> {
   run.activeStage = "assessments";
   run.host.phase("Assessments");
-  await run.reportStatus("assessments", "running");
+  await run.progress.update("assessments", "running");
   const context = {
     setup: run.completed.setup,
     research: run.completed.research,
+    "research-check": run.completed["research-check"],
   };
   const results = await run.host.parallel(
     assessmentNames.map(
@@ -188,7 +201,7 @@ async function runAssessmentBarrier(run: ReviewRun): Promise<void> {
   if (missing.length) {
     throw new Error(`Missing assessments: ${missing.join(", ")}`);
   }
-  await run.reportStatus("assessments", "complete");
+  await run.progress.update("assessments", "complete");
 }
 
 /**
@@ -198,17 +211,18 @@ async function runAssessmentBarrier(run: ReviewRun): Promise<void> {
 async function executeReviewGraph(run: ReviewRun): Promise<void> {
   try {
     await runSequentialStages(run, ["setup"]);
+    await run.progress.start(run.completed.setup?.mode ?? "full");
     if (run.completed.setup?.mode === "split") {
       await runSequentialStages(run, ["split-plan"]);
     } else {
-      await runSequentialStages(run, ["research"]);
+      await runSequentialStages(run, ["research", "research-check"]);
       await runAssessmentBarrier(run);
       await runSequentialStages(run, reportingStages);
     }
     await runSequentialStages(run, ["decision"]);
   } catch (error) {
     run.failures.push({ stage: run.activeStage, reason: errorMessage(error) });
-    await run.reportStatus(run.activeStage, "blocked");
+    await run.progress.update(run.activeStage, "blocked");
   }
 }
 
@@ -224,7 +238,7 @@ async function prepareReviewOutput(run: ReviewRun): Promise<Bundle> {
   if (status === "complete" && run.completed.report) {
     run.completed.report.markdown += coverageMarkdown(run.completed);
   }
-  await run.reportStatus("save-artefacts", "running");
+  await run.progress.update("save-artefacts", "running");
   return {
     version: 1,
     input: run.input,
@@ -232,7 +246,7 @@ async function prepareReviewOutput(run: ReviewRun): Promise<Bundle> {
     stages: run.completed,
     failures: run.failures,
     attempts: run.attempts,
-    notifications: run.progress.notifications,
+    notifications: [...run.progress.notifications],
   };
 }
 
@@ -247,6 +261,7 @@ function createReviewResult(bundle: Bundle): ReviewResult {
       : [
           "setup",
           "research",
+          "research-check",
           ...assessmentNames,
           ...reportingStages,
           "decision",

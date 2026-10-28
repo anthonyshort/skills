@@ -31,7 +31,17 @@ import {
   parseReviewInput,
   NotificationSchema,
   FailureSchema,
+  ApprovalSchema,
+  NotificationBroadcastSchema,
 } from "../../src/review/contracts.js";
+import {
+  rejectGitHubPublication,
+  runGitHubOperation,
+} from "../../scripts/review/github.js";
+import {
+  GitHubRequestSchema,
+  PublicationResultSchema,
+} from "../../src/review/publication.js";
 import type {
   Bundle,
   ReviewInput,
@@ -49,10 +59,18 @@ const OutputSchema = ReviewResultSchema.extend({
   validationCommand: z.string(),
   notifications: z.array(NotificationSchema).max(1000),
   failures: z.array(FailureSchema).max(100),
+  approval: ApprovalSchema.nullable(),
+  publication: PublicationResultSchema,
 });
 export type FixtureOptions = {
   addedLines?: number;
   notify?: boolean;
+  github?: boolean;
+  publication?: ReviewInput["publication"];
+  publicationRefusal?: string;
+  deliveryFailure?: "start" | "update" | "interrupt" | "finish";
+  notificationAvailable?: boolean;
+  notificationScope?: (attempt: number) => string;
   wrapper?: boolean;
   split?: boolean;
   exception?: string;
@@ -65,13 +83,13 @@ export type FixtureOptions = {
 
 function createSources(options: FixtureOptions) {
   const root = mkdtempSync(path.join(os.tmpdir(), "review-workflow-"));
-  const skillRoot = path.join(root, "skills/review");
+  const skillRoot = path.join(root, "skills/review-workflow");
   const repository = path.join(root, "repository");
   const artifacts = path.join(root, "artifacts with 'quotes'");
   mkdirSync(path.join(skillRoot, "rules"), { recursive: true });
   writeFileSync(
-    path.join(skillRoot, "SKILL.md"),
-    readFileSync(path.join(packageRoot, "skills/review/SKILL.md")),
+    path.join(skillRoot, "criteria.md"),
+    readFileSync(path.join(packageRoot, "skills/review-workflow/criteria.md")),
   );
   mkdirSync(repository);
   const git = (...args: string[]) =>
@@ -139,9 +157,9 @@ function createSources(options: FixtureOptions) {
     wrapperSkillRoots,
     runId: "fixture-run",
     invocationId: "invocation-one",
-    notification: options.notify
-      ? { destination: "review-progress", messageKey: "fixture-run" }
-      : null,
+    github: options.github ? { repository: "fixture/app", pr: 7 } : null,
+    publication: options.publication ?? "publish",
+    notification: options.notify ? { messageKey: "fixture-run" } : null,
   });
   return { root, input, rulePaths };
 }
@@ -299,25 +317,129 @@ function assertAssignedInstructions(request: WorkflowSpawnRequest): string {
   return assigned;
 }
 
+/**
+ * Return a canned host-tool broadcast. Parsing the actual event rejects an
+ * incompatible notify request without claiming a real Telegram transport.
+ */
+function notificationAnswer(
+  prompt: string,
+  options: FixtureOptions,
+  attempt: number,
+) {
+  const event = z
+    .object({
+      action: z.literal("send"),
+      messageKey: z.string(),
+      text: z.string(),
+    })
+    .strict()
+    .parse(JSON.parse(prompt.split("\n").at(-1) ?? "null"));
+  if (options.notificationAvailable === false) {
+    return {
+      broadcast: null,
+      reason: "Host notify tool unavailable",
+    };
+  }
+  return {
+    broadcast: NotificationBroadcastSchema.parse({
+      scope: options.notificationScope?.(attempt) ?? "fixture-session",
+      messageKey: event.messageKey,
+      deliveries: [
+        {
+          deliveryId: "fixture-delivery",
+          destination: "fixture-telegram",
+          status: options.notificationStatus ?? "confirmed",
+          externalId: "fixture-message",
+          duplicate: false,
+        },
+      ],
+    }),
+    reason: "Fixture receipt, no external delivery.",
+  };
+}
+
+/**
+ * Replace only Python and gh subprocess responses. The real bridge writes its
+ * receipt, and Pi runs the real receipt gate against these simulated helper files.
+ */
+function fakeGitHubCommand(input: ReviewInput) {
+  return async (file: string, args: string[]) => {
+    if (file === "gh") {
+      return JSON.stringify({
+        head: { sha: input.head },
+        base: { sha: input.base },
+      });
+    }
+    assert.equal(file, "python3");
+    const operation = args[3];
+    const status =
+      operation === "finish"
+        ? "complete"
+        : operation === "interrupt"
+          ? "interrupted"
+          : "reviewing";
+    const url = "https://github.com/fixture/app/pull/7#issuecomment-1";
+    const approval =
+      operation === "finish"
+        ? { status: "withheld", reason: "Fixture requires human review" }
+        : null;
+    mkdirSync(input.artifacts, { recursive: true });
+    writeFileSync(
+      `${input.artifacts}/github.json`,
+      JSON.stringify({
+        repo: input.github?.repository,
+        pr: input.github?.pr,
+        base: input.base,
+        head: input.head,
+        status,
+        comments: { main: { html_url: url } },
+        approval,
+      }),
+    );
+    return JSON.stringify({ status, url, approval });
+  };
+}
+
 export function fixture(options: FixtureOptions = {}) {
   const { root, input: args, rulePaths } = createSources(options);
   const calls: string[] = [];
+  const prompts = new Map<string, string>();
+  let notificationCount = 0;
   const instructions = new Map<string, string>();
   let bundle: Bundle | undefined;
   const host: WorkflowHost = {
     abortAgent() {},
     async spawnAgent(request) {
       calls.push(request.label);
+      prompts.set(request.label, request.prompt);
       await options.hold?.(request);
       const ok = (value: unknown) => ({
         ok: true,
         text: JSON.stringify(value),
       });
       if (request.label.startsWith("notify:")) {
-        return ok({
-          status: options.notificationStatus ?? "confirmed",
-          reason: "Fixture receipt, no external delivery.",
-        });
+        return ok(
+          notificationAnswer(request.prompt, options, ++notificationCount),
+        );
+      }
+      if (request.label.startsWith("github:")) {
+        const line = request.prompt.match(/^GitHub request: (.+)$/m)?.[1];
+        assert.ok(line, "Delivery worker must receive its request");
+        const delivery = GitHubRequestSchema.parse(JSON.parse(line));
+        if (delivery.operation === options.deliveryFailure) {
+          return { ok: false, error: "Fixture delivery response lost" };
+        }
+        const result =
+          delivery.operation === "finish" && options.publicationRefusal
+            ? await rejectGitHubPublication(
+                delivery,
+                options.publicationRefusal,
+              )
+            : await runGitHubOperation(
+                delivery,
+                fakeGitHubCommand(delivery.input),
+              );
+        return ok(result);
       }
       if (request.label === "save-artefacts") {
         bundle = saveAcceptedArtifacts(request.prompt, args.artifacts);
@@ -342,6 +464,7 @@ export function fixture(options: FixtureOptions = {}) {
   return {
     args,
     calls,
+    prompts,
     rulePaths,
     instructions,
     get bundle() {
