@@ -5,7 +5,7 @@ description: Assess a code change for unnecessary complexity and useful scope bo
 
 # Review simplicity
 
-Read the [shared review rules](../review/SKILL.md#rules) and apply those constraints without running the other review steps. Read the [assessment method](../review/references/assessment-method.md) before inspecting the change.
+Read the [shared review rules](../review/SKILL.md#rules) and apply those constraints without running the other review steps. Read the [assessment method](../review/SKILL.md#assessment-method) before inspecting the change.
 
 Use the supplied repository, pinned revisions, full diff, research, initial risks and CI evidence. Inspect descriptions in [best-practices](../best-practices/) and any caller-supplied specialist collections, then select the guidance relevant to this assessment. Validate supplied context and record missing requirements or evidence instead of assuming it is complete. Return this assessment without publishing, changing source or starting the full review.
 

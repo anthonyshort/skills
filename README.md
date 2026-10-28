@@ -14,7 +14,6 @@ skills use relative links; install the whole collection to retain those links.
 ```text
 skills/
   review/SKILL.md
-  review/references/
   review/templates/
   review-research/SKILL.md
   review-correctness/SKILL.md

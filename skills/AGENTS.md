@@ -8,7 +8,7 @@ Read the scoped `AGENTS.md` in the area you are editing.
 | Content | Location |
 | --- | --- |
 | General implementation guidance for a technology | `best-practices/<topic>/` |
-| Review coordination and shared policy | `review/SKILL.md` and `review/references/` |
+| Review coordination and shared policy | `review/SKILL.md` |
 | Independent review research and assessments | `review-research/`, `review-product/`, `review-system-fit/`, `review-simplicity/`, `review-readability/`, `review-correctness/` |
 | General checks assigned to focused rule agents | `review/rules/` |
 | Saved report and GitHub review formats | `review/templates/` |
