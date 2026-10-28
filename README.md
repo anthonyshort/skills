@@ -14,33 +14,49 @@ skills use relative links; install the whole collection to retain those links.
 ```text
 skills/
   review/SKILL.md
+  review/references/
   review/templates/
-  review-research/SKILL.md
-  review-correctness/SKILL.md
   best-practices/react/SKILL.md
   writing-voice/SKILL.md
   ...
 package.json
 scripts/link.py
+workflows/review.js
 ```
 
 There are no runtime dependencies or agent-specific copies. The small `pi` manifest
-exports `./skills` as a Pi package. The review coordinator delegates research and
-assessments to focused skills. The personal GitHub
+exports `./skills` as a Pi package. The review workflow uses equivalent agents or
+its documented fallback when its named agents are unavailable. The personal GitHub
 review attribution remains `Sent with Pi` on all agents.
 
-## Focused reviews
+## Review workflow for Pi
 
-[`review`](skills/review/SKILL.md) coordinates the full review. Each research or assessment skill can also be assigned independently and returns its own brief or assessment:
+The package exports a complete [pi-subagents review workflow](workflows/README.md), with research, parallel assessments, rule coverage, claim verification, report editing and final publication. Review guidance remains in the existing skills. The workflow controls ordering, structured outputs, retries and saved artefact checks.
 
-- [`review-research`](skills/review-research/SKILL.md): Intent, context, existing concerns and related work.
-- [`review-product`](skills/review-product/SKILL.md): Problem fit, requirements and alternatives.
-- [`review-system-fit`](skills/review-system-fit/SKILL.md): Ownership, dependencies and architectural direction.
-- [`review-simplicity`](skills/review-simplicity/SKILL.md): Complexity, reuse and PR scope.
-- [`review-readability`](skills/review-readability/SKILL.md): Names, control flow and reading difficulty, using `code-readability` guidance.
-- [`review-correctness`](skills/review-correctness/SKILL.md): Behaviour, callers, test expectations and CI evidence.
+Install pi-subagents and this checkout as Pi packages:
 
-The coordinator owns setup, combined rule checks, consolidation, reporting and publication. Execution-engine configuration belongs to the calling application.
+```sh
+pi install npm:@tintinweb/pi-subagents@0.22.0
+pi install /path/to/skills
+```
+
+To test the branch without changing your normal Pi installation:
+
+```sh
+npm install
+npm test
+npm run test:pi -- --profile /path/to/your/pi/profile
+```
+
+The last command runs the configured model against a temporary fixture, keeps remote publication and notifications disabled, and checks the resulting report for a known defect. It uses a private copy of the selected profile and leaves installed resources unchanged.
+
+Run a review with local output:
+
+```sh
+npm run review -- --repository /path/to/checkout --base BASE_REF --output /tmp/my-review
+```
+
+The checkout must be clean at the reviewed head. See the [workflow guide](workflows/README.md) for publication, direct invocation and output details.
 
 ## Communication style
 

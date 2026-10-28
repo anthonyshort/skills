@@ -2,8 +2,6 @@
 
 ## Main skill
 
-- Keep shared review policy and coordinator steps in `SKILL.md`. Independent research and assessments belong in the sibling `review-*` skills. Keep coordination and the shared assessment method in the main skill, and execution-engine configuration outside the skills.
-
 - Keep setup, research, broad code review, focused rule checks, consolidation and GitHub publishing as distinct steps.
 - Select best-practice guidance by inspecting available skill descriptions. Do not maintain a fixed list of technology skills in the workflow.
 - Ask review agents to generate concrete checks from selected guidance, cite source sections and return methods, results and evidence.
