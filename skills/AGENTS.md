@@ -8,7 +8,7 @@ Read the scoped `AGENTS.md` in the area you are editing.
 | Content | Location |
 | --- | --- |
 | General implementation guidance for a technology | `best-practices/<topic>/` |
-| Review workflow, delegation and verification | `review/SKILL.md` |
+| Review entry point, shared policy and stage guidance | `review/SKILL.md` and `review/references/` |
 | General checks assigned to focused rule agents | `review/rules/` |
 | Saved report and GitHub review formats | `review/templates/` |
 | Galaxy additions to the main workflow | `review-nominal-galaxy/SKILL.md` |

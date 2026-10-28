@@ -2,6 +2,8 @@
 
 ## Main skill
 
+- Keep shared runtime policy and the standalone stage router in `SKILL.md`. Keep detailed stage instructions in `references/`. External workflow code is supplied by the caller and must not become a dependency of standalone reviews.
+
 - Keep setup, research, broad code review, focused rule checks, consolidation and GitHub publishing as distinct steps.
 - Select best-practice guidance by inspecting available skill descriptions. Do not maintain a fixed list of technology skills in the workflow.
 - Ask review agents to generate concrete checks from selected guidance, cite source sections and return methods, results and evidence.

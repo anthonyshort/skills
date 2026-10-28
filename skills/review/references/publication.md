@@ -1,0 +1,70 @@
+## GitHub progress and results
+
+
+For PR reviews, maintain one live comment per run unless the user requests a local-only review. Requests for staged or pending-only output override automatic publication. Use [the comment template](../templates/github-progress.md) and [publication helper](../scripts/github_progress.py). Run the helper with `--help` for usage. Keep its state in the review artefact directory so resumed runs update the same comment.
+
+The parent owns publication. Create the comment after identifying the reviewed revision. Update it at meaningful milestones using a checklist that reflects the actual review. Label active, skipped or blocked work. Completed stages describe work performed, not passing checks.
+
+Keep the review pinned to its original revisions and flag newer unreviewed commits. Keep provisional findings out of progress updates. If publication fails, continue the local review and report incomplete publication.
+
+### Step 6: Publish results
+
+Publish PR reviews by default, respecting local-only, staged, comment-only and wrapper restrictions.
+
+#### What to do
+
+1. **Complete the approval checklist.** Refresh the diff, discussion and relevant CI. Record Pass, Fail or Not verified with evidence for each check. Approval requires all seven to pass.
+   - **Clear and focused:** The whole change and affected callers are understood and serve one task.
+   - **Limited consequences:** A mistake would not lose saved work, expose private data, charge incorrectly or disrupt a shared service.
+   - **Avoids sensitive behaviour:** No changed protected access, destructive data operations, migrations, dependencies or deployment settings. Existing permission checks for empty pages can qualify without exposing protected data or actions.
+   - **No required fixes:** No bugs, required corrections or unanswered questions that could change the recommendation.
+   - **Review finished:** Research, source review, rule checks and the report are complete.
+   - **Checks support the change:** Relevant CI passed for this head or its matching merge commit and covers the important behaviour. Verified test-group inclusion suffices. Prose-only changes may use source inspection. Explain any remaining gaps.
+   - **Earlier concerns resolved:** Substantive concerns and requests for changes have been addressed.
+
+2. **Choose an outcome and explain the next step.** Use the first applicable case:
+   - `split`: The review stopped at a split plan. Propose smaller PRs. Use `checks: null`, with no approval table or inline implementation findings.
+   - `human_review`: Risk, sensitive changes, project policy or an unresolved product/ownership decision requires a person. Explain what they should review, even if CI passes.
+   - `incomplete`: Reviewer work remains. Finish it or explain what blocks it.
+   - `changes_needed`: The review is complete and otherwise eligible, with specific fixes or evidence the author can provide. List those actions and request another review without promising approval.
+   - `waiting_checks`: Only relevant CI is still pending. Request another review when results arrive.
+   - `not_submitted`: All checks pass, but submission is blocked. Name the blocker and its owner without changing the content answers.
+   - `approve`: All checks pass and submission is allowed. Report Approved only after GitHub confirms submission or recovery.
+
+3. **Save `approval.json`.** Use the review's actual answers and reasons. Example:
+
+   ```json
+   {
+     "outcome": "approve",
+     "changed_lines": 24,
+     "checks": {
+       "focused": {"result": "Pass", "reason": "One label correction."},
+       "low_risk": {"result": "Pass", "reason": "Display text only; saved values are unaffected."},
+       "no_sensitive_changes": {"result": "Pass", "reason": "No protected data, actions or configuration change."},
+       "clean_review": {"result": "Pass", "reason": "No required corrections remain."},
+       "complete_review": {"result": "Pass", "reason": "All review stages and the report are complete."},
+       "verification": {"result": "Pass", "reason": "Source inspection verifies the prose correction."},
+       "concerns_resolved": {"result": "Pass", "reason": "No earlier substantive concerns remain."}
+     },
+     "reason": "Corrects a label without changing behaviour.",
+     "next_steps": []
+   }
+   ```
+
+   - Count additions plus deletions across the whole PR. Use single-line reasons and actions. `next_steps` must contain an action unless the outcome is `approve`.
+
+4. **Publish with the helper's `finish --approval`.** Supply the decision, summary and canonical report.
+   - Follow [the comment template](../templates/github-progress.md) and [writing-voice](../../writing-voice/SKILL.md). Supply the compact high-level assessment and research/approach folds before grouped findings. Derive them from the completed report, including validated reused research. The helper inserts Next steps after the assessment folds and keeps the seven approval checks inside Full report.
+   - Submit verified new bugs inline as a COMMENT review, using the report's finding IDs and valid anchors. Link existing concerns. Keep unanchored findings in the summary.
+   - For separately requested formal reviews, use [the GitHub review template](../templates/github-review.md) and requested status instead. Reuse published findings. Staging leaves the review pending.
+   - Before retrying, refresh discussion and CI. Reuse the saved state and unchanged inputs only while the assessment holds. If facts change, inspect this run's existing submission before starting a new assessment. Do not duplicate submitted reviews or edit frozen inputs.
+
+#### Deliverable
+
+Return the comment URL, report path, approval outcome and any incomplete publication steps.
+
+#### This step is complete when:
+
+- [ ] The report, decision and supported inline findings are published, or publication gaps are reported.
+- [ ] Existing concerns are linked without duplication.
+- [ ] The comment URL, report path and confirmed approval outcome or submission blocker are returned.
