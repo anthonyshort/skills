@@ -42,17 +42,9 @@ The output is a report that evaluates the change against a few different metrics
 - Saved review report with findings, research and an assessment.
 - For PR reviews, a live progress comment, final results and verified new inline bugs unless the user requests a local-only review.
 
-## Execution mode
-
-Use the standalone steps below by default. This skill does not require pi-subagents or a saved workflow.
-
-Only use an external workflow when the caller explicitly supplies its script and requests workflow execution. Read [the workflow contract](references/workflow.md) first. Do not discover, install, select or enable a workflow on the caller’s behalf. Keep wrappers and caller restrictions in either mode.
-
-Delegated workers read this entry’s goals and rules, their assigned stage guidance and the supplied context. Return the assigned assessment. Do not restart the whole review or delegate the same stage again unless asked.
-
 ## How to perform a review
 
-Read each reference before its stage. Preserve this order and the completion requirements in each reference. Apply wrapper additions to the matching numbered step.
+Read each linked skill or reference before its stage. Preserve this order and its completion requirements. Apply wrapper additions to the matching numbered step.
 
 ### Step 1: Setup
 
@@ -60,11 +52,11 @@ Read [setup](references/setup.md). Pin the full reviewed revisions, choose full 
 
 ### Step 2: Research
 
-Read [research](references/research.md). Validate earlier evidence under the re-review gate or delegate fresh research. Read and check the completed brief before starting code review.
+Use [review-research](../review-research/SKILL.md). Validate earlier evidence under the re-review gate or delegate fresh research. Read and check the completed brief before starting code review.
 
 ### Step 3: Code review
 
-Read [assessments](references/assessments.md). Assign the five review questions, including a separate readability pass. Independent assessments can run together after research.
+Read [assessment coordination](references/assessments.md). Assign the five focused review skills, including a separate readability pass. Independent assessments can run together after research.
 
 ### Step 4: Check review rules
 

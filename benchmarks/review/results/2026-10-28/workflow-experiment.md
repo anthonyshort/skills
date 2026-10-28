@@ -5,7 +5,7 @@ Implementation and verification: 28 October 2026. The experiment is inactive.
 ## Saved changes
 
 - The existing skills changes were validated and committed as `4e7a442` before creating the `anthonyshort/review-workflow` worktree.
-- The review entry now routes to eight references covering setup, research, assessments, rules, consolidation, reporting, publication and the optional external workflow contract. Standalone review remains the default and needs no workflow plugin.
+- The main review skill coordinates six independently discoverable skills: review-research, review-product, review-system-fit, review-simplicity, review-readability and review-correctness. Shared assessment method and coordination details remain references. The main skill has no execution-mode or pi-subagents instructions. The experiment’s execution contract lives beside its local workflow code.
 - The workflow, artefact validator, stub-runtime tests and usage notes are saved under the isolated agent's ignored `config/pi/` directory. No workflow discovery, resource links, installed skills, review routes, polling, notification destinations or scheduled jobs were changed.
 
 ## Checks and evidence
@@ -13,11 +13,11 @@ Implementation and verification: 28 October 2026. The experiment is inactive.
 | Check | Result | What it establishes |
 | --- | --- | --- |
 | Skill-creator validator | Passed | Valid review skill frontmatter and scaffold checks |
-| Original guidance comparison | Passed | Every original nonblank entry line remains after normalising moved Markdown link targets |
-| Review entry/reference links | Passed | All local link targets resolve across the nine files |
-| Temporary discovery | Passed | 23 valid links in each temporary agent and Claude skill directory, including the worktree's review skill |
+| Assessment guidance comparison | Passed | Research and assessment checklists and deliverables are preserved in their owning skills; shared assessment method has one reference |
+| Review links | Passed | Local links resolve across the coordinator, stage skills and supporting references |
+| Temporary discovery | Passed | 29 valid links in each temporary agent and Claude skill directory, including all six focused review skills |
 | Existing publication-helper tests | 50 passed | Existing helper behaviour survives the guidance extraction |
-| Real pi-subagents runtime with stub agents | 33 passed | Stage barriers, schema rejection, one retry, missing assessments, rules and wrappers, report coverage, partial results, notifications and persistence failures |
+| Real pi-subagents runtime with stub agents | 34 passed | Explicit worker skill loading, stage barriers, schema rejection, one retry, missing assessments, rules and wrappers, report coverage, partial results, notifications and persistence failures |
 | Real filesystem/Git gates | Passed within runtime scenarios | Saved content matches the accepted result, checkout is clean at the pinned head, complete diff counts match, and indexed rules are covered |
 | Journal replay scenarios | Passed | A fresh invocation identity prevents cached writer reuse, and mandatory parent revalidation rejects missing files after cached replay |
 | Agent runtime `npm run validate` | Passed | Formatting, lint, typechecking and all 20 existing runtime tests |
@@ -26,11 +26,11 @@ The stub scenarios run the installed plugin runtime and actual Python gate. They
 
 ## Independent readability-stage exercise
 
-A separate agent received the refactored entry, the assessment guidance and a local before/after TypeScript fixture. The contract was to return active-row labels in input order. The change replaced a direct selection/projection with an indexed accumulator and three nested guards. The agent received no expected finding.
+A separate agent exercised the extracted assessment guidance and then used the focused `review-readability` skill directly on a local before/after TypeScript fixture. The contract was to return active-row labels in input order. The change replaced a direct selection/projection with an indexed accumulator and three nested guards. The agent received no expected finding.
 
 It selected the readability guidance, read the functional-style example and extraction rule, inspected both complete function bodies and returned a concrete readability improvement. Its recommendation preserved the supplied behaviour and did not claim a runtime defect or assign bug severity. It reported names, control flow, expression choice, cohesion, exclusions and evidence limits in a checklist. It did not restart the full review, delegate, run project checks or publish.
 
-The exercise exposed one instruction ambiguity: the assessment reference starts with coordinator delegation guidance. An explicit worker-role paragraph now directs assigned workers to their question only and leaves delegation to the coordinator.
+The focused skill followed its shared-rule link and worker assessment method without starting unrelated coordinator steps. Its relative links and heading anchors resolved. Coordinator delegation instructions now live separately from the worker method and assessment skills.
 
 ## Important boundaries
 

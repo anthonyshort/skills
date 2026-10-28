@@ -16,6 +16,8 @@ skills/
   review/SKILL.md
   review/references/
   review/templates/
+  review-research/SKILL.md
+  review-correctness/SKILL.md
   best-practices/react/SKILL.md
   writing-voice/SKILL.md
   ...
@@ -24,9 +26,22 @@ scripts/link.py
 ```
 
 There are no runtime dependencies or agent-specific copies. The small `pi` manifest
-exports `./skills` as a Pi package. The review workflow uses equivalent agents or
-its documented fallback when its named agents are unavailable. The personal GitHub
+exports `./skills` as a Pi package. The review coordinator delegates research and
+assessments to focused skills. The personal GitHub
 review attribution remains `Sent with Pi` on all agents.
+
+## Focused reviews
+
+[`review`](skills/review/SKILL.md) coordinates the full review. Each research or assessment skill can also be assigned independently and returns its own brief or assessment:
+
+- [`review-research`](skills/review-research/SKILL.md): Intent, context, existing concerns and related work.
+- [`review-product`](skills/review-product/SKILL.md): Problem fit, requirements and alternatives.
+- [`review-system-fit`](skills/review-system-fit/SKILL.md): Ownership, dependencies and architectural direction.
+- [`review-simplicity`](skills/review-simplicity/SKILL.md): Complexity, reuse and PR scope.
+- [`review-readability`](skills/review-readability/SKILL.md): Names, control flow and reading difficulty, using `code-readability` guidance.
+- [`review-correctness`](skills/review-correctness/SKILL.md): Behaviour, callers, test expectations and CI evidence.
+
+The coordinator owns setup, combined rule checks, consolidation, reporting and publication. Execution-engine configuration belongs to the calling application.
 
 ## Communication style
 
