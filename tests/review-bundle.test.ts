@@ -1,9 +1,14 @@
+/**
+ * Exercises the saved-file gate against temporary Git repositories and files.
+ * Each case damages one contract and verifies rejection, including revision,
+ * rule inventory, report coverage, approval and file-integrity mismatches.
+ */
 import assert from "node:assert/strict";
 import { writeFileSync, rmSync, symlinkSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { FindingSchema } from "../src/review/contracts.js";
-import { validateBundle } from "../src/review/support/validate.js";
+import { validateBundle } from "../src/review/validate.js";
 import { fingerprint } from "../src/review/text.js";
 import { savedBundleFixture } from "./fixtures/bundle.js";
 import type { SavedBundleFixture } from "./fixtures/bundle.js";
@@ -33,16 +38,6 @@ test("split-only bundle validates without implementation assessments", () =>
     },
     { split: true },
   ));
-test("pending preview and GitHub modes are accepted before delivery", async () => {
-  for (const mode of ["dry-run", "github"] as const) {
-    await scenario(
-      async (state) => {
-        await validate(state);
-      },
-      { mode },
-    );
-  }
-});
 test("decision failure preserves accepted report while remaining incomplete", () =>
   scenario(async (state) => {
     delete state.bundle.stages.decision;
@@ -242,21 +237,13 @@ const fileMutations: [string, (state: SavedBundleFixture) => void, RegExp][] = [
     /fingerprint mismatch/,
   ],
   [
-    "wrong delivery mode",
-    (state) => {
-      state.result.publication.mode = "github";
-      state.saveResult();
-    },
-    /Publication mode mismatch/,
-  ],
-  [
-    "unconfirmed published claim",
+    "unexpected publication flag",
     (state) =>
       writeFileSync(
         path.join(state.artifacts, "result.json"),
         JSON.stringify({ ...state.result, published: true }),
       ),
-    /claims publication without confirmation/,
+    /Unrecognized key.*published/,
   ],
 ];
 for (const [name, mutate, reason] of fileMutations) {
@@ -276,51 +263,6 @@ test("a symlinked canonical report cannot substitute another file", () =>
     symlinkSync(outside, report);
     await assert.rejects(validate(state), /escapes directory/);
   }));
-test("confirmed GitHub delivery requires saved local receipt", () =>
-  scenario(
-    async (state) => {
-      state.result.publication.status = "confirmed";
-      state.saveResult();
-      await assert.rejects(validate(state), /Missing artefact: progress.json/);
-    },
-    { mode: "github" },
-  ));
-test("failed delivery leaves the structurally complete review usable", () =>
-  scenario(
-    async (state) => {
-      state.result.publication.status = "failed";
-      state.result.publication.reason = "Inspect uncertain remote outcome";
-      state.saveResult();
-      assert.equal((await validate(state)).status, "complete");
-    },
-    { mode: "github" },
-  ));
-test("incomplete review cannot claim remote confirmation or readiness", () =>
-  scenario(
-    async (state) => {
-      delete state.bundle.stages.decision;
-      state.bundle.status = "incomplete";
-      state.bundle.failures.push({ stage: "decision", reason: "Failed" });
-      state.save();
-      state.result.publication.status = "confirmed";
-      state.saveResult();
-      await assert.rejects(
-        validate(state),
-        /incompatible with review completion/,
-      );
-      state.result.publication.status = "not_requested";
-      state.saveResult();
-      writeFileSync(
-        path.join(state.artifacts, "result.json"),
-        JSON.stringify({ ...state.result, readyForParent: true }),
-      );
-      await assert.rejects(
-        validate(state),
-        /cannot claim publication readiness/,
-      );
-    },
-    { mode: "github" },
-  ));
 test("wrapper rule inventory is independently inspected", () =>
   scenario(async (state) => {
     const wrapper = path.join(state.root, "wrapper");

@@ -1,3 +1,8 @@
+/**
+ * Assigns each worker a section of the review skill and checks its answer.
+ * The workflow calls these guards before accepting a stage; persistence checks
+ * repeat them against the saved bundle. No tools or filesystem access occur here.
+ */
 import { validateApproval } from "./approval.js";
 export { validateApproval } from "./approval.js";
 import { z } from "zod";
@@ -9,6 +14,10 @@ import type {
   StageResults,
 } from "./contracts.js";
 
+/**
+ * The stage-to-skill map. Criteria remain in SKILL.md; these instructions limit
+ * each worker to its assigned part of the coordinator’s process.
+ */
 export const stageDefinitions = {
   setup: {
     group: "Setup",
@@ -75,7 +84,7 @@ export const stageDefinitions = {
     group: "Reporting",
     reference: "step-5-create-the-final-review-report",
     instructions:
-      "Compare the completed draft and editorial versions. Restore lost detail and accept the final canonical report. Account for every worker finding with decisions.sourceId = '<stage>:<finding id>'. Explain retained, merged, excluded or open findings. Keep retained report IDs visible in markdown. The decision stage assesses this accepted report before publication.",
+      "Compare the completed draft and editorial versions. Restore lost detail and accept the final canonical report. Account for every worker finding with decisions.sourceId = '<stage>:<finding id>'. Explain retained, merged, excluded or open findings. Keep retained report IDs visible in markdown. The decision stage assesses this accepted report.",
   },
   "split-plan": {
     group: "Reporting",
@@ -84,16 +93,20 @@ export const stageDefinitions = {
       "Return a split-only report with Assessment, Risk and scope, Split plan and CI status headings. Read the sibling split-pr skill when available. State what was inspected and that full review was deferred.",
   },
   decision: {
-    group: "Publication",
+    group: "Decision",
     reference: "step-6-publish-results",
     instructions:
-      "Perform the final approval assessment from Step 6 without publishing. Return approval in the documented seven-check schema, summaryMarkdown following templates/github-progress.md, and inlineComments for verified new bugs with valid diff anchors only. Each inline ID must exactly match a retained reportId whose source is a new bug. Required retained findings and unresolved findings cannot pass clean_review. Do not introduce new findings. For split-only output use outcome split, checks null and no inline comments. Count additions plus deletions across the whole diff. A candidate approve is never actual approval until publication confirms it.",
+      "Perform the final approval assessment from Step 6 without publishing. Return approval in the documented seven-check schema, summaryMarkdown following templates/github-progress.md, and inlineComments for verified new bugs with valid diff anchors only. Each inline ID must exactly match a retained reportId whose source is a new bug. Required retained findings and unresolved findings cannot pass clean_review. Do not introduce new findings. For split-only output use outcome split, checks null and no inline comments. Count additions plus deletions across the whole diff. This stage returns an assessment only. The caller owns any later publication or approval submission.",
   },
 } satisfies Record<
   StageName,
   { group: string; reference: string; instructions: string }
 >;
 
+/**
+ * Builds one worker assignment from pinned inputs and already accepted answers.
+ * Retry feedback describes the rejected answer without reusing that worker.
+ */
 export function stagePrompt(
   input: ReviewInput,
   name: StageName,
@@ -108,7 +121,7 @@ export function stagePrompt(
     "Read the assigned section and perform only its task. Coordinator steps outside that section are not part of your assignment.",
     `Wrapper guidance: ${JSON.stringify(input.wrapperSkillRoots.map((root) => `${root}/SKILL.md`))}.`,
     "Execute only your assigned stage. Do not recursively run the review or delegate more agents.",
-    "Accepted prior reports are supplied inline below and saved later by the writer. Editing and publication are scheduled separately. Do not treat unsaved intermediate files or future stages as missing evidence.",
+    "Accepted prior reports are supplied inline below and saved later by the writer. Editing happens in later stages. Publication belongs to the caller. Do not treat unsaved intermediate files or future stages as missing evidence.",
     `Read supplied scope and requirements files: ${JSON.stringify(input.contextFiles)}. Apply caller restrictions, cite the files and record unavailable external context rather than inventing sources.`,
     "Finish by calling StructuredOutput with markdown, individual checks, findings and gaps. Text outside that tool call is discarded. Do not substitute a prose final answer.",
     "Read relevant best-practice skill descriptions and select guidance for this question. Cite guidance sections and versions.",
@@ -132,6 +145,9 @@ export function stagePrompt(
     .join("\n");
 }
 
+/**
+ * Pins the worker’s structured-output schema to this review’s exact revisions.
+ */
 export function stageJsonSchema(name: StageName, input: ReviewInput) {
   return z.toJSONSchema(
     StageSchemas[name].extend({
@@ -142,6 +158,10 @@ export function stageJsonSchema(name: StageName, input: ReviewInput) {
   );
 }
 
+/**
+ * Throws when an answer loses evidence, coverage or finding provenance.
+ * The caller owns retrying the stage and recording a final failure.
+ */
 export function validateStage(
   result: StageResult,
   prior: StageResults,

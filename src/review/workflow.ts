@@ -1,3 +1,10 @@
+/**
+ * Coordinate the packaged review inside Pi's restricted workflow VM.
+ *
+ * The generated workflow calls this module with agent, parallel and phase host
+ * capabilities. Filesystem work goes through the gated artefact writer. Failed review stages retain accepted partial evidence, while
+ * persistence failures reject the run without claiming success.
+ */
 import {
   assessmentNames,
   parseReviewInput,
@@ -5,160 +12,246 @@ import {
   StageResultsSchema,
 } from "./contracts.js";
 import type {
+  ReviewInput,
   ReviewResult,
   StageName,
   StageResults,
   StageResult,
   Bundle,
 } from "./contracts.js";
-import type { WorkflowHost } from "./host.js";
+import type { WorkflowHost } from "./contracts.js";
 import { createProgressReporter } from "./progress.js";
-import { saveArtifacts, publishArtifacts } from "./artifacts.js";
+import { saveArtifacts } from "./artifacts.js";
 import {
   stageDefinitions,
   stageJsonSchema,
   stagePrompt,
   validateStage,
 } from "./stages.js";
-import { coverageMarkdown, fingerprint, message } from "./text.js";
+import { coverageMarkdown, fingerprint, errorMessage } from "./text.js";
 
+const reportingStages = [
+  "rules",
+  "consolidation",
+  "draft",
+  "editorial",
+  "report",
+] satisfies StageName[];
+
+type ReviewRun = {
+  host: WorkflowHost;
+  input: ReviewInput;
+  completed: StageResults;
+  failures: Bundle["failures"];
+  attempts: Bundle["attempts"];
+  progress: ReturnType<typeof createProgressReporter>;
+  activeStage: string;
+  reportStatus(stage: string, status: string): Promise<void>;
+};
+
+/**
+ * Run one pinned review through the saved Pi workflow host.
+ *
+ * Review-stage failures receive one fresh retry, then produce incomplete saved
+ * output. Writer failures stop the run without retrying a possibly completed write. A returned complete review may still contain defects or evidence gaps.
+ */
 export async function runReviewWorkflow(host: WorkflowHost, args: unknown) {
+  const run = createReviewRun(host, args);
+  await executeReviewGraph(run);
+  const bundle = await prepareReviewOutput(run);
+  const result = createReviewResult(bundle);
+  const validationCommand = await saveArtifacts(
+    host,
+    run.input,
+    bundle,
+    result,
+    run.reportStatus,
+  );
+  return {
+    ...result,
+    validationCommand,
+    failures: bundle.failures,
+    notifications: bundle.notifications,
+  };
+}
+
+/**
+ * Keep accepted assessments and their progress reporter owned by one run.
+ */
+function createReviewRun(host: WorkflowHost, args: unknown): ReviewRun {
   const input = parseReviewInput(args);
-  const { agent, parallel, phase } = host;
   const progress = createProgressReporter(input, host);
-  const reportStatus = (stage: string, status: string) =>
-    progress.update(stage, status, completed.setup?.mode === "split");
-  let completed: StageResults = {};
-  const notifications = progress.notifications;
-  const failures: Bundle["failures"] = [];
-  const attempts: Bundle["attempts"] = [];
-  let activeStage: string = "setup";
+  const run: ReviewRun = {
+    host,
+    input,
+    progress,
+    completed: {},
+    failures: [],
+    attempts: [],
+    activeStage: "setup",
+    reportStatus: (stage, status) => progress.update(stage, status),
+  };
+  return run;
+}
 
-  async function acceptStage(
-    name: StageName,
-    context: StageResults,
-    reportProgress = true,
-  ): Promise<StageResult> {
-    const definition = stageDefinitions[name];
-    // Parallel assessments share the group status but still identify each failed stage.
-    if (reportProgress) {
-      activeStage = name;
-      phase(definition.group);
-      await reportStatus(name, "running");
-    }
-    let feedback = "";
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const output = await agent(
-          stagePrompt(input, name, context, feedback),
-          {
-            label: `${name}:${attempt}`,
-            phase: definition.group,
-            schema: stageJsonSchema(name, input),
-          },
-        );
-        if (output === null) {
-          throw new Error(
-            "Agent failed, was skipped, or returned invalid structured output",
-          );
-        }
-        const result = StageSchemas[name].parse(output);
-        validateStage(result, context, input);
-        if (reportProgress) {
-          await reportStatus(name, "complete");
-        }
-        return result;
-      } catch (error) {
-        feedback = message(error);
-        attempts.push({ stage: name, attempt, reason: feedback });
-        if (reportProgress && attempt === 1) {
-          await reportStatus(name, "retrying");
-        }
-      }
-    }
-    throw new Error(`${name} failed after two attempts: ${feedback}`);
+/**
+ * Retry only a worker's assessment, validating each attempt before acceptance.
+ * Parallel workers leave active-stage and progress ownership with their barrier.
+ */
+async function runStageWithRetry(
+  run: ReviewRun,
+  name: StageName,
+  context: StageResults,
+  trackStage = true,
+): Promise<StageResult> {
+  const definition = stageDefinitions[name];
+  if (trackStage) {
+    run.activeStage = name;
+    run.host.phase(definition.group);
+    await run.reportStatus(name, "running");
   }
-
-  async function runStage(name: StageName): Promise<void> {
-    const result = await acceptStage(name, completed);
-    completed = StageResultsSchema.parse({ ...completed, [name]: result });
-  }
-
-  try {
-    await runStage("setup");
-    if (completed.setup?.mode === "split") {
-      await runStage("split-plan");
-    } else {
-      await runStage("research");
-      activeStage = "assessments";
-      phase("Assessments");
-      await reportStatus("assessments", "running");
-      const context = { setup: completed.setup, research: completed.research };
-      const results = await parallel(
-        assessmentNames.map((name) => () => acceptStage(name, context, false)),
+  let feedback = "";
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const output = await run.host.agent(
+        stagePrompt(run.input, name, context, feedback),
+        {
+          label: `${name}:${attempt}`,
+          phase: definition.group,
+          schema: stageJsonSchema(name, run.input),
+        },
       );
-      for (const result of results) {
-        if (result) {
-          completed = StageResultsSchema.parse({
-            ...completed,
-            [result.stage]: result,
-          });
-        }
+      if (output === null) {
+        throw new Error(
+          "Agent failed, was skipped, or returned invalid structured output",
+        );
       }
-      const missing = assessmentNames.filter((name) => !completed[name]);
-      if (missing.length) {
-        throw new Error(`Missing assessments: ${missing.join(", ")}`);
+      const result = StageSchemas[name].parse(output);
+      validateStage(result, context, run.input);
+      if (trackStage) {
+        await run.reportStatus(name, "complete");
       }
-      await reportStatus("assessments", "complete");
-      for (const name of [
-        "rules",
-        "consolidation",
-        "draft",
-        "editorial",
-        "report",
-      ] as const) {
-        await runStage(name);
+      return result;
+    } catch (error) {
+      feedback = errorMessage(error);
+      run.attempts.push({ stage: name, attempt, reason: feedback });
+      if (trackStage && attempt === 1) {
+        await run.reportStatus(name, "retrying");
       }
     }
-    await runStage("decision");
-  } catch (error) {
-    failures.push({ stage: activeStage, reason: message(error) });
-    await reportStatus(activeStage, "blocked");
   }
-  const status = failures.length
+  throw new Error(`${name} failed after two attempts: ${feedback}`);
+}
+
+/**
+ * Accept each coordinator-owned stage before supplying it to the next worker.
+ */
+async function runSequentialStages(
+  run: ReviewRun,
+  names: readonly StageName[],
+): Promise<void> {
+  for (const name of names) {
+    const result = await runStageWithRetry(run, name, run.completed);
+    run.completed = StageResultsSchema.parse({
+      ...run.completed,
+      [name]: result,
+    });
+  }
+}
+
+/**
+ * Wait for all five assessments, preserving successful siblings on failure.
+ * Pi parallel failures become null, so completeness is checked after the barrier.
+ */
+async function runAssessmentBarrier(run: ReviewRun): Promise<void> {
+  run.activeStage = "assessments";
+  run.host.phase("Assessments");
+  await run.reportStatus("assessments", "running");
+  const context = {
+    setup: run.completed.setup,
+    research: run.completed.research,
+  };
+  const results = await run.host.parallel(
+    assessmentNames.map(
+      (name) => () => runStageWithRetry(run, name, context, false),
+    ),
+  );
+  for (const result of results) {
+    if (result) {
+      run.completed = StageResultsSchema.parse({
+        ...run.completed,
+        [result.stage]: result,
+      });
+    }
+  }
+  const missing = assessmentNames.filter((name) => !run.completed[name]);
+  if (missing.length) {
+    throw new Error(`Missing assessments: ${missing.join(", ")}`);
+  }
+  await run.reportStatus("assessments", "complete");
+}
+
+/**
+ * Execute the full or split-only graph and record an exhausted review stage.
+ * Saving remains outside this boundary so accepted partial work can be retained.
+ */
+async function executeReviewGraph(run: ReviewRun): Promise<void> {
+  try {
+    await runSequentialStages(run, ["setup"]);
+    if (run.completed.setup?.mode === "split") {
+      await runSequentialStages(run, ["split-plan"]);
+    } else {
+      await runSequentialStages(run, ["research"]);
+      await runAssessmentBarrier(run);
+      await runSequentialStages(run, reportingStages);
+    }
+    await runSequentialStages(run, ["decision"]);
+  } catch (error) {
+    run.failures.push({ stage: run.activeStage, reason: errorMessage(error) });
+    await run.reportStatus(run.activeStage, "blocked");
+  }
+}
+
+/**
+ * Add canonical coverage and snapshot accepted evidence before the writer runs.
+ */
+async function prepareReviewOutput(run: ReviewRun): Promise<Bundle> {
+  const status = run.failures.length
     ? "incomplete"
-    : completed.setup?.mode === "split"
+    : run.completed.setup?.mode === "split"
       ? "split"
       : "complete";
-  if (status === "complete" && completed.report) {
-    completed.report.markdown += coverageMarkdown(completed);
+  if (status === "complete" && run.completed.report) {
+    run.completed.report.markdown += coverageMarkdown(run.completed);
   }
-  await reportStatus("save-artefacts", "running");
-  const bundle: Bundle = {
+  await run.reportStatus("save-artefacts", "running");
+  return {
     version: 1,
-    input,
+    input: run.input,
     status,
-    stages: completed,
-    failures,
-    attempts,
-    notifications,
+    stages: run.completed,
+    failures: run.failures,
+    attempts: run.attempts,
+    notifications: run.progress.notifications,
   };
-  const serialized = JSON.stringify(bundle);
+}
+
+/**
+ * Describe accepted review completion and saved-file locations for the caller.
+ */
+function createReviewResult(bundle: Bundle): ReviewResult {
+  const { input, status, stages, failures } = bundle;
   const required: StageName[] =
-    completed.setup?.mode === "split"
+    stages.setup?.mode === "split"
       ? ["setup", "split-plan", "decision"]
       : [
           "setup",
           "research",
           ...assessmentNames,
-          "rules",
-          "consolidation",
-          "draft",
-          "editorial",
-          "report",
+          ...reportingStages,
           "decision",
         ];
-  const result: ReviewResult = {
+  return {
     status,
     runId: input.runId,
     invocationId: input.invocationId,
@@ -166,35 +259,10 @@ export async function runReviewWorkflow(host: WorkflowHost, args: unknown) {
     head: input.head,
     bundlePath: `${input.artifacts}/bundle.json`,
     reportPath: failures.length ? null : `${input.artifacts}/review-report.md`,
-    fingerprint: fingerprint(serialized),
-    publication: {
-      mode: input.publication.mode,
-      status:
-        failures.length || input.publication.mode === "local"
-          ? "not_requested"
-          : "pending",
-    },
-    missingStages: required.filter((name) => !completed[name]),
-    coverageGaps: Object.entries(completed).flatMap(([stage, value]) =>
+    fingerprint: fingerprint(JSON.stringify(bundle)),
+    missingStages: required.filter((name) => !stages[name]),
+    coverageGaps: Object.entries(stages).flatMap(([stage, value]) =>
       value.gaps.map((reason) => ({ stage, reason })),
     ),
-  };
-
-  const validationCommand = await saveArtifacts(
-    host,
-    input,
-    bundle,
-    result,
-    reportStatus,
-  );
-  if (!failures.length) {
-    await publishArtifacts(host, input, result, reportStatus);
-  }
-  return {
-    ...result,
-    validationCommand,
-    published: result.publication.status === "confirmed",
-    failures,
-    notifications,
   };
 }

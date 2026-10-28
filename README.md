@@ -25,38 +25,20 @@ src/review/
 workflows/review.js  # generated from TypeScript
 ```
 
-The `pi` manifest exports the skills and review workflow as a Pi package. The review launcher and artefact tools use TypeScript, `tsx` and Zod; the original skill’s GitHub helper still uses Python. The review workflow uses equivalent agents or
-its documented fallback when its named agents are unavailable. The personal GitHub
-review attribution remains `Sent with Pi` on all agents.
+The `pi` manifest exports the skills and an opt-in review workflow. Workflow source is TypeScript; the build supplies the JavaScript required by pi-subagents.
 
 ## Review workflow for Pi
 
-The package exports a complete [pi-subagents review workflow](workflows/README.md), with research, parallel assessments, rule coverage, claim verification, report editing and final publication. Review guidance remains in the existing skills. The workflow controls ordering, structured outputs, retries and saved artefact checks.
-
-Install pi-subagents and this checkout as Pi packages:
-
-```sh
-pi install npm:@tintinweb/pi-subagents@0.22.0
-pi install /path/to/skills
-```
-
-To test the branch without changing your normal Pi installation:
+The [workflow guide](workflows/README.md) explains installation, invocation, the source files in execution order and what each test suite covers. The workflow runs in your existing Pi session and returns a validated report and approval assessment. Optional progress updates use the host notification tool.
 
 ```sh
 npm install
 npm test
-npm run test:pi -- --profile /path/to/your/pi/profile
+pi install npm:@tintinweb/pi-subagents@0.22.0
+pi install /absolute/path/to/skills
 ```
 
-The last command runs the configured model against a temporary fixture, keeps remote publication and notifications disabled, and checks the resulting report for a known defect. It uses a private copy of the selected profile and leaves installed resources unchanged.
-
-Run a review with local output:
-
-```sh
-npm run review -- --repository /path/to/checkout --base BASE_REF --output /tmp/my-review
-```
-
-The checkout must be clean at the reviewed head. See the [workflow guide](workflows/README.md) for publication, direct invocation and output details.
+Invoke the named `review` workflow with pinned base/head revisions and a separate output directory. Publishing remains an explicit caller action through the review skill’s existing helper.
 
 ## Communication style
 

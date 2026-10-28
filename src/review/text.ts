@@ -1,13 +1,16 @@
-import type { ReviewInput, StageResults } from "./contracts.js";
+import type { StageResults } from "./contracts.js";
 
-export function quote(value: string): string {
-  return "'" + value.replace(/'/g, "'\\''") + "'";
-}
-
-export function message(error: unknown): string {
+/**
+ * Normalises thrown values for stage failures and notification diagnostics.
+ */
+export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Preserves every check and gap in the canonical report. Bounded detail folds
+ * let the existing GitHub helper split a long report into continuation comments.
+ */
 export function coverageMarkdown(stages: StageResults): string {
   const lines = ["", "## Workflow assessment and rule coverage", ""];
   function folds(title: string, blocks: string[]) {
@@ -57,8 +60,11 @@ export function coverageMarkdown(stages: StageResults): string {
   return lines.join("\n");
 }
 
-// Detect accidental writer changes without placing the entire bundle in shell argv.
-// This is an integrity check, not a security boundary against a hostile writer.
+/**
+ * Detects accidental writer changes without putting the bundle in shell argv.
+ * Both halves hash UTF-16 code units, so the VM and Node agree on non-BMP text.
+ * This checksum is not a defence against a hostile writer.
+ */
 export function fingerprint(text: string): string {
   let first = 2166136261;
   let second = 3339675911;
@@ -70,11 +76,4 @@ export function fingerprint(text: string): string {
   return (
     first.toString(16).padStart(8, "0") + second.toString(16).padStart(8, "0")
   );
-}
-
-export function supportCommand(
-  input: ReviewInput,
-  name: "publication" | "validate-bundle",
-): string {
-  return `node --import ${quote(input.tsxLoader)} ${quote(`${input.supportRoot}/${name}.ts`)}`;
 }

@@ -1,3 +1,7 @@
+/**
+ * Relates the final approval assessment to the accepted report and its findings.
+ * These checks validate consistency, not whether a model’s evidence is true.
+ */
 import type { z } from "zod";
 import type {
   ApprovalSchema,
@@ -7,6 +11,10 @@ import type {
 type Approval = z.infer<typeof ApprovalSchema>;
 type Decision = z.infer<typeof StageSchemas.decision>;
 
+/**
+ * Rejects approval answers that contradict the review scope or included findings.
+ * Inline comments must resolve to an accepted new bug, never an arbitrary ID.
+ */
 export function validateApproval(
   decision: Decision,
   prior: StageResults,

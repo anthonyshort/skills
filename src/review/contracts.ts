@@ -1,3 +1,7 @@
+/**
+ * Shared wire formats for review inputs, worker answers and saved results.
+ * The Pi workflow and the filesystem validator parse the same Zod contracts.
+ */
 import { z } from "zod";
 
 const text = z
@@ -15,21 +19,8 @@ const absolutePath = text.refine(
 const revision = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/);
 const identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
 
-export const PublicationSchema = z.discriminatedUnion("mode", [
-  z.strictObject({ mode: z.literal("local") }),
-  z.strictObject({
-    mode: z.literal("dry-run"),
-    repository: text.regex(/^[\w.-]+\/[\w.-]+$/),
-    prNumber: z.number().int().positive(),
-  }),
-  z.strictObject({
-    mode: z.literal("github"),
-    repository: text.regex(/^[\w.-]+\/[\w.-]+$/),
-    prNumber: z.number().int().positive(),
-  }),
-]);
 export const ReviewInputSchema = z
-  .object({
+  .strictObject({
     workflowEnabled: z.literal(true).default(true),
     packageRoot: absolutePath,
     repository: absolutePath,
@@ -48,7 +39,6 @@ export const ReviewInputSchema = z
       .strictObject({ destination: text, messageKey: text })
       .nullable()
       .default(null),
-    publication: PublicationSchema.default({ mode: "local" }),
   })
   .superRefine((input, context) => {
     for (const source of [
@@ -69,6 +59,10 @@ export const ReviewInputSchema = z
   });
 export type ReviewInput = z.infer<typeof ReviewInputSchema>;
 
+/**
+ * Resolves package-relative resource defaults and rejects unsafe output paths
+ * before the workflow schedules its first worker.
+ */
 export function parseReviewInput(value: unknown): ReviewInput {
   const roots = z
     .object({
@@ -314,7 +308,7 @@ export const BundleSchema = z.strictObject({
   notifications: z.array(NotificationSchema).max(1000),
 });
 export type Bundle = z.infer<typeof BundleSchema>;
-export const ReviewResultSchema = z.object({
+export const ReviewResultSchema = z.strictObject({
   status: ReviewStatusSchema,
   runId: identifier,
   invocationId: identifier,
@@ -323,20 +317,20 @@ export const ReviewResultSchema = z.object({
   bundlePath: absolutePath,
   reportPath: absolutePath.nullable(),
   fingerprint: z.string().regex(/^[a-f0-9]{16}$/),
-  publication: z.object({
-    mode: z.enum(["local", "dry-run", "github"]),
-    status: z.enum([
-      "not_requested",
-      "pending",
-      "rendered",
-      "confirmed",
-      "failed",
-    ]),
-    url: z.string().optional(),
-    reason: z.string().optional(),
-    inspectBeforeRetry: z.boolean().optional(),
-  }),
   missingStages: z.array(StageNameSchema).max(20),
   coverageGaps: z.array(FailureSchema).max(10_000),
 });
 export type ReviewResult = z.infer<typeof ReviewResultSchema>;
+
+/**
+ * Capabilities supplied by pi-subagents to the generated workflow entry point.
+ * The VM can schedule workers but cannot import Node or access the filesystem.
+ */
+export type WorkflowHost = {
+  agent(
+    prompt: string,
+    options: { label: string; phase: string; schema: unknown; gate?: string },
+  ): Promise<unknown>;
+  parallel<T>(tasks: (() => Promise<T>)[]): Promise<(T | null)[]>;
+  phase(name: string): void;
+};

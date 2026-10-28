@@ -1,3 +1,8 @@
+/**
+ * Host adapter for workflow integration tests: temporary sources and canned
+ * worker answers, plus real artifact writing and command gates. Fault injection
+ * belongs in the test case; the adapter never calls a model or live transport.
+ */
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
@@ -41,20 +46,17 @@ const script = readFileSync(
   "utf8",
 );
 const OutputSchema = ReviewResultSchema.extend({
-  published: z.boolean(),
   validationCommand: z.string(),
   notifications: z.array(NotificationSchema).max(1000),
   failures: z.array(FailureSchema).max(100),
 });
 export type FixtureOptions = {
   addedLines?: number;
-  publication?: ReviewInput["publication"];
   notify?: boolean;
   wrapper?: boolean;
   split?: boolean;
   exception?: string;
   notificationStatus?: string;
-  failPublication?: boolean;
   hold?: (request: WorkflowSpawnRequest) => Promise<void>;
   fail?: (name: StageName, attempt: number) => boolean;
   mutate?: (result: StageResult, attempt: number) => void;
@@ -71,13 +73,6 @@ function createSources(options: FixtureOptions) {
     path.join(skillRoot, "SKILL.md"),
     readFileSync(path.join(packageRoot, "skills/review/SKILL.md")),
   );
-  mkdirSync(path.join(skillRoot, "scripts"));
-  for (const name of ["github_approval.py", "github_progress.py"]) {
-    writeFileSync(
-      path.join(skillRoot, "scripts", name),
-      readFileSync(path.join(packageRoot, "skills/review/scripts", name)),
-    );
-  }
   mkdirSync(repository);
   const git = (...args: string[]) =>
     execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...args], {
@@ -141,7 +136,6 @@ function createSources(options: FixtureOptions) {
     base,
     head: git("rev-parse", "HEAD"),
     artifacts,
-    publication: options.publication,
     wrapperSkillRoots,
     runId: "fixture-run",
     invocationId: "invocation-one",
@@ -329,28 +323,6 @@ export function fixture(options: FixtureOptions = {}) {
         bundle = saveAcceptedArtifacts(request.prompt, args.artifacts);
         options.corrupt?.({ bundle, root: args.artifacts });
         return ok({ saved: true });
-      }
-      if (request.label === "publication") {
-        if (options.failPublication) {
-          return { ok: false, error: "Publication confirmation unavailable" };
-        }
-        const response = spawnSync(
-          process.execPath,
-          [
-            "--import",
-            args.tsxLoader,
-            path.join(packageRoot, "scripts/review/publication.ts"),
-            "finish",
-            path.join(args.artifacts, "bundle.json"),
-          ],
-          { encoding: "utf8" },
-        );
-        return response.status === 0
-          ? ok({
-              status: "rendered",
-              reason: "Actual helper rendered dry-run payload",
-            })
-          : { ok: false, error: response.stdout + response.stderr };
       }
       const [label, count] = request.label.split(":");
       const name = StageNameSchema.parse(label);

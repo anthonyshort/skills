@@ -1,85 +1,40 @@
+/**
+ * Sends stage status through the existing host notification tool.
+ * Destinations (including any GitHub adapter) belong to the host configuration.
+ */
 import { z } from "zod";
 import { NotificationReceiptSchema } from "./contracts.js";
-import type { ReviewInput, Bundle } from "./contracts.js";
-import type { WorkflowHost } from "./host.js";
-import { quote, message, supportCommand } from "./text.js";
+import type { ReviewInput, Bundle, WorkflowHost } from "./contracts.js";
+import { errorMessage } from "./text.js";
 
+/**
+ * Owns one review’s status message and delivery diagnostics. A failed or uncertain
+ * notification is recorded once and never causes an assessment to run again.
+ */
 export function createProgressReporter(input: ReviewInput, host: WorkflowHost) {
-  const states: Record<string, string> = Object.fromEntries(
-    [
-      "setup",
-      "research",
-      "assessments",
-      "rules",
-      "consolidation",
-      "draft",
-      "editorial",
-      "report",
-      "save-artefacts",
-    ].map((name) => [name, "pending"]),
-  );
+  const states: Record<string, string> = {};
   const notifications: Bundle["notifications"] = [];
-  const agent = host.agent;
-
-  async function update(
-    stageName: string,
-    status: string,
-    split = false,
-  ): Promise<void> {
-    states[stageName] = status;
-    if (!input.notification && input.publication.mode !== "github") {
+  async function update(stage: string, status: string): Promise<void> {
+    states[stage] = status;
+    if (!input.notification) {
       return;
     }
-    // Never retry uncertain external writes or treat notification failure as review failure.
+    const event = {
+      action: "update",
+      ...input.notification,
+      eventKey: `${input.runId}:${stage}:${status}`,
+      text: statusMessage(input, states),
+    };
     try {
-      const names = split
-        ? ["setup", "split-plan", "save-artefacts"]
-        : Object.keys(states);
-      const text = [
-        `Review ${input.target}`,
-        `Commit ${input.head.slice(0, 12)}`,
-        "",
-        ...names.map((name) => {
-          const state = states[name] ?? "pending";
-          const marker =
-            state === "complete"
-              ? "✓"
-              : state === "blocked"
-                ? "!"
-                : state === "pending"
-                  ? "○"
-                  : "◉";
-          return `${marker} ${name}: ${state}`;
-        }),
-      ].join("\n");
-      const event = input.notification
-        ? {
-            action: "update",
-            ...input.notification,
-            eventKey: `${input.runId}:${stageName}:${status}`,
-            text,
-          }
-        : null;
-      const githubProgress =
-        input.publication.mode === "github"
-          ? `${supportCommand(input, "publication")} progress --input ${quote(JSON.stringify(input))} --states ${quote(JSON.stringify(states))}`
-          : null;
-      const receipt = await agent(
+      const receipt = await host.agent(
         [
-          event
-            ? "Call the host notify tool exactly once with the supplied event. This assumes the separately implemented notification update API. If unavailable, report rejected. Do not emulate it with bash or HTTP."
-            : "",
-          githubProgress
-            ? `Update the existing GitHub progress comment by running exactly: ${githubProgress}`
-            : "",
-          "Do not send to other destinations, independently call HTTP APIs, or publish findings.",
-          "Return the tool's actual delivery status and a reason. Do not retry uncertain delivery.",
-          event ? JSON.stringify(event) : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
+          "Call the host notify tool exactly once with this event. If unavailable, report rejected.",
+          "Do not emulate the tool with bash or HTTP, send elsewhere, or retry uncertain delivery.",
+          "Return the actual tool status and reason.",
+          JSON.stringify(event),
+        ].join("\n"),
         {
-          label: `notify:${stageName}:${status}`,
+          label: `notify:${stage}:${status}`,
           phase: "Progress",
           schema: z.toJSONSchema(NotificationReceiptSchema, {
             target: "draft-7",
@@ -87,7 +42,7 @@ export function createProgressReporter(input: ReviewInput, host: WorkflowHost) {
         },
       );
       notifications.push({
-        stage: stageName,
+        stage,
         status,
         receipt: NotificationReceiptSchema.parse(
           receipt ?? {
@@ -98,11 +53,26 @@ export function createProgressReporter(input: ReviewInput, host: WorkflowHost) {
       });
     } catch (error) {
       notifications.push({
-        stage: stageName,
+        stage,
         status,
-        receipt: { status: "uncertain", reason: message(error) },
+        receipt: { status: "uncertain", reason: errorMessage(error) },
       });
     }
   }
   return { update, notifications };
+}
+
+/**
+ * Keeps one message’s history readable without requiring transport-specific code.
+ */
+function statusMessage(
+  input: ReviewInput,
+  states: Record<string, string>,
+): string {
+  return [
+    `Review ${input.target}`,
+    `Commit ${input.head.slice(0, 12)}`,
+    "",
+    ...Object.entries(states).map(([stage, status]) => `${stage}: ${status}`),
+  ].join("\n");
 }

@@ -1,9 +1,19 @@
+/**
+ * Crosses from the filesystem-free workflow VM to an agent that saves files.
+ * A successful agent answer is accepted only after its command gate passes.
+ */
 import { z } from "zod";
 import type { Bundle, ReviewInput, ReviewResult } from "./contracts.js";
-import type { WorkflowHost } from "./host.js";
-import { quote, supportCommand } from "./text.js";
+import type { WorkflowHost } from "./contracts.js";
+
 type ReportStatus = (stage: string, status: string) => Promise<void>;
 
+/**
+ * Asks a writer to persist accepted values and validates the resulting files.
+ * Throws on a failed gate; it never retries a writer with an unknown outcome.
+ * The bundle captures receipts collected before writing; the final save receipt
+ * is available only in the successful workflow return.
+ */
 export async function saveArtifacts(
   host: WorkflowHost,
   input: ReviewInput,
@@ -12,7 +22,7 @@ export async function saveArtifacts(
   reportStatus: ReportStatus,
 ): Promise<string> {
   const serialized = JSON.stringify(bundle);
-  const validationCommand = `${supportCommand(input, "validate-bundle")} ${quote(`${input.artifacts}/bundle.json`)} --fingerprint ${quote(result.fingerprint)}`;
+  const validationCommand = `node --import ${shellQuote(input.tsxLoader)} ${shellQuote(`${input.supportRoot}/validate-bundle.ts`)} ${shellQuote(`${input.artifacts}/bundle.json`)} --fingerprint ${shellQuote(result.fingerprint)}`;
   host.phase("Save artefacts");
   const saved = await host.agent(
     [
@@ -47,47 +57,9 @@ export async function saveArtifacts(
   return validationCommand;
 }
 
-export async function publishArtifacts(
-  host: WorkflowHost,
-  input: ReviewInput,
-  result: ReviewResult,
-  reportStatus: ReportStatus,
-): Promise<void> {
-  if (input.publication.mode !== "local") {
-    await reportStatus("publication", "running");
-    const publication = await host.agent(
-      [
-        "Publish only the accepted review artefacts using the supplied helper. Do not alter findings, approval, summary or report, and do not independently call GitHub APIs.",
-        `Run exactly: ${supportCommand(input, "publication")} finish ${quote(`${input.artifacts}/bundle.json`)}`,
-        "If the command fails, report failed with the actual reason. Do not retry or create another comment. Existing helper state is retained for explicit recovery.",
-        "The helper validates saved artefacts and live head before publication. Report confirmed only when it verifies the remote result, rendered for a dry-run preview.",
-      ].join("\n"),
-      {
-        label: "publication",
-        phase: "Publication",
-        schema: z.toJSONSchema(
-          z.strictObject({
-            status: z.enum(["confirmed", "rendered", "failed"]),
-            reason: z.string().min(1),
-          }),
-          { target: "draft-7" },
-        ),
-        gate: `${supportCommand(input, "publication")} verify ${quote(`${input.artifacts}/bundle.json`)}`,
-      },
-    );
-    if (
-      publication === null ||
-      z.object({ status: z.string() }).parse(publication).status === "failed"
-    ) {
-      await reportStatus("publication", "blocked");
-      throw new Error(
-        `Publication was not confirmed. Inspect ${input.artifacts}/progress.json and result.json before retrying.`,
-      );
-    }
-    if (input.publication.mode !== "github") {
-      await reportStatus("publication", "complete");
-    }
-    result.publication.status =
-      input.publication.mode === "github" ? "confirmed" : "rendered";
-  }
+/**
+ * Quotes one POSIX shell argument, including paths containing spaces or quotes.
+ */
+function shellQuote(value: string): string {
+  return "'" + value.replace(/'/g, "'\\''") + "'";
 }

@@ -1,3 +1,8 @@
+/**
+ * Runs the generated script in the real pi-subagents VM with canned workers.
+ * Covers stage order, the five-assessment barrier, retries, partial results,
+ * notifications and real filesystem gates. It does not test model judgement.
+ */
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, rmSync } from "node:fs";
@@ -11,8 +16,6 @@ test("complete review uses all required stages and validates real saved files", 
     const result = await state.run();
     assert.equal(result.status, "completed", result.error);
     assert.equal(result.value.status, "complete");
-    assert.equal(result.value.published, false);
-    assert.equal(result.value.publication.status, "not_requested");
     assert.equal(state.calls[0], "setup:1");
     assert.ok(
       state.calls.indexOf("research:1") < state.calls.indexOf("product:1"),
@@ -163,7 +166,6 @@ for (const [title, mutate] of [
     scenario({ mutate }, async (state) => {
       const result = await state.run();
       assert.equal(result.value.status, "incomplete");
-      assert.equal(result.value.published, false);
     }));
 }
 
@@ -432,7 +434,7 @@ test("wrapper rule collections participate in full coverage", () =>
     );
   }));
 
-test("a review with retained defects completes without claiming publication or approval", () =>
+test("a review with retained defects completes with a withheld approval assessment", () =>
   scenario(
     {
       mutate: (value) => {
@@ -470,7 +472,6 @@ test("a review with retained defects completes without claiming publication or a
     async (state) => {
       const result = await state.run();
       assert.equal(result.value.status, "complete");
-      assert.equal(result.value.published, false);
       assert.match(
         readFileSync(result.value.reportPath!, "utf8"),
         /F1: Existing-item updates/,
@@ -514,47 +515,9 @@ test("workers load their assigned sections from the packaged review skill", () =
     );
   }));
 
-test("dry-run publication renders the existing helper payload without network writes", () =>
+test("large generated coverage stays in bounded detail sections", () =>
   scenario(
     {
-      publication: { mode: "dry-run", repository: "fixture/app", prNumber: 1 },
-    },
-    async (state) => {
-      const result = await state.run();
-      assert.equal(result.status, "completed", result.error);
-      assert.equal(result.value.publication.status, "rendered");
-      assert.equal(result.value.published, false);
-      const preview = JSON.parse(
-        readFileSync(
-          path.join(state.args.artifacts, "publication-preview.json"),
-          "utf8",
-        ),
-      );
-      assert.equal(preview.dry_run, true);
-    },
-  ));
-
-test("publication failure is not retried or reported as complete delivery", () =>
-  scenario(
-    {
-      publication: { mode: "github", repository: "fixture/app", prNumber: 1 },
-      failPublication: true,
-    },
-    async (state) => {
-      const result = await state.run();
-      assert.equal(result.status, "failed");
-      assert.equal(
-        state.calls.filter((label) => label === "publication").length,
-        1,
-      );
-      assert.match(result.error ?? "", /Publication was not confirmed/);
-    },
-  ));
-
-test("large generated coverage can be split into publication continuation comments", () =>
-  scenario(
-    {
-      publication: { mode: "dry-run", repository: "fixture/app", prNumber: 1 },
       mutate: (value) => {
         if (questions.some((question) => question === value.stage)) {
           value.checks = [0, 1, 2].map((index) => ({
@@ -568,14 +531,10 @@ test("large generated coverage can be split into publication continuation commen
     async (state) => {
       const result = await state.run();
       assert.equal(result.status, "completed", result.error);
-      assert.equal(result.value.publication.status, "rendered");
-      const preview = JSON.parse(
-        readFileSync(
-          path.join(state.args.artifacts, "publication-preview.json"),
-          "utf8",
-        ),
-      );
-      assert.ok(preview.report_parts.length > 1);
+      const report = readFileSync(result.value.reportPath!, "utf8");
+      const folds = report.match(/<details>[\s\S]*?<\/details>/g) ?? [];
+      assert.ok(folds.length > 5);
+      assert.ok(folds.every((fold) => fold.length < 41_000));
     },
   ));
 

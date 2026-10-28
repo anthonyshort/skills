@@ -1,3 +1,8 @@
+/**
+ * Pure regression tests for answers that must be rejected before stage acceptance.
+ * Covers finding-to-approval consistency, inline provenance and template excerpts.
+ * No agents, subprocesses or filesystem fixtures are involved.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
