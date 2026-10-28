@@ -21,11 +21,11 @@ skills/
   ...
 package.json
 scripts/link.py
-workflows/review.js
+src/review/
+workflows/review.js  # generated from TypeScript
 ```
 
-There are no runtime dependencies or agent-specific copies. The small `pi` manifest
-exports `./skills` as a Pi package. The review workflow uses equivalent agents or
+The `pi` manifest exports the skills and review workflow as a Pi package. The review launcher and artefact tools use TypeScript, `tsx` and Zod; the original skill’s GitHub helper still uses Python. The review workflow uses equivalent agents or
 its documented fallback when its named agents are unavailable. The personal GitHub
 review attribution remains `Sent with Pi` on all agents.
 

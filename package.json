@@ -4,11 +4,15 @@
   "private": true,
   "description": "Personal agent skills for Codex, Pi and Claude Code",
   "scripts": {
-    "review": "node scripts/run-review.mjs",
-    "test:workflow": "node tests/review-workflow.test.mjs",
-    "test:unit": "node --test tests/review-bundle.test.mjs tests/review-launcher.test.mjs",
-    "test:pi": "node scripts/test-review-pi.mjs",
-    "test": "npm run test:workflow && npm run test:unit && python3 -m unittest discover -s scripts/review -p test_*.py && python3 -m unittest discover -s skills/review/scripts -p test_*.py"
+    "build": "node --import tsx scripts/build/workflow.ts",
+    "build:check": "node --import tsx scripts/build/workflow.ts --check",
+    "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\"",
+    "review": "node --import tsx scripts/run-review.ts",
+    "test:workflow": "node --import tsx --test tests/review-workflow.test.ts tests/review-stages.test.ts",
+    "test:unit": "node --import tsx --test tests/review-bundle.test.ts tests/review-launcher.test.ts tests/review-publication.test.ts",
+    "test:pi": "node --import tsx scripts/test-review-pi.ts",
+    "test": "npm run typecheck && npm run build:check && npm run test:workflow && npm run test:unit && python3 -m unittest discover -s skills/review/scripts -p test_*.py"
   },
   "keywords": [
     "pi-package"
@@ -25,12 +29,21 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.4.0",
-    "@tintinweb/pi-subagents": "0.22.0"
+    "@tintinweb/pi-subagents": "0.22.0",
+    "@types/node": "22.19.0",
+    "esbuild": "0.28.2",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2"
   },
   "overrides": {
     "undici": "8.12.3"
   },
   "engines": {
     "node": ">=22.19.0"
-  }
+  },
+  "dependencies": {
+    "tsx": "4.23.15",
+    "zod": "4.6.7"
+  },
+  "type": "module"
 }
