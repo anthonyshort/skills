@@ -438,16 +438,24 @@ export type ProgressStatus =
   | "blocked";
 
 /**
+ * A rendered progress snapshot, derived from accepted work and recorded failures.
+ * It is sent to delivery workers without being retained as review state.
+ */
+export type ProgressStatuses = Partial<Record<ProgressStep, ProgressStatus>>;
+export type ReviewProgressInput = {
+  stages: StageResults;
+  failures: Bundle["failures"];
+  saved: boolean;
+};
+
+/**
  * Plain delivery bookkeeping for one review. Scheduling uses Pi's globals,
  * rather than methods attached to this data.
  */
 export type DeliveryState = {
-  statuses: Partial<Record<ProgressStep, ProgressStatus>>;
   notifications: Bundle["notifications"];
-  started: boolean;
   hostNotifications: boolean;
   githubSequence: number;
-  publication: PublicationResult;
 };
 
 /**
@@ -474,6 +482,7 @@ export type ReviewAgentInput<Result extends StageResult> = ReviewStepInput & {
 export type ProgressUpdateInput = {
   input: ReviewInput;
   state: DeliveryState;
+  statuses: ProgressStatuses;
   stage: ProgressStep;
   status: ProgressStatus;
   reason?: string;
@@ -484,6 +493,14 @@ export type ReviewPublicationInput = {
   state: DeliveryState;
   bundle: Bundle;
   result: ReviewResult;
+};
+
+/**
+ * Final delivery describes the publication operation's returned outcome, which
+ * later progress operations cannot overwrite.
+ */
+export type FinalNotificationInput = ReviewPublicationInput & {
+  publication: PublicationResult;
 };
 
 export type GitHubSendInput = {

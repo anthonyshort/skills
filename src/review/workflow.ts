@@ -46,12 +46,7 @@ import type {
   StageResult,
   StageResults,
 } from "./contracts.js";
-import {
-  initialPublication,
-  githubEnabled,
-  sendGitHub,
-  publishAcceptedReview,
-} from "./github.js";
+import { githubEnabled, sendGitHub, publishAcceptedReview } from "./github.js";
 import { validateStage } from "./validation.js";
 import {
   coverageMarkdown,
@@ -59,6 +54,7 @@ import {
   errorMessage,
   quote,
   progressChecklist,
+  reviewProgress,
   sendHostNotification,
   sendFinalNotification,
 } from "./utils.js";
@@ -94,77 +90,80 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   let accepted: StageResults = {};
   const attempts: Bundle["attempts"] = [];
   const failures: Bundle["failures"] = [];
-  let currentStep: StageName | "assessments" = "setup";
+  let currentStep: ProgressUpdateInput["stage"] = "setup";
+  let validationCommand: string | undefined;
   const delivery: DeliveryState = {
-    statuses: {},
     notifications: [],
-    started: false,
     hostNotifications: true,
     githubSequence: 0,
-    publication: initialPublication(input),
   };
-  const progress = { input, state: delivery };
-
   /**
-   * Use the same current step for progress and failure diagnostics.
+   * Completion comes from accepted evidence; the caller can mark work running
+   * or blocked. Only transport receipts and sequencing persist in delivery state.
    */
-  async function startStep({ stage }: { stage: StageName | "assessments" }) {
+  async function reportProgress({
+    stage,
+    status,
+    reason,
+  }: Pick<ProgressUpdateInput, "stage" | "reason"> & {
+    status?: "running" | "blocked";
+  }) {
     currentStep = stage;
-    await updateProgress({ ...progress, stage, status: "running" });
+    if (!accepted.setup) {
+      return;
+    }
+    const statuses = reviewProgress({
+      stages: accepted,
+      failures,
+      saved: validationCommand !== undefined,
+    });
+    const currentStatus = status ?? statuses[stage] ?? "running";
+    statuses[stage] = currentStatus;
+    await updateProgress({
+      input,
+      state: delivery,
+      statuses,
+      stage,
+      status: currentStatus,
+      reason,
+    });
   }
 
   // Setup pins the comparison before any external progress starts.
   try {
     accepted.setup = await setupReview({ input, context: accepted, attempts });
-    delivery.started = true;
-    await updateProgress({
-      ...progress,
-      stage: "setup",
-      status: "complete",
-    });
+    await reportProgress({ stage: "setup" });
 
     switch (accepted.setup.mode) {
       case "split":
         // Split-only reviews stop at a plan rather than a full assessment.
-        await startStep({ stage: "splitPlan" });
+        await reportProgress({ status: "running", stage: "splitPlan" });
         accepted.splitPlan = await planSplit({
           input,
           context: accepted,
           attempts,
         });
-        await updateProgress({
-          ...progress,
-          stage: "splitPlan",
-          status: "complete",
-        });
+        await reportProgress({ stage: "splitPlan" });
         break;
       case "full": {
         // Independently check the brief before any assessment uses its conclusions.
-        await startStep({ stage: "research" });
+        await reportProgress({ status: "running", stage: "research" });
         accepted.research = await researchReview({
           input,
           context: accepted,
           attempts,
         });
-        await updateProgress({
-          ...progress,
-          stage: "research",
-          status: "complete",
-        });
-        await startStep({ stage: "researchCheck" });
+        await reportProgress({ stage: "research" });
+        await reportProgress({ status: "running", stage: "researchCheck" });
         accepted.researchCheck = await checkResearch({
           input,
           context: accepted,
           attempts,
         });
-        await updateProgress({
-          ...progress,
-          stage: "researchCheck",
-          status: "complete",
-        });
+        await reportProgress({ stage: "researchCheck" });
 
         // All five workers see the same research, never developing sibling answers.
-        await startStep({ stage: "assessments" });
+        await reportProgress({ status: "running", stage: "assessments" });
         const researchContext = {
           setup: accepted.setup,
           research: accepted.research,
@@ -192,91 +191,62 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
         if (missing.length) {
           throw new Error(`Missing assessments: ${missing.join(", ")}`);
         }
-        await updateProgress({
-          ...progress,
-          stage: "assessments",
-          status: "complete",
-        });
+        await reportProgress({ stage: "assessments" });
 
-        await startStep({ stage: "rules" });
+        await reportProgress({ status: "running", stage: "rules" });
         accepted.rules = await checkRules({
           input,
           context: accepted,
           attempts,
         });
-        await updateProgress({
-          ...progress,
-          stage: "rules",
-          status: "complete",
-        });
+        await reportProgress({ stage: "rules" });
 
         // Reconcile findings before drafting, editing and accepting the final report.
-        await startStep({ stage: "consolidation" });
+        await reportProgress({ status: "running", stage: "consolidation" });
         accepted.consolidation = await consolidateReview({
           input,
           context: accepted,
           attempts,
         });
 
-        await updateProgress({
-          ...progress,
-          stage: "consolidation",
-          status: "complete",
-        });
-        await startStep({ stage: "draft" });
+        await reportProgress({ stage: "consolidation" });
+        await reportProgress({ status: "running", stage: "draft" });
         accepted.draft = await draftReport({
           input,
           context: accepted,
           attempts,
         });
-        await updateProgress({
-          ...progress,
-          stage: "draft",
-          status: "complete",
-        });
-        await startStep({ stage: "editorial" });
+        await reportProgress({ stage: "draft" });
+        await reportProgress({ status: "running", stage: "editorial" });
         accepted.editorial = await editReport({
           input,
           context: accepted,
           attempts,
         });
-        await updateProgress({
-          ...progress,
-          stage: "editorial",
-          status: "complete",
-        });
-        await startStep({ stage: "report" });
+        await reportProgress({ stage: "editorial" });
+        await reportProgress({ status: "running", stage: "report" });
         accepted.report = await acceptReport({
           input,
           context: accepted,
           attempts,
         });
-        await updateProgress({
-          ...progress,
-          stage: "report",
-          status: "complete",
-        });
+        await reportProgress({ stage: "report" });
         break;
       }
     }
 
     // The decision assesses the accepted report; it does not publish anything.
-    await startStep({ stage: "decision" });
+    await reportProgress({ status: "running", stage: "decision" });
     accepted.decision = await decideReview({
       input,
       context: accepted,
       attempts,
     });
-    await updateProgress({
-      ...progress,
-      stage: "decision",
-      status: "complete",
-    });
+    await reportProgress({ stage: "decision" });
   } catch (error) {
     // Accepted partial evidence survives an exhausted required step.
     failures.push({ stage: currentStep, reason: errorMessage(error) });
-    await updateProgress({
-      ...progress,
+    await reportProgress({
       stage: currentStep,
       status: "blocked",
       reason: errorMessage(error),
@@ -291,8 +261,7 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   if (status === "complete" && accepted.report) {
     accepted.report.markdown += coverageMarkdown(accepted);
   }
-  await updateProgress({
-    ...progress,
+  await reportProgress({
     stage: "save-artefacts",
     status: "running",
   });
@@ -307,50 +276,45 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     notifications: [...delivery.notifications],
   };
   const result = createReviewResult(bundle);
-  let validationCommand: string;
   try {
     validationCommand = await saveReviewFiles({ bundle, result });
   } catch (error) {
-    await updateProgress({
-      ...progress,
+    await reportProgress({
       stage: "save-artefacts",
       status: "blocked",
       reason: errorMessage(error),
     });
     throw error;
   }
-  await updateProgress({
-    ...progress,
-    stage: "save-artefacts",
-    status: "complete",
-  });
+  await reportProgress({ stage: "save-artefacts" });
 
   // Publication and final host status stay outside the review retry loop.
-  if (delivery.started && bundle.status !== "incomplete") {
-    await updateProgress({
-      ...progress,
+  if (accepted.setup && bundle.status !== "incomplete") {
+    await reportProgress({
       stage: "publication",
       status: "running",
     });
   }
   const publication = await publishAcceptedReview({
-    ...progress,
+    input,
+    state: delivery,
     bundle,
     result,
   });
   if (publication.status === "rejected" && bundle.status !== "incomplete") {
-    await updateProgress({
-      ...progress,
+    await reportProgress({
       stage: "publication",
       status: "blocked",
       reason: publication.reason,
     });
-    // Keep the refusal when the progress update records a different receipt.
-    delivery.publication = publication;
   }
-  delivery.statuses.publication = publication.status;
-  delivery.statuses.review = bundle.status;
-  await sendFinalNotification({ input, state: delivery, bundle, result });
+  await sendFinalNotification({
+    input,
+    state: delivery,
+    bundle,
+    result,
+    publication,
+  });
   return {
     ...result,
     approval: accepted.decision?.approval ?? null,
@@ -739,22 +703,19 @@ function createReviewResult(bundle: Bundle): ReviewResult {
 }
 
 /**
- * Record review steps explicitly entered by the coordinator. There is no second
- * list of future steps to maintain. Delivery failures do not repeat review work.
+ * Send a derived progress snapshot to GitHub and the host notification tool.
+ * Delivery failures do not repeat review work or replace final publication.
  */
 async function updateProgress({
   input,
   state,
+  statuses,
   stage,
   status,
   reason,
 }: ProgressUpdateInput): Promise<void> {
-  state.statuses[stage] = status;
-  if (!state.started) {
-    return;
-  }
   if (githubEnabled(input)) {
-    const blocked = Object.entries(state.statuses).find(
+    const blocked = Object.entries(statuses).find(
       ([, value]) => value === "blocked",
     );
     let operation: GitHubRequest["operation"] = "update";
@@ -767,9 +728,9 @@ async function updateProgress({
       input,
       state,
       operation,
-      checklist: progressChecklist(state),
+      checklist: progressChecklist(statuses),
       reason: blocked ? (reason ?? `${blocked[0]} is blocked`) : "",
     });
   }
-  await sendHostNotification({ input, state, stage, status, reason });
+  await sendHostNotification({ input, state, statuses, stage, status, reason });
 }

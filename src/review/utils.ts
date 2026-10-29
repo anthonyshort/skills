@@ -3,12 +3,17 @@
  * occur only inside functions so Node commands can import the text utilities.
  */
 import * as z from "zod";
-import { NotificationAnswerSchema } from "./contracts.js";
+import {
+  assessmentNames,
+  stageNames,
+  NotificationAnswerSchema,
+} from "./contracts.js";
 import type {
-  DeliveryState,
   ProgressUpdateInput,
   RequestHostNotificationInput,
-  ReviewPublicationInput,
+  FinalNotificationInput,
+  ProgressStatuses,
+  ReviewProgressInput,
   StageResults,
 } from "./contracts.js";
 
@@ -98,14 +103,23 @@ export async function sendFinalNotification({
   state,
   bundle,
   result,
-}: ReviewPublicationInput): Promise<void> {
-  if (!state.started) {
+  publication,
+}: FinalNotificationInput): Promise<void> {
+  if (!bundle.stages.setup) {
     return;
   }
-  const publication = state.publication;
   await sendHostNotification({
     input,
     state,
+    statuses: {
+      ...reviewProgress({
+        stages: bundle.stages,
+        failures: bundle.failures,
+        saved: true,
+      }),
+      publication: publication.status,
+      review: bundle.status,
+    },
     stage: "review",
     status: bundle.status,
     reason: [
@@ -131,6 +145,7 @@ export async function sendFinalNotification({
 export async function sendHostNotification({
   input,
   state,
+  statuses,
   stage,
   status,
   reason = "",
@@ -145,9 +160,7 @@ export async function sendHostNotification({
   const text = [
     `Review ${input.target}`,
     `Commit ${input.head.slice(0, 12)}`,
-    ...Object.entries(state.statuses).map(
-      ([name, value]) => `${name}: ${value}`,
-    ),
+    ...Object.entries(statuses).map(([name, value]) => `${name}: ${value}`),
     reason,
   ]
     .filter(Boolean)
@@ -222,10 +235,42 @@ async function requestHostNotification({
 }
 
 /**
+ * Accepted answers establish completed review steps; failures establish blocked
+ * steps. Saving is complete only after the file gate returns successfully.
+ * The five assessments share one row and complete only as a full set.
+ */
+export function reviewProgress({
+  stages,
+  failures,
+  saved,
+}: ReviewProgressInput): ProgressStatuses {
+  const statuses: ProgressStatuses = {};
+  for (const stage of stageNames) {
+    if (assessmentNames.some((name) => name === stage)) {
+      if (assessmentNames.every((name) => stages[name])) {
+        statuses.assessments = "complete";
+      }
+    } else if (stages[stage]) {
+      statuses[stage] = "complete";
+    }
+    if (failures.some((failure) => failure.stage === stage)) {
+      statuses[stage] = "blocked";
+    }
+  }
+  if (failures.some((failure) => failure.stage === "assessments")) {
+    statuses.assessments = "blocked";
+  }
+  if (saved) {
+    statuses["save-artefacts"] = "complete";
+  }
+  return statuses;
+}
+
+/**
  * Describe actual work status without treating completed review work as passing.
  */
-export function progressChecklist(state: DeliveryState): string {
-  return Object.entries(state.statuses)
+export function progressChecklist(statuses: ProgressStatuses): string {
+  return Object.entries(statuses)
     .map(
       ([name, value]) =>
         `- [${value === "complete" ? "x" : " "}] ${name}: ${value}`,

@@ -12,7 +12,12 @@ import type {
   ReviewInput,
   ReviewPublicationInput,
 } from "./contracts.js";
-import { errorMessage, progressChecklist, quote } from "./utils.js";
+import {
+  errorMessage,
+  progressChecklist,
+  quote,
+  reviewProgress,
+} from "./utils.js";
 
 /**
  * Distinguish disabled GitHub output from publication still to do.
@@ -58,30 +63,33 @@ export async function publishAcceptedReview({
   bundle,
   result,
 }: ReviewPublicationInput): Promise<PublicationResult> {
-  if (!state.started) {
-    state.publication = {
-      ...state.publication,
+  if (!bundle.stages.setup) {
+    return {
+      ...initialPublication(input),
       status: "skipped",
       reason: "Setup was not accepted; no external delivery started",
     };
-    return state.publication;
   }
   if (!githubEnabled(input)) {
-    return state.publication;
+    return initialPublication(input);
   }
+  const statuses = reviewProgress({
+    stages: bundle.stages,
+    failures: bundle.failures,
+    saved: true,
+  });
   switch (bundle.status) {
     case "incomplete": {
       const reason = bundle.failures
         .map((failure) => `${failure.stage}: ${failure.reason}`)
         .join("; ");
-      await sendGitHub({
+      return sendGitHub({
         input,
         state,
         operation: "interrupt",
-        checklist: progressChecklist(state),
+        checklist: progressChecklist(statuses),
         reason,
       });
-      break;
     }
     case "complete":
     case "split": {
@@ -89,21 +97,19 @@ export async function publishAcceptedReview({
         throw new Error("Publication requires validated saved output");
       }
       // The helper unchecks this final row until publication succeeds.
-      const checklist = progressChecklist(state).replace(
-        /^- \[[ x]\] publication: .+$/m,
-        "- [x] publication: complete",
-      );
-      await sendGitHub({
+      const checklist = progressChecklist({
+        ...statuses,
+        publication: "complete",
+      });
+      return sendGitHub({
         input,
         state,
         operation: "finish",
         checklist,
         fingerprint: result.fingerprint,
       });
-      break;
     }
   }
-  return state.publication;
 }
 
 /**
@@ -117,7 +123,7 @@ export async function sendGitHub({
   checklist,
   reason = "",
   fingerprint = null,
-}: GitHubSendInput): Promise<void> {
+}: GitHubSendInput): Promise<PublicationResult> {
   const request: GitHubRequest = {
     input,
     operation,
@@ -161,10 +167,10 @@ export async function sendGitHub({
         "GitHub worker failed or was skipped; delivery may have completed",
       );
     }
-    state.publication = PublicationResultSchema.parse(answer);
+    return PublicationResultSchema.parse(answer);
   } catch (error) {
-    state.publication = {
-      ...state.publication,
+    return {
+      ...initialPublication(input),
       status: "uncertain",
       reason: `${errorMessage(error)}. Inspect ${input.artifacts}/github.json before retrying publication.`,
     };

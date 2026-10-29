@@ -81,22 +81,55 @@ test("a failed assessment gets one fresh retry and can recover", () =>
   ));
 
 test("missing mandatory assessment stops downstream work and saves partial evidence", () =>
-  scenario({ fail: (name) => name === "readability" }, async (state) => {
-    const result = await state.run();
-    assert.equal(result.value.status, "incomplete");
-    assert.equal(result.value.status, "incomplete");
-    assert.equal(result.value.reportPath!, null);
-    assert.equal(
-      state.calls.filter((label) => label.startsWith("readability:")).length,
-      2,
-    );
-    assert.equal(state.calls.includes("rules:1"), false);
-    assert.ok(state.bundle.stages.correctness);
-    assert.match(
-      state.bundle.failures[0].reason,
-      /Missing assessments: readability/,
-    );
-  }));
+  scenario(
+    { notify: true, fail: (name) => name === "readability" },
+    async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, "incomplete");
+      assert.equal(result.value.reportPath, null);
+      assert.equal(
+        state.calls.filter((label) => label.startsWith("readability:")).length,
+        2,
+      );
+      assert.equal(state.calls.includes("rules:1"), false);
+      assert.ok(state.bundle.stages.correctness);
+      assert.match(
+        state.bundle.failures[0].reason,
+        /Missing assessments: readability/,
+      );
+      const terminal = state.prompts.get("notify:review:incomplete");
+      assert.ok(terminal);
+      for (const stage of [
+        "product",
+        "systemFit",
+        "simplicity",
+        "correctness",
+      ] as const) {
+        assert.ok(
+          state.bundle.stages[stage],
+          `${stage} evidence remains accepted`,
+        );
+        assert.ok(
+          !terminal.includes(`${stage}: complete`),
+          "assessment progress stays grouped",
+        );
+      }
+      for (const stage of [
+        "setup",
+        "research",
+        "researchCheck",
+        "save-artefacts",
+      ]) {
+        assert.ok(terminal.includes(`${stage}: complete`), stage);
+      }
+      assert.match(terminal, /assessments: blocked/);
+      assert.doesNotMatch(terminal, /assessments: (?:complete|running)/);
+      assert.doesNotMatch(
+        terminal,
+        /(?:rules|consolidation|draft|editorial|report|decision): (?:complete|running|blocked)/,
+      );
+    },
+  ));
 
 test("research failure prevents every assessment", () =>
   scenario({ fail: (name) => name === "research" }, async (state) => {
@@ -778,31 +811,47 @@ test("unaccepted setup saves incomplete evidence without starting delivery", () 
     },
   ));
 
-test("freshness refusal preserves its reason and stops GitHub progress as blocked", () =>
-  scenario(
-    {
-      github: true,
-      publicationRefusal: "New discussion contradicts the accepted scope",
-    },
-    async (state) => {
-      const result = await state.run();
-      assert.equal(result.value.status, "complete");
-      assert.equal(result.value.publication.status, "rejected");
-      assert.match(result.value.publication.reason, /New discussion/);
-      const finish = state.calls.findIndex((name) =>
-        name.startsWith("github:finish:"),
-      );
-      assert.ok(
-        state.calls
-          .slice(finish + 1)
-          .some((name) => name.startsWith("github:interrupt:")),
-      );
-      assert.equal(
-        state.calls.filter((name) => name.startsWith("github:finish:")).length,
-        1,
-      );
-    },
-  ));
+for (const deliveryFailure of [undefined, "interrupt"] as const) {
+  test(`freshness refusal survives ${deliveryFailure ? "a failed" : "a confirmed"} progress interruption`, () =>
+    scenario(
+      {
+        github: true,
+        notify: true,
+        deliveryFailure,
+        publicationRefusal: "New discussion contradicts the accepted scope",
+      },
+      async (state) => {
+        const result = await state.run();
+        assert.equal(result.value.status, "complete");
+        assert.equal(result.value.publication.status, "rejected");
+        assert.equal(
+          result.value.publication.reason,
+          "New discussion contradicts the accepted scope",
+        );
+        const finish = state.calls.findIndex((name) =>
+          name.startsWith("github:finish:"),
+        );
+        assert.ok(
+          state.calls
+            .slice(finish + 1)
+            .some((name) => name.startsWith("github:interrupt:")),
+        );
+        assert.equal(
+          state.calls.filter((name) => name.startsWith("github:finish:"))
+            .length,
+          1,
+        );
+        const terminal = state.prompts.get("notify:review:complete");
+        assert.ok(terminal);
+        assert.match(
+          terminal,
+          /GitHub: rejected\. New discussion contradicts the accepted scope/,
+        );
+        assert.match(terminal, /publication: rejected/);
+        assert.doesNotMatch(terminal, /GitHub: (?:confirmed|uncertain)/);
+      },
+    ));
+}
 
 test("omitted notification settings still schedule host updates with a stable run key", () =>
   scenario({}, async (state) => {

@@ -227,3 +227,16 @@ The writer copies accepted values without performing another review. The existin
 Implemented the feedback with one typed current step, no ambient phase calls or milestone state, direct Markdown imports, camelCase stage identifiers and an explained `saveReviewFiles` boundary. The original review skill and pi-subagents remain unchanged. Direct Zod namespace imports let esbuild remove unused exports, keeping the embedded workflow below Pi’s script-size limit without new dependencies.
 
 `npm test` passed all 206 cases. After the final prompt and test refinements, the focused workflow/stage/publication suite passed all 75 cases again. TypeScript, oxfmt, generated-output, braced-conditional and whitespace checks passed. A temporary research Markdown edit correctly made `build:check` reject stale generated output, and restoring it restored a passing check. Both full and split-only prompt tests run without runtime prompt files. No new live model run or real delivery trial was performed.
+
+
+## Reduce overlapping state
+
+Keep the explicit named-step sequence. Derive completed progress from accepted stage answers, blocked progress from recorded failures, and successful saving from the returned validation command. The current update supplies only transient progress, such as a running step or a failed save. Build a temporary display snapshot for each send rather than storing a second mutable progress map.
+
+Start external delivery only when setup exists in the accepted results. Remove the separate delivery-started flag. Keep delivery bookkeeping limited to notification receipts, whether host updates remain available and the GitHub request sequence.
+
+GitHub operations return their own receipts. The final finish or interruption result is the publication outcome returned to the caller and passed explicitly to the final host notification. Later progress operations cannot overwrite it. A saved review and its delivery outcome remain separate; failed or uncertain delivery never repeats review work.
+
+Preserve stage order, the assessment barrier, accepted partial evidence, bounded retries and the saved-file gate. Check partial-assessment progress after saving, and final rejection reporting after both successful and failed interruption updates. Keep the original skills and pi-subagents unchanged; add no state-machine dependency or second lifecycle engine.
+
+The state-ownership change passed all 207 tests, including final refusal preservation after both successful and failed interruption updates. TypeScript, oxfmt, generated-output, braced-conditional and whitespace checks passed. Generated JavaScript was rebuilt. No new live model run or real delivery was performed.
