@@ -20,7 +20,7 @@ export type ProgressStatuses = Partial<Record<ProgressStep, ProgressStatus>>;
 type ReviewSnapshot = Pick<ReviewRun, "stages" | "failures">;
 
 /**
- * Render a shared progress view without delivery or retained state. reviewCompleted requests publication;
+ * Render a shared progress view without delivery or retained state. workflowCompleted requests publication;
  * only publicationFinished has the outcome needed for a final notification.
  */
 export function reviewEventProgress(event: ReviewEvent):
@@ -37,7 +37,7 @@ export function reviewEventProgress(event: ReviewEvent):
   let reason = "";
 
   switch (event.type) {
-    case "reviewCompleted":
+    case "workflowCompleted":
       return;
     case "tasksStarted":
     case "tasksFinished":

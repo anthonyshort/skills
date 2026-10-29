@@ -1,10 +1,10 @@
 /**
- * Check rule accounting with small explicit inputs. No agents or files are used.
+ * Check review evidence and rule accounting without running agents.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { RuleSchema } from "./schemas.js";
-import { validateAnswer, validateRuleCoverage } from "./validation.js";
+import { validateAnswer, validateRuleCoverage } from "./steps.js";
 
 test("worker evidence must match the pinned revisions", () => {
   assert.throws(

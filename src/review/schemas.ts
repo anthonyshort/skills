@@ -4,6 +4,7 @@
  */
 import * as z from "zod";
 import type { WorkflowEvent, WorkflowEvents } from "../workflow/run.js";
+import type { WorkflowCompleted } from "../workflow/create.js";
 import type { PublicationResult } from "./github.js";
 import type { Notification } from "./notifications.js";
 
@@ -256,16 +257,18 @@ export type ReviewRun = {
   failures: { stage: StageName; reason: string }[];
   attempts: { stage: StageName; attempt: number; reason: string }[];
 };
-export type ReviewOutput = ReviewRun & {
+export type ReviewResult = ReviewRun & {
   report: string | null;
-  notifications: Notification[];
   approval: z.infer<typeof ApprovalSchema> | null;
+};
+export type ReviewOutput = ReviewResult & {
+  notifications: Notification[];
   publication: PublicationResult;
 };
 
 export type ReviewEvent =
   | WorkflowEvent<ReviewResults>
-  | { type: "reviewCompleted"; review: ReviewRun }
+  | WorkflowCompleted<ReviewResult>
   | {
       type: "publicationFinished";
       review: ReviewRun;

@@ -118,3 +118,7 @@ export function createWorkflowRun<Input, Results>({
 
   return { run, result };
 }
+
+export type WorkflowSteps<Input, Results> = ReturnType<
+  typeof createWorkflowRun<Input, Results>
+>;

@@ -143,18 +143,18 @@ export function createGithubComment({
 
   events.subscribe(async (event: ReviewEvent) => {
     switch (event.type) {
-      case "reviewCompleted": {
-        publication = await publishToGithub({ review: event.review });
+      case "workflowCompleted": {
+        publication = await publishToGithub({ review: event.result });
 
         // Keep the live comment consistent with the actual submission outcome.
         if (
           enabled &&
-          event.review.status !== "incomplete" &&
+          event.result.status !== "incomplete" &&
           !creationFailure
         ) {
           const progress = await updateProgress({
             statuses: {
-              ...reviewProgress(event.review),
+              ...reviewProgress(event.result),
               publication:
                 publication.status === "confirmed"
                   ? "complete"
@@ -170,7 +170,7 @@ export function createGithubComment({
         }
         await events.emit({
           type: "publicationFinished",
-          review: event.review,
+          review: event.result,
           publication,
         });
         return;

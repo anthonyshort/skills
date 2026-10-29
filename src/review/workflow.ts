@@ -1,19 +1,14 @@
 /**
  * Compose the review sequence and delivery subscribers in Pi's workflow VM.
  */
-import {
-  createWorkflowRun,
-  WorkflowEvents,
-  WorkflowTaskFailure,
-} from "../workflow/run.js";
+import { createWorkflow } from "../workflow/create.js";
+import type { WorkflowSnapshot, WorkflowSteps } from "../workflow/run.js";
 import { parseReviewInput } from "./schemas.js";
 import type {
-  ReviewInput,
   ReviewResults,
   ReviewEvent,
-  ReviewEventEmitter,
-  ReviewRun,
   ReviewOutput,
+  ReviewResult,
 } from "./schemas.js";
 import { createGithubComment } from "./github.js";
 import { createNotifications } from "./notifications.js";
@@ -48,90 +43,92 @@ export const meta = {
 };
 
 /**
- * Compose review execution and channel subscribers for one run.
+ * Plugin functions receive fresh input and events for every workflow execution.
+ */
+const workflow = createWorkflow<
+  ReviewContext,
+  ReviewResults,
+  ReviewResult,
+  {
+    notifications: ReturnType<typeof createNotifications>;
+    github: ReturnType<typeof createGithubComment>;
+  },
+  Extract<ReviewEvent, { type: "publicationFinished" }>
+>({
+  input: {
+    parse: (args: unknown): ReviewContext => ({
+      review: parseReviewInput(args),
+      attempts: [],
+    }),
+  },
+  plugins: {
+    notifications: ({ input, events }) =>
+      createNotifications({ input: input.review, events }),
+    github: ({ input, events }) =>
+      createGithubComment({ input: input.review, events }),
+  },
+  execute: executeWorkflow,
+  finalize: finalizeReview,
+});
+
+/**
+ * Preserve the review's public output while the factory owns the run lifecycle.
  */
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
-  const input = parseReviewInput(args);
-
-  const events = new WorkflowEvents<ReviewEvent>();
-
-  // Notifications can subscribe first: final publication has its own event.
-  const notifications = createNotifications({ input, events });
-  const githubComment = createGithubComment({ input, events });
-
-  // The review knows only how to emit facts, not which objects observe them.
-  const review = await executeWorkflow({ input, events });
-
-  // Completion passes accepted values directly to the publication subscriber.
-  await events.emit({ type: "reviewCompleted", review });
-
-  // Return the report, partial evidence and delivery outcomes without file IO.
+  const { result, plugins } = await workflow.run(args);
   return {
-    ...review,
-    report:
-      review.stages.report?.markdown ??
-      review.stages.splitPlan?.markdown ??
-      null,
-    approval: review.stages.decision?.approval ?? null,
-    publication: githubComment.publication,
-    notifications: notifications.receipts,
+    ...result,
+    publication: plugins.github.publication,
+    notifications: plugins.notifications.receipts,
   };
 }
 
 /**
  * Declare the full or split-only review order using concrete named steps.
- * The shared runner owns acceptance and lifecycle; review policy stays here.
  */
 async function executeWorkflow({
-  input,
-  events,
+  steps,
 }: {
-  input: ReviewInput;
-  events: ReviewEventEmitter;
-}): Promise<ReviewRun> {
-  const attempts: ReviewRun["attempts"] = [];
-  const steps = createWorkflowRun<ReviewContext, ReviewResults>({
-    input: { review: input, attempts },
-    events,
-  });
-
-  try {
-    const [setup] = await steps.run([{ name: "setup", execute: setupReview }]);
-    switch (setup.mode) {
-      case "split":
-        // Oversized reviews produce a split plan without full assessments.
-        await steps.run([{ name: "splitPlan", execute: planSplit }]);
-        break;
-      case "full":
-        // Check research before the parallel barrier; reconcile before reporting.
-        await steps.run([{ name: "research", execute: researchReview }]);
-        await steps.run([{ name: "researchCheck", execute: checkResearch }]);
-        await steps.run([
-          { name: "product", execute: assessProduct },
-          { name: "systemFit", execute: assessSystemFit },
-          { name: "simplicity", execute: assessSimplicity },
-          { name: "readability", execute: assessReadability },
-          { name: "correctness", execute: assessCorrectness },
-        ]);
-        await steps.run([{ name: "rules", execute: checkRules }]);
-        await steps.run([
-          { name: "consolidation", execute: consolidateReview },
-        ]);
-        await steps.run([{ name: "draft", execute: draftReport }]);
-        await steps.run([{ name: "editorial", execute: editReport }]);
-        await steps.run([{ name: "report", execute: acceptReport }]);
-        break;
-    }
-    await steps.run([{ name: "decision", execute: decideReview }]);
-  } catch (error) {
-    // Recorded task failures stop dependent work and return partial evidence.
-    // Unexpected observer failures propagate instead of claiming completion.
-    if (!(error instanceof WorkflowTaskFailure)) {
-      throw error;
-    }
+  input: ReviewContext;
+  steps: WorkflowSteps<ReviewContext, ReviewResults>;
+}): Promise<void> {
+  const [setup] = await steps.run([{ name: "setup", execute: setupReview }]);
+  switch (setup.mode) {
+    case "split":
+      // Oversized reviews produce a split plan without full assessments.
+      await steps.run([{ name: "splitPlan", execute: planSplit }]);
+      break;
+    case "full":
+      // Check research before the parallel barrier; reconcile before reporting.
+      await steps.run([{ name: "research", execute: researchReview }]);
+      await steps.run([{ name: "researchCheck", execute: checkResearch }]);
+      await steps.run([
+        { name: "product", execute: assessProduct },
+        { name: "systemFit", execute: assessSystemFit },
+        { name: "simplicity", execute: assessSimplicity },
+        { name: "readability", execute: assessReadability },
+        { name: "correctness", execute: assessCorrectness },
+      ]);
+      await steps.run([{ name: "rules", execute: checkRules }]);
+      await steps.run([{ name: "consolidation", execute: consolidateReview }]);
+      await steps.run([{ name: "draft", execute: draftReport }]);
+      await steps.run([{ name: "editorial", execute: editReport }]);
+      await steps.run([{ name: "report", execute: acceptReport }]);
+      break;
   }
+  await steps.run([{ name: "decision", execute: decideReview }]);
+}
 
-  const execution = steps.result();
+/**
+ * Interpret accepted evidence and partial failures using review-specific policy.
+ */
+function finalizeReview({
+  input,
+  execution,
+}: {
+  input: ReviewContext;
+  execution: WorkflowSnapshot<ReviewResults>;
+}): ReviewResult {
   const stages = { ...execution.results };
   const status = execution.failures.length
     ? "incomplete"
@@ -145,13 +142,15 @@ async function executeWorkflow({
     };
   }
   return {
-    input,
+    input: input.review,
     status,
     stages,
+    report: stages.report?.markdown ?? stages.splitPlan?.markdown ?? null,
+    approval: stages.decision?.approval ?? null,
     failures: execution.failures.map(({ name, reason }) => ({
       stage: name,
       reason,
     })),
-    attempts,
+    attempts: input.attempts,
   };
 }
