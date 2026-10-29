@@ -55,7 +55,7 @@ export function setupReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "setup",
-    schema: ReviewEvidenceSchema.extend({
+    outputSchema: ReviewEvidenceSchema.extend({
       stage: z.literal("setup"),
       mode: z.enum(["full", "split"]),
       addedLines: z.number().int().nonnegative(),
@@ -88,7 +88,7 @@ export function researchReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "research",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("research") }),
+    outputSchema: ReviewEvidenceSchema.extend({ stage: z.literal("research") }),
     prompt: researchPrompt,
   });
 }
@@ -100,7 +100,9 @@ export function checkResearch(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "researchCheck",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("researchCheck") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("researchCheck"),
+    }),
     prompt: researchCheckPrompt,
   });
 }
@@ -112,7 +114,7 @@ export function assessProduct(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "product",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("product") }),
+    outputSchema: ReviewEvidenceSchema.extend({ stage: z.literal("product") }),
     prompt: [assessmentRules, productPrompt].join("\n\n"),
   });
 }
@@ -124,7 +126,9 @@ export function assessSystemFit(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "systemFit",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("systemFit") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("systemFit"),
+    }),
     prompt: [assessmentRules, systemFitPrompt].join("\n\n"),
   });
 }
@@ -136,7 +140,9 @@ export function assessSimplicity(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "simplicity",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("simplicity") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("simplicity"),
+    }),
     prompt: [assessmentRules, simplicityPrompt].join("\n\n"),
   });
 }
@@ -148,7 +154,9 @@ export function assessReadability(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "readability",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("readability") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("readability"),
+    }),
     prompt: [assessmentRules, readabilityPrompt].join("\n\n"),
   });
 }
@@ -160,7 +168,9 @@ export function assessCorrectness(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "correctness",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("correctness") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("correctness"),
+    }),
     prompt: [assessmentRules, correctnessPrompt].join("\n\n"),
   });
 }
@@ -176,7 +186,7 @@ export function checkRules(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "rules",
-    schema: ReviewEvidenceSchema.extend({
+    outputSchema: ReviewEvidenceSchema.extend({
       stage: z.literal("rules"),
       rules: z
         .array(
@@ -231,7 +241,9 @@ export function consolidateReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "consolidation",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("consolidation") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("consolidation"),
+    }),
     prompt: [reportingRules, consolidationPrompt].join("\n\n"),
   });
 }
@@ -243,7 +255,7 @@ export function draftReport(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "draft",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("draft") }),
+    outputSchema: ReviewEvidenceSchema.extend({ stage: z.literal("draft") }),
     prompt: [reportingRules, draftPrompt, reportTemplate].join("\n\n"),
   });
 }
@@ -256,7 +268,9 @@ export function editReport(args: ReviewStepInput) {
     ...args,
     results: { draft: args.results.draft },
     label: "editorial",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("editorial") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("editorial"),
+    }),
     prompt: [reportingRules, editorialPrompt, reportTemplate].join("\n\n"),
   });
 }
@@ -268,7 +282,7 @@ export function acceptReport(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "report",
-    schema: ReviewEvidenceSchema.extend({
+    outputSchema: ReviewEvidenceSchema.extend({
       stage: z.literal("report"),
       decisions: z
         .array(
@@ -321,7 +335,9 @@ export function planSplit(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "splitPlan",
-    schema: ReviewEvidenceSchema.extend({ stage: z.literal("splitPlan") }),
+    outputSchema: ReviewEvidenceSchema.extend({
+      stage: z.literal("splitPlan"),
+    }),
     prompt: splitPlanPrompt,
   });
 }
@@ -341,7 +357,7 @@ export function decideReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "decision",
-    schema: ReviewEvidenceSchema.extend({
+    outputSchema: ReviewEvidenceSchema.extend({
       stage: z.literal("decision"),
       findings: z.array(FindingSchema).max(0),
       approval: z.strictObject({
@@ -542,19 +558,19 @@ function reviewAgent<Result extends z.infer<typeof ReviewEvidenceSchema>>({
   input: { review: input, attempts, call },
   results,
   label,
-  schema,
+  outputSchema,
   prompt,
   validate,
 }: ReviewStepInput & {
   label: StageName;
-  schema: z.ZodType<Result>;
+  outputSchema: z.ZodType<Result>;
   prompt: string;
   validate?: (result: Result) => void;
 }): Promise<Result> {
   return callValidatedAgent({
     call: call ?? agent,
     label,
-    schema,
+    outputSchema,
     maxAttempts: MAX_ATTEMPTS,
     prompt: [
       sharedRules,

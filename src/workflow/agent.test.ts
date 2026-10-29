@@ -18,7 +18,7 @@ test("a rejected answer receives validation feedback before its fresh attempt", 
     },
     label: "count",
     prompt: "Count the items.",
-    schema: z.strictObject({ count: z.number() }),
+    outputSchema: z.strictObject({ count: z.number() }),
     maxAttempts: 2,
     validate: ({ count }) => {
       if (count <= 0) {
@@ -48,7 +48,7 @@ test("schema-invalid answers exhaust the exact retry budget", async () => {
       },
       label: "count",
       prompt: "Count the items.",
-      schema: z.strictObject({ count: z.number() }),
+      outputSchema: z.strictObject({ count: z.number() }),
       maxAttempts: 2,
       onAttemptFailed: ({ attempt }) => {
         attempts.push(attempt);
@@ -71,7 +71,7 @@ test("a diagnostic observer error propagates without another agent call", async 
       },
       label: "count",
       prompt: "Count the items.",
-      schema: z.number(),
+      outputSchema: z.number(),
       maxAttempts: 2,
       onAttemptFailed: () => {
         throw observerError;

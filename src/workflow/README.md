@@ -78,7 +78,7 @@ Snapshots copy only the result and failure containers. Tasks and observers must 
 
 ## Validated agent calls
 
-`callValidatedAgent` requires an explicit `call` function, a Zod schema and a positive integer `maxAttempts`. It converts the schema for the agent call, parses the returned answer and applies an optional domain check. Rejected calls, null answers and validation failures receive bounded retries with the previous failure added to the prompt. An optional `onAttemptFailed` callback records diagnostics; errors from that callback propagate without another call.
+`callValidatedAgent` requires an explicit `call` function, a Zod `outputSchema` and a positive integer `maxAttempts`. It converts the output schema for the agent call, parses the returned answer and applies an optional domain check. Rejected calls, null answers and validation failures receive bounded retries with the previous failure added to the prompt. An optional `onAttemptFailed` callback records diagnostics; errors from that callback propagate without another call.
 
 This standalone example supplies an in-memory call. In Pi, the review worker supplies `call: agent`; the helper has no default global agent dependency.
 
@@ -89,7 +89,7 @@ const answer = await callValidatedAgent({
   call: async () => ({ count: 3 }),
   label: "count",
   prompt: "Count the items.",
-  schema: z.strictObject({ count: z.number().positive() }),
+  outputSchema: z.strictObject({ count: z.number().positive() }),
   maxAttempts: 2,
 });
 console.log(answer.count); // 3

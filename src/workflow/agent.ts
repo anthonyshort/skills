@@ -5,8 +5,8 @@ import * as z from "zod";
 import { errorMessage } from "./run.js";
 
 /**
- * Call the supplied agent function with a JSON Schema, then parse and validate
- * its answer locally. Null, rejected calls and invalid answers consume one of
+ * Constrain the agent’s answer with outputSchema, then parse and validate it
+ * locally. Null, rejected calls and invalid answers consume one of
  * maxAttempts; the next call receives the previous failure as prompt feedback.
  *
  * maxAttempts must be a positive integer. Exhaustion throws after the last
@@ -17,7 +17,7 @@ export async function callValidatedAgent<Result>({
   call,
   label,
   prompt,
-  schema,
+  outputSchema,
   maxAttempts,
   validate,
   onAttemptFailed,
@@ -28,7 +28,7 @@ export async function callValidatedAgent<Result>({
   ) => Promise<unknown>;
   label: string;
   prompt: string;
-  schema: z.ZodType<Result>;
+  outputSchema: z.ZodType<Result>;
   maxAttempts: number;
   validate?: (result: Result) => void;
   onAttemptFailed?: (failure: { attempt: number; reason: string }) => void;
@@ -36,7 +36,7 @@ export async function callValidatedAgent<Result>({
   if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1) {
     throw new RangeError("maxAttempts must be a positive integer");
   }
-  const outputSchema = z.toJSONSchema(schema, { target: "draft-7" });
+  const jsonSchema = z.toJSONSchema(outputSchema, { target: "draft-7" });
   let feedback = "";
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -49,14 +49,14 @@ export async function callValidatedAgent<Result>({
         ]
           .filter(Boolean)
           .join("\n"),
-        { label: `${label}:${attempt}`, phase: label, schema: outputSchema },
+        { label: `${label}:${attempt}`, phase: label, schema: jsonSchema },
       );
       if (output === null) {
         throw new Error(
           "Agent failed, was skipped, or returned invalid structured output",
         );
       }
-      const result = schema.parse(output);
+      const result = outputSchema.parse(output);
       validate?.(result);
       return result;
     } catch (error) {
