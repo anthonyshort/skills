@@ -5,14 +5,14 @@
 import * as z from "zod";
 import { errorMessage } from "../workflow/run.js";
 import type { ProgressStatuses } from "./utils.js";
-import { InlineCommentSchema } from "./contracts.js";
+import { InlineCommentSchema } from "./schemas.js";
 import type {
   ReviewInput,
   ReviewRun,
   ReviewEvent,
   ReviewEventEmitter,
   StageSchemas,
-} from "./contracts.js";
+} from "./schemas.js";
 import {
   progressChecklist,
   reviewProgress,

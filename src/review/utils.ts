@@ -1,13 +1,13 @@
 /**
  * Derive review progress and render accepted evidence without retained UI state.
  */
-import { stageNames } from "./contracts.js";
+import { stageNames } from "./schemas.js";
 import type {
   ReviewEvent,
   ReviewRun,
   StageName,
   StageResults,
-} from "./contracts.js";
+} from "./schemas.js";
 import type { PublicationResult } from "./github.js";
 
 type ProgressStep = StageName | "publication" | "review";

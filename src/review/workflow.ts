@@ -6,7 +6,7 @@ import {
   WorkflowEvents,
   WorkflowTaskFailure,
 } from "../workflow/run.js";
-import { parseReviewInput } from "./contracts.js";
+import { parseReviewInput } from "./schemas.js";
 import type {
   ReviewInput,
   ReviewResults,
@@ -14,7 +14,7 @@ import type {
   ReviewEventEmitter,
   ReviewRun,
   ReviewOutput,
-} from "./contracts.js";
+} from "./schemas.js";
 import { createGithubComment } from "./github.js";
 import { createNotifications } from "./notifications.js";
 import { coverageMarkdown } from "./utils.js";

@@ -2,7 +2,7 @@
  * Own keyed host notifications and their delivery receipts for one review.
  */
 import * as z from "zod";
-import type { ReviewInput, ReviewEventEmitter } from "./contracts.js";
+import type { ReviewInput, ReviewEventEmitter } from "./schemas.js";
 import { errorMessage } from "../workflow/run.js";
 import { reviewEventProgress } from "./utils.js";
 

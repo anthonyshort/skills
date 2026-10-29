@@ -3,7 +3,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { RuleSchema } from "./contracts.js";
+import { RuleSchema } from "./schemas.js";
 import { validateAnswer, validateRuleCoverage } from "./validation.js";
 
 test("worker evidence must match the pinned revisions", () => {

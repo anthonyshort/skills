@@ -10,7 +10,7 @@ import type {
   StageResults,
   StageResult,
   ReviewInput,
-} from "./contracts.js";
+} from "./schemas.js";
 type Approval = z.infer<typeof ApprovalSchema>;
 type Decision = z.infer<typeof StageSchemas.decision>;
 type Setup = z.infer<typeof StageSchemas.setup>;

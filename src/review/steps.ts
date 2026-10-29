@@ -23,14 +23,14 @@ import sharedRules from "./prompts/common.md";
 import assessmentRules from "./prompts/assessment.md";
 import reportingRules from "./prompts/reporting.md";
 import reportTemplate from "../../skills/review/templates/review-report.md";
-import { StageSchemas } from "./contracts.js";
+import { StageSchemas } from "./schemas.js";
 import type {
   ReviewInput,
   ReviewResults,
   ReviewRun,
   StageName,
   StageResult,
-} from "./contracts.js";
+} from "./schemas.js";
 import {
   validateAnswer,
   validateSetup,

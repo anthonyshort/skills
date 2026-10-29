@@ -3,7 +3,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { StageResults } from "./contracts.js";
+import type { StageResults } from "./schemas.js";
 import { reviewEventProgress } from "./utils.js";
 
 const evidence = {
