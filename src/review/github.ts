@@ -1,16 +1,14 @@
 /**
- * Publish through the existing GitHub helper and retain its delivery receipts.
- * The coordinator owns progress timing and never retries a review for delivery.
+ * Own one live GitHub comment and publish accepted content through Picco tools.
+ * The workflow retains the comment ID; the plugin owns authentication and HTTP.
  */
 import * as z from "zod";
-import publicationInstructions from "./prompts/publication.md";
-import { PublicationResultSchema } from "./contracts.js";
+import { GithubCommentAnswerSchema } from "./contracts.js";
 import type {
-  GitHubRequest,
-  GitHubSendInput,
+  GithubCommentRequest,
   PublicationResult,
   ReviewInput,
-  SavedReview,
+  ReviewRun,
   GithubComment,
   ReviewEvent,
   ReviewEventEmitter,
@@ -18,48 +16,30 @@ import type {
 import {
   errorMessage,
   progressChecklist,
-  quote,
   reviewProgress,
   reviewEventProgress,
 } from "./utils.js";
 
 /**
- * Distinguish disabled GitHub output from publication still to do.
+ * Distinguish disabled publication from a result that has not arrived yet.
  */
 function initialPublication(input: ReviewInput): PublicationResult {
-  const enabled = githubEnabled(input);
-  let reason = "Publication has not finished";
-  if (!input.github) {
-    reason = "No pull request supplied";
-  } else if (!enabled) {
-    reason = `${input.publication} output requested`;
-  }
+  const enabled =
+    input.github && ["publish", "comment-only"].includes(input.publication);
   return {
     status: enabled ? "pending" : "skipped",
-    reason,
+    reason: !input.github
+      ? "No pull request supplied"
+      : enabled
+        ? "Publication has not finished"
+        : `${input.publication} output requested`,
     url: null,
-    approval: null,
-    statePath: enabled ? `${input.artifacts}/github.json` : null,
-    newerCommits: false,
   };
 }
 
 /**
- * Respect caller restrictions before scheduling a GitHub worker.
- */
-function githubEnabled(input: ReviewInput): boolean {
-  switch (input.publication) {
-    case "local-only":
-    case "staged":
-      return false;
-    default:
-      return Boolean(input.github);
-  }
-}
-
-/**
- * Own the live GitHub comment for one review invocation. Only the request
- * sequence lives in memory; github.json stores comment identity and recovery.
+ * Subscribe to review events. The comment ID stays in memory, and publication
+ * receives accepted Markdown and JSON directly rather than reading files.
  */
 export function createGithubComment({
   input,
@@ -68,196 +48,221 @@ export function createGithubComment({
   input: ReviewInput;
   events: ReviewEventEmitter;
 }): GithubComment {
+  const target = input.github;
+  const enabled =
+    target && ["publish", "comment-only"].includes(input.publication);
   let sequence = 0;
+  let commentId: string | undefined;
   let publication = initialPublication(input);
+  let creationFailure: PublicationResult | undefined;
 
   /**
-   * Own comment updates and final publication as a subscriber. The final receipt
-   * is emitted only after publication and any refusal update have completed.
+   * Events update the live comment; only accepted completion publishes a report.
    */
   async function onEvent(event: ReviewEvent): Promise<void> {
     switch (event.type) {
-      case "reviewSaved": {
-        publication = await publishToGithub({ saved: event.saved });
+      case "reviewCompleted": {
+        publication = await publishToGithub({ review: event.review });
         const finished: ReviewEvent = {
           type: "publicationFinished",
-          saved: event.saved,
+          review: event.review,
           publication,
         };
-        if (
-          event.saved.bundle.stages.setup &&
-          event.saved.bundle.status !== "incomplete" &&
-          publication.status === "rejected"
-        ) {
-          const progress = reviewEventProgress(finished);
-          if (progress) {
-            // A refused final report must not leave the live comment running.
-            await sendGitHub({
-              operation: "interrupt",
-              checklist: progressChecklist(progress.statuses),
-              reason: publication.reason,
-            });
-          }
-        }
         await events.emit(finished);
         return;
       }
       case "publicationFinished":
         return;
     }
-    if (!githubEnabled(input)) {
-      return;
-    }
-    let operation: GitHubRequest["operation"];
-    switch (event.type) {
-      case "stepStarted":
-      case "stepAccepted":
-        if (!event.snapshot.stages.setup) {
-          return;
-        }
-        operation = sequence === 0 ? "start" : "update";
-        break;
-      case "stepFailed":
-        if (!event.snapshot.stages.setup) {
-          return;
-        }
-        operation = "interrupt";
-        break;
-      case "runFailed":
-        if (!event.review.stages.setup) {
-          return;
-        }
-        operation = "interrupt";
-        break;
-    }
-    const progress = reviewEventProgress(event);
-    if (progress) {
-      await sendGitHub({
-        operation,
-        checklist: progressChecklist(progress.statuses),
-        reason: progress.reason,
-      });
-    }
+    await updateComment(event);
   }
 
   /**
-   * Publish accepted saved files and withhold incomplete reviews. The Node bridge
-   * independently validates files before publishing the final result.
+   * Keep later events on the same comment. An unknown create outcome disables
+   * further writes instead of risking another comment on the next event.
+   */
+  async function updateComment(event: ReviewEvent): Promise<void> {
+    if (!enabled || !target || creationFailure) {
+      return;
+    }
+    const progress = reviewEventProgress(event);
+    if (!progress) {
+      return;
+    }
+    const operation =
+      progress.status === "blocked"
+        ? "interrupt"
+        : commentId === undefined
+          ? "start"
+          : "update";
+    await sendComment({
+      operation,
+      body: progressBody(progressChecklist(progress.statuses), progress.reason),
+    });
+  }
+
+  /**
+   * Build the final comment from the accepted report and approval assessment.
    */
   async function publishToGithub({
-    saved,
+    review,
   }: {
-    saved: SavedReview;
+    review: ReviewRun;
   }): Promise<PublicationResult> {
-    const { bundle, result } = saved;
-    if (!bundle.stages.setup) {
+    if (!review.stages.setup) {
       return {
         ...initialPublication(input),
         status: "skipped",
-        reason: "Setup was not accepted; no external delivery started",
+        reason: "Setup was not accepted",
       };
     }
-    if (!githubEnabled(input)) {
+    if (!enabled || !target) {
       return initialPublication(input);
     }
-    switch (bundle.status) {
-      case "incomplete": {
-        const reason = bundle.failures
-          .map((failure) => `${failure.stage}: ${failure.reason}`)
-          .join("; ");
-        return {
-          ...initialPublication(input),
-          status: "rejected",
-          reason: `Final publication withheld because review is incomplete${reason ? `: ${reason}` : ""}`,
-        };
+    if (creationFailure) {
+      return creationFailure;
+    }
+    if (review.status === "incomplete") {
+      return {
+        ...initialPublication(input),
+        status: "rejected",
+        reason: "Final publication withheld because the review is incomplete",
+        url: commentUrl(),
+      };
+    }
+    const decision = review.stages.decision;
+    const report = review.stages.report ?? review.stages.splitPlan;
+    if (!decision || !report) {
+      throw new Error("Publication requires an accepted report and decision");
+    }
+    const checklist = progressChecklist({
+      ...reviewProgress({
+        stages: review.stages,
+        failures: review.failures,
+      }),
+      publication: "complete",
+    });
+    const approval = [
+      "### Approval assessment",
+      `${decision.approval.outcome}: ${decision.approval.reason}`,
+      ...Object.entries(decision.approval.checks ?? {}).map(
+        ([name, check]) => `- ${name}: ${check.result}. ${check.reason}`,
+      ),
+    ].join("\n");
+    const nextSteps = decision.approval.next_steps.length
+      ? `#### Next steps\n\n${decision.approval.next_steps.map((step) => `- ${step}`).join("\n")}`
+      : "";
+    return sendComment({
+      operation: "finish",
+      body: [
+        progressBody(checklist),
+        "### Result",
+        decision.summaryMarkdown,
+        nextSteps,
+        "<details>\n<summary>Full report</summary>\n",
+        report.markdown,
+        approval,
+        "</details>",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+  }
+
+  /**
+   * Give the agent the comment ID and exact body. Its configured GitHub tool
+   * owns authentication and HTTP; it returns actual IDs and outcomes.
+   */
+  async function sendComment({
+    operation,
+    body,
+  }: {
+    operation: "start" | "update" | "interrupt" | "finish";
+    body: string;
+  }): Promise<PublicationResult> {
+    if (!target) {
+      return initialPublication(input);
+    }
+    const request: GithubCommentRequest = {
+      repository: target.repository,
+      pullRequest: target.pr,
+      ...(commentId === undefined ? {} : { commentId }),
+      body,
+    };
+    try {
+      const answer = await agent(
+        [
+          "Call the Picco github_comment tool exactly once with the JSON below. Omit commentId to create a comment; when supplied, update that exact comment. Do not change the body.",
+          "Return the actual string commentId and error:null through StructuredOutput. If the tool is unavailable or fails, return commentId:null and the error. Do not emulate the tool with HTTP, shell commands or a Python helper. Do not retry an uncertain write.",
+          JSON.stringify(request),
+        ].join("\n"),
+        {
+          label: `github:${operation}:${++sequence}`,
+          phase: "Publication",
+          schema: z.toJSONSchema(GithubCommentAnswerSchema, {
+            target: "draft-7",
+          }),
+        },
+      );
+      const result = GithubCommentAnswerSchema.parse(answer);
+      if (!result.commentId || result.error) {
+        throw new Error(result.error ?? "GitHub tool returned no comment ID");
       }
-      case "complete":
-      case "split": {
-        if (!result.reportPath) {
-          throw new Error("Publication requires validated saved output");
-        }
-        const statuses = reviewProgress({
-          stages: bundle.stages,
-          failures: bundle.failures,
-          saved: true,
-        });
-        // The helper unchecks this final row until publication succeeds.
-        const checklist = progressChecklist({
-          ...statuses,
-          publication: "complete",
-        });
-        return sendGitHub({
-          operation: "finish",
-          checklist,
-          fingerprint: result.fingerprint,
-        });
+      if (commentId && result.commentId !== commentId) {
+        throw new Error(
+          "GitHub tool returned a different comment ID for an update",
+        );
       }
+      commentId = result.commentId;
+      return {
+        ...initialPublication(input),
+        status:
+          operation === "finish"
+            ? "confirmed"
+            : operation === "interrupt"
+              ? "rejected"
+              : "pending",
+        reason:
+          operation === "finish"
+            ? "GitHub confirmed the review comment"
+            : "GitHub comment updated",
+        url: commentUrl(),
+      };
+    } catch (error) {
+      const result: PublicationResult = {
+        ...initialPublication(input),
+        status: "uncertain",
+        url: commentUrl(),
+        reason: `GitHub outcome unknown: ${errorMessage(error)}. Inspect the PR before retrying.`,
+      };
+      if (commentId === undefined) {
+        creationFailure = result;
+      }
+      return result;
     }
   }
 
   /**
-   * Keep one helper state file and one receipt per scheduled worker. Unknown
-   * delivery is recorded once and recovered later through the existing helper.
+   * Keep the known live comment accessible even when final publication fails.
    */
-  async function sendGitHub({
-    operation,
-    checklist,
-    reason = "",
-    fingerprint = null,
-  }: GitHubSendInput): Promise<PublicationResult> {
-    const request: GitHubRequest = {
-      input,
-      operation,
-      id: `${input.invocationId}-${++sequence}`,
+  function commentUrl(): string | null {
+    return target && commentId !== undefined
+      ? `https://github.com/${target.repository}/pull/${target.pr}#issuecomment-${commentId}`
+      : null;
+  }
+
+  /**
+   * Identify the reviewed commit rather than implying later commits were checked.
+   */
+  function progressBody(checklist: string, reason = ""): string {
+    return [
+      `🤖 Review of [${input.head.slice(0, 12)}](https://github.com/${target?.repository}/commit/${input.head})`,
+      "### Review progress",
       checklist,
       reason,
-      fingerprint,
-    };
-    const command = [
-      "node",
-      "--import",
-      quote(input.tsxLoader),
-      quote(`${input.supportRoot}/github.ts`),
-      quote(JSON.stringify(request)),
-    ].join(" ");
-    let instructions = "Do not review source or change the assessment.";
-    switch (operation) {
-      case "finish":
-        instructions = publicationInstructions;
-        break;
-    }
-    try {
-      const answer = await agent(
-        [
-          "Execute this exact review delivery command once. Do not modify accepted files or publish through any other tool.",
-          instructions,
-          "Return the command's actual JSON result through StructuredOutput. If it fails or its outcome is unknown, report uncertain with the error and saved state path. Do not retry.",
-          `State path: ${input.artifacts}/github.json`,
-          `GitHub request: ${JSON.stringify(request)}`,
-          command,
-        ].join("\n"),
-        {
-          label: `github:${operation}:${sequence}`,
-          phase: "Publication",
-          schema: z.toJSONSchema(PublicationResultSchema, {
-            target: "draft-7",
-          }),
-          gate: `${command} --check`,
-        },
-      );
-      if (answer === null) {
-        throw new Error(
-          "GitHub worker failed or was skipped; delivery may have completed",
-        );
-      }
-      return PublicationResultSchema.parse(answer);
-    } catch (error) {
-      return {
-        ...initialPublication(input),
-        status: "uncertain",
-        reason: `${errorMessage(error)}. Inspect ${input.artifacts}/github.json before retrying publication.`,
-      };
-    }
+    ]
+      .filter(Boolean)
+      .join("\n\n");
   }
 
   events.subscribe(onEvent);

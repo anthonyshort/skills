@@ -4,7 +4,7 @@ Establish the pinned scope, review depth and initial risks. Read the full diff, 
 
 Check the PR description, changed files and line counts first. Confirm the base and head revisions cover the whole PR.
 
-Use the artefact directory supplied in the pinned inputs. Workers return results without writing files. The writer creates the directory and saves accepted results. Record access problems rather than silently choosing a different directory.
+Return the setup result through StructuredOutput without writing files.
 
 ## Choose the review depth
 
@@ -45,5 +45,4 @@ Return the initial assessment and questions in the setup result. The workflow pa
 ## This step is complete when:
 - [ ] There is a local copy of the code being reviewed.
 - [ ] Confirm the review scope.
-- [ ] An artefact directory is chosen outside source directories. The writer creates it when saving accepted results.
 - [ ] Diff size, distinct changes and initial risks are recorded.

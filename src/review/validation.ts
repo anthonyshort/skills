@@ -1,6 +1,6 @@
 /**
  * Pure review-policy checks: evidence, rule coverage, finding accounting and
- * approval consistency. Both the workflow and saved-file gate reuse these
+ * approval consistency. Named review steps select these
  * functions. They check consistency, not the truth of a model's evidence.
  */
 import type { z } from "zod";

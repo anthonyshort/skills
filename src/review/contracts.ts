@@ -1,6 +1,6 @@
 /**
- * Shared wire formats for review inputs, worker answers and saved results.
- * The Pi workflow and the filesystem validator parse the same Zod contracts.
+ * Shared wire formats for review inputs, worker answers and in-memory results.
+ * Schemas define the data returned by workers and the workflow.
  */
 import * as z from "zod";
 
@@ -19,67 +19,42 @@ const absolutePath = text.refine(
 const revision = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/);
 const identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
 
-export const ReviewInputSchema = z
-  .strictObject({
-    workflowEnabled: z.literal(true).default(true),
-    packageRoot: absolutePath,
-    repository: absolutePath,
-    target: text,
-    base: revision,
-    head: revision,
-    skillRoot: absolutePath,
-    supportRoot: absolutePath,
-    tsxLoader: absolutePath,
-    artifacts: absolutePath,
-    runId: identifier,
-    invocationId: identifier,
-    wrapperSkillRoots: z.array(absolutePath).max(20).default([]),
-    contextFiles: z.array(absolutePath).max(20).default([]),
-    github: z
-      .strictObject({
-        repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
-        pr: z.number().int().positive(),
-      })
-      .nullable()
-      .default(null),
-    publication: z
-      .enum(["publish", "local-only", "staged", "comment-only"])
-      .default("publish"),
-    notification: z
-      .strictObject({ messageKey: text.max(200) })
-      .nullable()
-      .default(null),
-  })
-  .superRefine((input, context) => {
-    for (const source of [
-      input.repository,
-      input.skillRoot,
-      input.supportRoot,
-    ]) {
-      const root = source.replace(/\/+$/, "");
-      if (input.artifacts === root || input.artifacts.startsWith(`${root}/`)) {
-        context.addIssue({
-          code: "custom",
-          path: ["artifacts"],
-          message:
-            "Artefacts must be outside source and workflow support directories",
-        });
-      }
-    }
-  });
+export const ReviewInputSchema = z.strictObject({
+  packageRoot: absolutePath,
+  repository: absolutePath,
+  target: text,
+  base: revision,
+  head: revision,
+  skillRoot: absolutePath,
+  runId: identifier,
+  wrapperSkillRoots: z.array(absolutePath).max(20).default([]),
+  contextFiles: z.array(absolutePath).max(20).default([]),
+  github: z
+    .strictObject({
+      repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
+      pr: z.number().int().positive(),
+    })
+    .nullable()
+    .default(null),
+  publication: z
+    .enum(["publish", "local-only", "comment-only"])
+    .default("publish"),
+  notification: z
+    .strictObject({ messageKey: text.max(200) })
+    .nullable()
+    .default(null),
+});
 export type ReviewInput = z.infer<typeof ReviewInputSchema>;
 
 /**
- * Resolves package-relative resource defaults and rejects unsafe output paths
- * before the workflow schedules its first worker.
+ * Resolve the review skill location and default notification key before
+ * scheduling the first worker.
  */
 export function parseReviewInput(value: unknown): ReviewInput {
   const roots = z
     .object({
       packageRoot: absolutePath,
       skillRoot: absolutePath.optional(),
-      supportRoot: absolutePath.optional(),
-      tsxLoader: absolutePath.optional(),
     })
     .parse(value);
   const supplied = z.record(z.string(), z.unknown()).parse(value);
@@ -90,10 +65,6 @@ export function parseReviewInput(value: unknown): ReviewInput {
         ? { messageKey: `review:${supplied.runId}` }
         : supplied.notification,
     skillRoot: roots.skillRoot ?? `${roots.packageRoot}/skills/review`,
-    supportRoot: roots.supportRoot ?? `${roots.packageRoot}/scripts/review`,
-    tsxLoader:
-      roots.tsxLoader ??
-      `${roots.packageRoot}/node_modules/tsx/dist/loader.mjs`,
   });
 }
 
@@ -340,39 +311,23 @@ export const NotificationSchema = z.strictObject({
   receipt: NotificationReceiptSchema,
 });
 export const ReviewStatusSchema = z.enum(["complete", "split", "incomplete"]);
-export const BundleSchema = z.strictObject({
-  version: z.literal(1),
+export const ReviewRunSchema = z.strictObject({
   input: ReviewInputSchema,
   status: ReviewStatusSchema,
   stages: StageResultsSchema,
   failures: z.array(FailureSchema).max(100),
   attempts: z.array(AttemptSchema).max(100),
-  notifications: z.array(NotificationSchema).max(1000),
 });
-export type Bundle = z.infer<typeof BundleSchema>;
-export const ReviewResultSchema = z.strictObject({
-  status: ReviewStatusSchema,
-  runId: identifier,
-  invocationId: identifier,
-  base: revision,
-  head: revision,
-  bundlePath: absolutePath,
-  reportPath: absolutePath.nullable(),
-  fingerprint: z.string().regex(/^[a-f0-9]{16}$/),
-  missingStages: z.array(StageNameSchema).max(20),
-  coverageGaps: z.array(FailureSchema).max(10_000),
-});
-export type ReviewResult = z.infer<typeof ReviewResultSchema>;
+export type ReviewRun = z.infer<typeof ReviewRunSchema>;
 
 /**
- * Review-specific response shapes for notification and saving workers.
+ * Review-specific response shape for notification workers.
  * Pi supplies StructuredOutput; these response fields belong to our workflow.
  */
 export const NotificationAnswerSchema = z.strictObject({
   broadcast: NotificationBroadcastSchema.nullable(),
   reason: z.string().min(1),
 });
-export const SavedArtifactsSchema = z.strictObject({ saved: z.literal(true) });
 
 // Pi's restricted VM has no URL global for Zod's URL validator.
 const githubUrl = z
@@ -383,54 +338,39 @@ export const PublicationResultSchema = z.strictObject({
   status: z.enum(["skipped", "pending", "confirmed", "uncertain", "rejected"]),
   reason: z.string().min(1),
   url: githubUrl.nullable(),
-  approval: z
-    .strictObject({
-      status: z.enum(["approved", "withheld"]),
-      reason: z.string(),
-      url: githubUrl.nullable(),
-    })
-    .nullable(),
-  statePath: z.string().nullable(),
-  newerCommits: z.boolean(),
 });
 export type PublicationResult = z.infer<typeof PublicationResultSchema>;
 
-export const GitHubRequestSchema = z.strictObject({
-  input: ReviewInputSchema,
-  operation: z.enum(["start", "update", "interrupt", "finish"]),
-  id: z.string().regex(/^[a-zA-Z0-9_-]+$/),
-  checklist: z.string().min(1),
-  reason: z.string(),
-  fingerprint: z
-    .string()
-    .regex(/^[a-f0-9]{16}$/)
-    .nullable(),
+export const GithubCommentRequestSchema = z.strictObject({
+  repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
+  pullRequest: z.number().int().positive(),
+  commentId: text.optional(),
+  body: text,
 });
-export type GitHubRequest = z.infer<typeof GitHubRequestSchema>;
+export type GithubCommentRequest = z.infer<typeof GithubCommentRequestSchema>;
+export const GithubCommentAnswerSchema = z.strictObject({
+  commentId: text.nullable(),
+  error: text.nullable(),
+});
 
 /**
- * Caller-visible review output, including delivery results collected after saving.
- * result.json keeps the smaller ReviewResultSchema accepted by the file gate.
+ * Return accepted evidence and the final report directly to the caller.
+ * Delivery outcomes are separate from the review's approval assessment.
  */
-export const ReviewOutputSchema = ReviewResultSchema.extend({
-  validationCommand: z.string(),
+export const ReviewOutputSchema = ReviewRunSchema.extend({
+  report: z.string().nullable(),
   notifications: z.array(NotificationSchema).max(1000),
-  failures: z.array(FailureSchema).max(100),
   approval: ApprovalSchema.nullable(),
   publication: PublicationResultSchema,
 });
 export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
 
 /**
- * Review stages share progress names with the assessment barrier, saving and
+ * Review stages share progress names with the assessment barrier and
  * delivery. Statuses reuse the review and publication outcomes where applicable.
  */
 export type ReviewStep = StageName | "assessments";
-export type ProgressStep =
-  | ReviewStep
-  | "save-artefacts"
-  | "publication"
-  | "review";
+export type ProgressStep = ReviewStep | "publication" | "review";
 export type ProgressStatus =
   | z.infer<typeof ReviewStatusSchema>
   | PublicationResult["status"]
@@ -444,8 +384,7 @@ export type ProgressStatus =
 export type ProgressStatuses = Partial<Record<ProgressStep, ProgressStatus>>;
 export type ReviewProgressInput = {
   stages: Readonly<StageResults>;
-  failures: readonly Bundle["failures"][number][];
-  saved: boolean;
+  failures: readonly ReviewRun["failures"][number][];
 };
 
 /**
@@ -453,7 +392,7 @@ export type ReviewProgressInput = {
  * tool or changed session scope. Review and GitHub state live elsewhere.
  */
 export type NotificationState = {
-  receipts: Bundle["notifications"];
+  receipts: z.infer<typeof NotificationSchema>[];
   enabled: boolean;
 };
 
@@ -464,7 +403,7 @@ export type NotificationState = {
 export type ReviewStepInput = {
   input: ReviewInput;
   context: StageResults;
-  attempts: Bundle["attempts"];
+  attempts: ReviewRun["attempts"];
 };
 
 /**
@@ -484,7 +423,7 @@ export type ReviewAgentInput<Result extends StageResult> = ReviewStepInput & {
  */
 export type ReviewSnapshot = {
   readonly stages: Readonly<StageResults>;
-  readonly failures: readonly Bundle["failures"][number][];
+  readonly failures: readonly ReviewRun["failures"][number][];
 };
 export type ReviewStepEvent = {
   readonly step: ReviewStep;
@@ -494,32 +433,19 @@ export type ReviewStepEvent = {
   | { readonly type: "stepAccepted" }
   | { readonly type: "stepFailed"; readonly reason: string }
 );
-/**
- * Saving returns the accepted persisted values and the gate that passed.
- */
-export type SavedReview = {
-  bundle: Bundle;
-  result: ReviewResult;
-  validationCommand: string;
-};
 export type ReviewEvent =
   | ReviewStepEvent
-  | { type: "reviewSaved"; saved: SavedReview }
+  | { type: "reviewCompleted"; review: ReviewRun }
   | {
       type: "publicationFinished";
-      saved: SavedReview;
+      review: ReviewRun;
       publication: PublicationResult;
-    }
-  | { type: "runFailed"; review: ReviewRun; reason: string };
+    };
 
 export type ReviewWorkflowInput = {
   input: ReviewInput;
   events: Pick<ReviewEventEmitter, "emit">;
 };
-export type ReviewRun = Pick<
-  Bundle,
-  "input" | "status" | "stages" | "attempts" | "failures"
->;
 export type ReviewStepTask<Result extends StageResult | void> = {
   step: ReviewStep;
   run: (args: ReviewStepInput) => Promise<Result>;
@@ -535,10 +461,6 @@ export type StepCoordinator = {
   readonly hasFailures: boolean;
   finish: () => ReviewRun;
 };
-export type ReviewFiles = {
-  save: (args: SaveReviewInput) => Promise<SavedReview>;
-};
-
 /**
  * A per-run emitter awaits every observer, including nested emissions.
  */
@@ -554,7 +476,7 @@ export type ReviewEventProgress = {
   reason: string;
 };
 export type ReviewNotifications = {
-  readonly receipts: Bundle["notifications"];
+  readonly receipts: z.infer<typeof NotificationSchema>[];
 };
 
 export type NotificationUpdateInput = {
@@ -568,26 +490,14 @@ export type NotificationUpdateInput = {
 
 /**
  * One GitHub comment owns its request sequencing and event operations. The
- * Python helper persists the actual comment identity and recovery state.
+ * workflow keeps its comment identity in memory for this run.
  */
 export type GithubComment = {
   readonly publication: PublicationResult;
-};
-
-export type GitHubSendInput = {
-  operation: GitHubRequest["operation"];
-  checklist: string;
-  reason?: string;
-  fingerprint?: string | null;
 };
 
 export type RequestHostNotificationInput = {
   input: ReviewInput;
   label: string;
   text: string;
-};
-
-export type SaveReviewInput = {
-  review: ReviewRun;
-  notifications: Bundle["notifications"];
 };

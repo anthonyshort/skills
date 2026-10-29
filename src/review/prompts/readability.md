@@ -19,4 +19,4 @@ Return a **readability assessment** containing:
 3. **Readability and style**: Identify code, comments or formatting that make the change harder to understand. Distinguish broken conventions from preferences.
 4. **Recommended changes**: Explain what each change would make clearer or simpler. For proposed extractions, name the operations and the complexity they remove. Support a no-improvements conclusion with concrete evidence.
 
-Include inspected files and bodies, individual check results and coverage gaps. The writer saves the accepted result as `readability.md` in the review artefact directory.
+Include inspected files and bodies, individual check results and coverage gaps. Return the assessment through StructuredOutput.

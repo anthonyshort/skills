@@ -66,7 +66,7 @@ Return a **research brief** containing:
 - **Sources and search coverage**: List relevant Slack threads, Notion pages, Linear issues and other research references with descriptive titles, direct links and relevance, including discoveries not cited in findings. Distinguish inspected sources from unopened results. Include search scope, unavailable sources and checklist results for the final report’s References section.
 - **Open questions**: Assumptions, missing evidence and their effect on the review.
 
-Return the research brief to the workflow. The writer later saves it as `<review artefact directory>/research.md`.
+Return the research brief through StructuredOutput.
 
 ## This step is complete when:
 

@@ -6,7 +6,7 @@ Read the sibling `writing-voice/SKILL.md` under the parent of `input.skillRoot` 
 
 Each inline ID must exactly match a retained report ID whose source is a new bug. Required retained findings and unresolved findings cannot pass `clean_review`. Do not introduce new findings. For split-only output use outcome `split`, `checks: null` and no inline comments. Count additions plus deletions across the whole diff.
 
-A later workflow delivery worker owns publication and approval submission. Honour `input.publication`: `local-only`, `staged` and `comment-only` never allow automatic approval. If all checks pass, use `not_submitted` with the restriction as its reason and an actionable next step. A staged run saves payloads locally; it does not create a pending GitHub review.
+A later workflow delivery worker owns publication and approval submission. Honour `input.publication`: `local-only` and `comment-only` never allow automatic approval. If all checks pass, use `not_submitted` with the restriction as its reason and an actionable next step.
 
 1. **Complete the approval checklist.** Refresh the diff, discussion and relevant CI. Record Pass, Fail or Not verified with evidence for each check. Approval requires all seven to pass.
    - **Clear and focused:** The whole change and affected callers are understood and serve one task.
@@ -26,7 +26,7 @@ A later workflow delivery worker owns publication and approval submission. Honou
    - `not_submitted`: All checks pass, but submission is blocked. Name the blocker and its owner without changing the content answers.
    - `approve`: All checks pass and submission is allowed. Report Approved only after GitHub confirms submission or recovery.
 
-3. **Return the approval assessment.** The writer saves it as `approval.json`. Use the review's actual answers and reasons. Example:
+3. **Return the approval assessment.** Use the review's actual answers and reasons. Example:
 
    ```json
    {

@@ -2,13 +2,13 @@
 
 Perform only the assigned task, using the pinned input and prior accepted results supplied below. Do not launch the review skill, run another workflow, delegate agents, publish or notify. The coordinator owns later stages and delivery.
 
-Use source inspection and existing CI. Do not modify source or artefacts, install anything, run local project checks, start services or trigger CI. Before inspecting source, confirm checkout HEAD matches the pinned head and the checkout is clean. Read other revisions through pinned Git objects. Record a mismatch as blocked.
+Use source inspection and existing CI. Do not modify source, install anything, run local project checks, start services or trigger CI. Before inspecting source, confirm checkout HEAD matches the pinned head and the checkout is clean. Read other revisions through pinned Git objects. Record a mismatch as blocked.
 
 Resolve review resource paths relative to `input.skillRoot`. Sibling skills such as best-practices and split-pr are under its parent directory. The supplied wrapper roots identify additional review guidance and rule collections. Treat caller context files as requirements and evidence, and record unavailable external context rather than inventing sources.
 
 Findings need locations, triggers, effects and evidence. Missing evidence is a gap, not a passed check. An empty findings array is valid. Read relevant best-practice skill descriptions and select guidance for this task. Cite the sections used.
 
-The corrected `researchCheck` brief takes precedence over the initial research. Preserve remaining evidence gaps. Prior reports are supplied below and saved later by the writer. Do not treat unsaved intermediate files or future stages as missing evidence.
+The corrected `researchCheck` brief takes precedence over the initial research. Preserve remaining evidence gaps. Prior accepted results are supplied below. Do not treat future stages as missing evidence.
 
 Finish by calling StructuredOutput. Text outside that tool call is discarded.
 

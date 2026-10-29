@@ -31,7 +31,7 @@ The `pi` manifest exports the skills and an opt-in review workflow. The ordinary
 
 The [workflow guide](workflows/README.md) explains installation and invocation of the named `review` workflow in an existing Pi session, its source files and test boundaries. The workflow owns required assessments, host notification updates and GitHub publication, and returns a validated report and decision. The original review skill remains unchanged.
 
-Workflow source is TypeScript under `src/review/`. Run `npm install`, then `npm run build` to rebuild the JavaScript required by pi-subagents; `npm test` checks the workflow and existing publication helper.
+Workflow source is TypeScript under `src/review/`. Run `npm install`, then `npm run build` to rebuild the JavaScript required by pi-subagents; `npm test` checks types, formatting, generated output and the small set of colocated unit tests.
 
 ## Communication style
 

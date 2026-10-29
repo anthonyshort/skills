@@ -1,12 +1,10 @@
 # Review workflow
 
-This Pi package provides the experimental named `review` workflow for pi-subagents 0.22.0. Invoke it through `SubagentWorkflow` in an existing Pi session. It schedules the required review steps, validates saved results and owns progress and publication. The calling agent returns its result without publishing again.
+This Pi package provides the experimental named `review` workflow for pi-subagents 0.22.0. Invoke it through `SubagentWorkflow` in an existing Pi session. It runs the required review steps and returns the accepted report, approval assessment and partial evidence in memory. Event subscribers handle GitHub comments and host notifications.
 
-Workflow-specific instructions live in `src/review/prompts/`. The workflow reuses the existing review skill’s rules, report templates and GitHub helper. The ordinary review skill stays unchanged; there is no copied skill or separate launcher skill.
+Workflow instructions live in `src/review/prompts/`. The workflow reuses the original review skill’s rules and report templates. The original skills stay unchanged; there is no copied skill or separate launcher.
 
 ## Install and run
-
-From this checkout:
 
 ```sh
 npm install
@@ -14,7 +12,7 @@ pi install npm:@tintinweb/pi-subagents@0.22.0
 pi install /absolute/path/to/skills
 ```
 
-Enable package workflow discovery in pi-subagents and reload Pi. Invoke `SubagentWorkflow` with `name: "review"`:
+Enable package workflow discovery in pi-subagents and reload Pi. Invoke `SubagentWorkflow` with:
 
 ```json
 {
@@ -25,9 +23,7 @@ Enable package workflow discovery in pi-subagents and reload Pi. Invoke `Subagen
     "target": "owner/app PR #42",
     "base": "BASE_SHA",
     "head": "HEAD_SHA",
-    "artifacts": "/tmp/app-review",
     "runId": "app-pr42-review",
-    "invocationId": "app-pr42-review-attempt-1",
     "github": { "repository": "owner/app", "pr": 42 },
     "publication": "publish",
     "notification": { "messageKey": "app-pr42-review" }
@@ -35,74 +31,34 @@ Enable package workflow discovery in pi-subagents and reload Pi. Invoke `Subagen
 }
 ```
 
-Replace the comparison with full base and head commit IDs covering the whole PR. Use a clean checkout at that head, an output directory outside source directories and a fresh `invocationId` on every launch so cached workers cannot bypass file checks. Keep the `runId`, notification key and GitHub state for the same review run. For a branch or diff without a PR, omit `github` or set it to `null`. Host updates default to the message key `review:RUN_ID`; pass `notification: null` to disable them. The host chooses recipients, so an unavailable notification tool records a rejected attempt and disables later host sends.
+Use full base and head commit IDs covering the whole PR and a clean checkout at that head. Use a fresh Pi workflow execution for each review. `runId` identifies the review and supplies the default notification key, `review:RUN_ID`; it does not control Pi’s worker caching or resume behaviour.
 
-Optional `contextFiles` supply absolute paths to requirements. `wrapperSkillRoots` adds wrapper guidance and rule indexes without changing ordinary wrapper skills. Resource paths default to the original `skills/review` rules/helper directory, workflow gate scripts and installed `tsx` loader.
+For a branch or diff without a PR, omit `github` or set it to `null`. Pass `notification: null` to disable host updates. If omitted, notifications use the default key. Optional `contextFiles` supply absolute paths to requirements. `wrapperSkillRoots` adds wrapper guidance and rule indexes. `skillRoot` defaults to `PACKAGE_ROOT/skills/review`.
 
-| Publication mode | GitHub | Host notifications, including Telegram |
-| --- | --- | --- |
-| `publish` (default) | Progress and final results; approval only when eligible and confirmed | Enabled when configured |
-| `comment-only` | Progress and final comments, including supported inline bugs; no approval submission | Enabled when configured |
-| `local-only` | No external operations | Suppressed |
-| `staged` | Local publication files only | Suppressed |
+`publication: "local-only"` suppresses both GitHub and host notifications and returns the review to the caller. `comment-only` allows comments and notifications but forbids automatic approval. `publish` allows publication, subject to the approval policy and the configured tool capabilities.
 
-The unchanged GitHub helper has no staging command. `staged` saves payloads without creating a pending GitHub review. A request for pending-only output must retain that limitation rather than silently publishing.
+Currently the GitHub subscriber integrates only `github_comment`. Inline comments and actual review submission await the separate Picco plugin’s tool contracts. An `approve` assessment is a recommendation, not confirmation that approval was submitted.
 
-## Required work and acceptance boundaries
+## Required work and validation
 
-The full route is setup → research → research check → five assessments → rules → consolidation → draft → editorial reduction → accepted report → decision → validated saving → publication. The split-only route is setup → split plan → decision → validated saving → publication.
+The full route is setup → research → research check → five parallel assessments → sequential rules → consolidation → draft → editorial reduction → report acceptance → approval assessment. Oversized changes take the shorter setup → split plan → approval assessment route.
 
-| Required work | Responsible stage and accepted output | What code enforces |
-| --- | --- | --- |
-| Full comparison, initial risks and size policy | Setup records scope, revisions, rule inventory and full/split route | Pinned revisions, size-exception requirement and route selection |
-| Fresh research or justified reuse | Research returns sourced context, checklist and gaps | Required structured result; source investigation remains instructed |
-| Validate research before assessments | `researchCheck` checks claims and returns the corrected brief | Acceptance before the five assessments; corrected brief supplied to workers |
-| Product, system fit, simplicity, readability and correctness | Five separate assessments with concrete checks, evidence and exclusions | All five required; barrier prevents downstream work when one is missing |
-| One sequential pass over every indexed rule | Rules worker returns selected/skipped rows and evidence | Inventory coverage and distinct rule results; reading order remains instructed |
-| Independent claims, duplicates and disagreements | Consolidation returns accepted findings and unresolved gaps | Finding identity and accounting; independent source checking remains instructed |
-| Report, editorial reduction and restoration | Draft, editorial and report acceptance return the canonical report | Coverage and finding provenance; report format and prose judgement remain instructed |
-| Seven approval checks and outcome policy | Decision returns approval assessment and publication material | Outcome consistency, required findings and inline provenance |
-| Real saved files matching accepted data | Writer saves files; Node gate validates them | Actual disk content, rule indexes, Git state and result identity |
-| Progress and final publication | Delivery workers invoke host tools and the existing helper | Publication after saving; separate delivery and submission results |
+Each named step shows its prompt, result schema and any specific validation beside the agent call. `reviewAgent` adds common rules and pinned context, parses the result and runs the selected checks. An invalid result gets one fresh retry, at most two attempts total. Exhaustion stops dependent work and preserves accepted partial results, including successful parallel siblings.
 
-Each invalid review stage gets one fresh retry. Exhaustion stops dependent stages and preserves accepted partial results, including successful parallel siblings. Missing evidence remains a gap. Structural validation does not prove model judgement or the truth of source claims.
+Code enforces:
 
-## Progress and publication
+- Structured answers pinned to the requested base and head, evidence for verified checks and unique finding IDs.
+- A documented exception for oversized full reviews and unique setup rule paths.
+- All five required assessments before rules or reporting.
+- Exactly one accounted result for each rule in setup’s inventory, including explicitly skipped rules.
+- Explicit accounting for earlier findings in the accepted report.
+- Consistent approval outcomes and inline-comment provenance from accepted bug findings.
 
-Publishing means posting the final review to GitHub, including supported inline comments and permitted approval. Notifications are host updates, delivered through Telegram when that channel is configured. The host can support other configured channels too. GitHub’s live progress comment is separate from final report publication; its updates and host notifications subscribe to the same awaited event emitter.
+Workers inspect the actual checkout, diff, rule indexes, sources and CI under their instructions. Code checks the consistency of their answers; it does not independently inspect Git or the filesystem, prove their evidence true or establish that every instructed source investigation occurred. Missing evidence remains a recorded gap. Template headings are not validated.
 
-Progress begins after setup accepts the pinned comparison and full/split route. GitHub uses one helper state file, `github.json`, in the artefact directory. Updates are serial, keep provisional findings private and distinguish completed work from passing checks. Interrupted reviews update progress where possible. A failed destination does not rerun review stages or stop the other destination from being attempted.
+## Events and delivery
 
-Host updates use the actual keyed broadcast API:
-
-```js
-notify({ action: "send", messageKey: "app-pr42-review", text: "…" });
-```
-
-The authenticated host selects channels such as Telegram. There is no caller-supplied destination or event key. Repeated sends edit the same message only within the same host scope and message key. The host bridge must preserve that scope; a new host session is not interchangeable. If receipts show a changed scope, the workflow disables further host updates to avoid creating more messages. A missing host tool also disables later attempts. A native Pi session without the bridge records unavailable delivery as rejected. The workflow does not emulate a missing tool with HTTP or shell commands. Receipts preserve the broadcast scope and per-channel delivery results.
-
-Final GitHub publication runs only after the saved-file gate passes. A small Node bridge revalidates the accepted files immediately before invoking the existing `skills/review/scripts/github_progress.py` helper. The helper owns GitHub calls, frozen publication inputs, recovery and confirmed submission. The workflow does not implement a second publisher. Its publication worker refreshes current discussion and CI and rejects stale assessments; the helper flags newer commits and withholds unsafe submission. Delivery is outside the review-stage retry loop. Inspect the existing helper state before recovering an uncertain publication.
-
-The writer saves `bundle.json`, stage Markdown, `review-report.md`, `approval.json`, `summary.md`, `inline.json` and `result.json`. Incomplete reviews also save `incomplete.md`. Writer validation failure stops final publication. A saved complete review can still require fixes, withhold approval or have incomplete delivery.
-
-The workflow return includes validated file paths, the approval assessment, publication result, confirmed URLs and notification diagnostics. The approval assessment describes the recommendation; `publication.approval` describes actual submission or withholding. Report approval as submitted only after confirmation. The immutable bundle captures notifications received before saving; later receipts are returned by the workflow. GitHub recovery state remains in `github.json`, without rewriting the accepted bundle after each update.
-
-## Read the code
-
-Start at `src/review/workflow.ts` to follow the sequence and its failure boundaries.
-
-| File | Responsibility |
-| --- | --- |
-| `workflow.ts` | Metadata, subscriber composition, explicit sequence, step coordinator, file owner, named prompts and agent wrapper |
-| `contracts.ts` | Shared schemas and types for inputs, answers, lifecycle events, saved data and delivery results |
-| `validation.ts` | Pure evidence, rule coverage, finding-accounting and approval-policy checks |
-| `github.ts` | Self-subscribing GitHub comment, live updates and private `publishToGithub` through the existing helper |
-| `utils.ts` | Typed awaited emitter, self-subscribing notifications, shared progress rendering, text and checksums |
-| `pi-workflow.d.ts` | Declarations for Pi’s official script globals, without an implementation |
-
-`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. Other functions are our review code. Start with `runReviewWorkflow`, the outer coordinator, then `executeWorkflow` to read the full/split sequence.
-
-The review sequence passes explicit named functions to its step coordinator:
+The outer coordinator creates one awaited `ReviewEvents` instance and passes it to notifications, the GitHub comment and review execution. Destinations subscribe themselves. The review sequence calls named steps through the step coordinator, which owns accepted evidence, attempts and failures.
 
 ```ts
 await steps.runStep({ step: "consolidation", run: consolidateReview });
@@ -111,83 +67,72 @@ await steps.runStep({ step: "editorial", run: editReport });
 await steps.runStep({ step: "report", run: acceptReport });
 ```
 
-`runStep` emits `stepStarted`, calls the supplied function, accepts its validated answer and emits `stepAccepted`. A task failure is recorded before `stepFailed` is emitted and dependent work stops. Events include a read-only snapshot of accepted stages and failures. Event emission awaits subscribers outside agent retries, so the next review step starts only after observers finish. The assessment barrier emits one lifecycle around all five workers, preserving successful siblings before reporting a missing assessment.
+`runStep` emits `stepStarted`, runs and accepts the validated result, then emits `stepAccepted`. A task failure is recorded before `stepFailed`, and dependent work stops. The five assessments share one lifecycle around their parallel barrier. Events carry snapshots of accepted evidence rather than another mutable progress state.
 
-`executeWorkflow` shows the full/split sequence of named operations. Its `createStepCoordinator({ input, events })` object owns accepted evidence, attempts, failures and the assessment barrier. `runStep` wraps a supplied function in lifecycle events, `runAssessments` executes the fixed five-worker barrier and `finish` returns final or partial evidence. The sequence does not manually assign results or update progress. Unexpected observer errors propagate when no task failure was recorded. The outer coordinator creates one `ReviewEvents` instance and passes it into the GitHub comment, notifications and review workflow. Each destination subscribes itself. There is no central routing function or public publication command.
+After execution returns, `reviewCompleted` passes the review directly to the GitHub subscriber. That subscriber publishes the final comment and emits `publicationFinished`. Notifications send their final update on that event, after the GitHub outcome is known. Subscribers run sequentially, and nested emissions finish before their parent emission continues. Delivery failures do not retry review steps.
 
-After execution returns, the outer coordinator calls the file object’s `save` method. `createReviewFiles({ events })` owns the write/gate operation and emits `reviewSaved` only after validated saving. The GitHub subscriber privately publishes and emits `publicationFinished` with the actual outcome. Notifications ignore `reviewSaved` and send their final message on `publicationFinished`, so they do not depend on being registered after GitHub. The coordinator deliberately registers notifications first to exercise that boundary. The file object emits `runFailed` for writer or gate errors before rethrowing them. Its success emission sits outside that catch, so a publication subscriber error cannot be mislabelled as a saving failure.
+Progress starts only after setup accepts the comparison and full/split route. Pi’s optional `phase()` groups workers for display; it is not workflow state. There is no separate milestone model.
 
-`ReviewEvents` exposes only typed `subscribe` and awaited `emit`. Subscribers run sequentially; nested emissions finish before their parent continues. It has no queue, reducer, generator or external library. Delivery helpers record transport failures without retrying reviewer work. There are no intermediate saving/publication updates or parallel progress wrappers.
+### GitHub comments
 
-Each named review function shows its direct Markdown imports, worker label, schema and any step-specific validation callback. `reviewAgent` prepends shared Markdown rules and explicit context, pins revisions in the supplied schema, parses the answer, runs common answer checks and invokes the supplied step-specific validator. Invalid answers get at most two fresh attempts. It does not receive a phase, choose tasks, update progress or accept evidence. Labels identify Pi workers and retry diagnostics. Step, wrapper and delivery calls use object parameters.
+The separately installed Picco plugin supplies:
 
-A review step is the domain concept. Pi’s `phase()` is only display grouping, selected by a small UI subscriber on `stepStarted`. The five assessments share the `assessments` group. Notification and GitHub workers use their own explicit display groups without changing the ambient review group. Groups appear as steps start; metadata keeps no second list of future steps. There is no separate milestone state or phase passed through the review agent wrapper.
+```ts
+github_comment({
+  repository: "owner/repo",
+  pullRequest: 42,
+  body: "Review starting",
+});
+// Returns { commentId: "123" }
 
-Both destinations use the same pure progress renderer, derived from each event’s accepted evidence and failures. The file object constructs the persisted bundle and file-location metadata internally, validates the actual files and returns `SavedReview` after its awaited success event finishes. Accepted setup determines when external delivery may start. The coordinator does not accumulate another accepted-results object, stored progress map or delivery-started flag. Compound stage identifiers remain camelCase, including `researchCheck`, `systemFit` and `splitPlan`.
+github_comment({
+  repository: "owner/repo",
+  pullRequest: 42,
+  commentId: "123",
+  body: "Updated progress or final report",
+});
+```
 
-`createGithubComment({ input, events })` subscribes internally and owns its request counter and final publication outcome. `publishToGithub` is private; callers can read only `githubComment.publication`. The original helper’s `github.json` holds actual comment identity and recovery data, so the object does not duplicate persisted state. A refused final report closes live progress before `publicationFinished`, without replacing the original refusal. Successful publication needs no later GitHub update. For an incomplete review, `stepFailed` already attempts interruption, so publication is withheld without repeating it; `rejected` describes withholding rather than confirmation of interruption delivery.
+`github.ts` keeps the returned string ID in memory. It gives a tool-equipped agent the exact body and arguments for each update. The plugin owns authentication and HTTP. The workflow has no HTTP client, Python bridge, saved payloads or persistent GitHub state file.
 
-`createNotifications({ input, events })` owns host receipts and the latch that stops sends after an unavailable tool or changed session scope. It exposes receipts for the saved bundle and caller. There is no combined `DeliveryState`. Review completion and delivery success remain separate, so a validated saved review can report rejected or uncertain publication. If a final receipt is unknown, its URL may be absent even when an earlier progress comment exists; the reason points to saved `github.json` for inspection.
+The final comment contains the summary, accepted report and approval assessment. Incomplete reviews withhold final publication and retain the interruption update. If comment creation has an uncertain outcome, later writes are disabled to avoid creating duplicates. Comment identity lasts for this workflow execution; a fresh execution can create a new comment. There is no cross-run recovery subsystem or continuation-comment splitting. Oversized bodies depend on the plugin’s handling and may fail delivery without losing the returned report.
 
-### Edit worker instructions
+### Host notifications
 
-Edit the named Markdown file under `src/review/prompts/`, such as `research.md`. `common.md` contains shared rules, `assessment.md` contains shared assessment guidance and `reporting.md` contains shared report guidance. Each named function imports its task directly, adding the shared guidance and fixed templates it needs. The original review skill stays unchanged.
+A tool-equipped worker calls the host’s keyed broadcast API:
 
-The build embeds these files using esbuild’s text loader. Run `npm run build` after editing prompts or templates; `npm run build:check` detects stale embedded text. Workers receive the instructions in their prompt and do not need to open Markdown heading links at runtime. Repository rules, specialist skills, wrapper guidance and caller-supplied context remain runtime evidence for workers to inspect.
+```ts
+notify({ action: "send", messageKey: "app-pr42-review", text: "…" });
+```
 
-### Why a worker saves review files
+The authenticated host chooses channels, including Telegram when configured. Repeated sends edit the same message within the same host scope and message key. An unavailable tool or changed scope disables further host sends. The workflow records actual broadcast receipts and does not emulate missing tools through shell or HTTP calls.
 
-Saved files are an inspectable review output and the handoff to the existing GitHub publisher, which reads the report, approval, summary and inline-comment files. In `local-only` mode, the saved report is the primary output. The bundle preserves accepted evidence and partial results; the gate checks that the files contain those exact accepted values. Saving is part of this workflow’s output contract, not a requirement imposed by Pi’s review execution.
+## Returned output
 
-Pi’s workflow VM cannot call Node’s filesystem APIs or run shell commands directly. The file object’s private `writeReviewFiles` prepares the bundle and result metadata, then asks a tool-equipped worker to copy those exact values to disk. It does not ask for another review. Its command gate checks the actual files before returning their locations or allowing publication. The workflow does not retry this worker because a failed response can follow completed filesystem work. A saving failure emits one final failure event, which attempts a GitHub interruption and host notification before the original error is rethrown.
+The caller receives `input`, review `status`, accepted `stages`, failed `attempts`, `failures`, the final `report` Markdown or `null`, the `approval` assessment or `null`, the GitHub `publication` outcome and notification receipts. An incomplete review can still contain useful accepted evidence. Review completion and delivery success are separate outcomes.
 
-The saved files are:
+The workflow writes no report files. A caller that needs a saved report can save the returned Markdown. There is no file-writing agent, bundle, fingerprint, filesystem gate or generated publication payload directory.
 
-| File | Contents |
+## Read and edit the code
+
+| File | Responsibility |
 | --- | --- |
-| `bundle.json` | Pinned inputs, accepted stage answers, failures, retry records and notification receipts collected before saving |
-| `<stage>.md` | Each accepted stage’s readable Markdown, such as `researchCheck.md` |
-| `review-report.md` | The accepted final report, or split plan for a split-only review |
-| `incomplete.md` | The explanation when required reviewer work could not finish |
-| `approval.json`, `summary.md`, `inline.json` | Accepted decision and publication payloads, when a decision exists |
-| `result.json` | Review outcome, validated file locations and integrity fingerprint |
+| `src/review/workflow.ts` | Official metadata, outer coordinator, visible review order, step coordinator, named prompts and retry wrapper |
+| `src/review/contracts.ts` | Zod schemas and inferred types for inputs, answers, events and returned results |
+| `src/review/validation.ts` | Evidence, rule coverage, finding accounting and approval checks selected by named steps |
+| `src/review/github.ts` | Self-subscribing GitHub comment and private final publication through Picco tools |
+| `src/review/utils.ts` | Awaited events, notifications, shared progress rendering and report coverage text |
+| `src/review/pi-workflow.d.ts` | Declarations of the official Pi globals used here |
+| `scripts/build/workflow.ts` | Compile TypeScript and embed Markdown into the JavaScript Pi loads |
 
-“Bundle” means the accepted review data, while “artefacts” means these saved files. The workflow returns the validated report path and decision, then separate publication and notification results. A deterministic writer would need a host tool or extension API; no new host integration is introduced here.
+`agent()`, `parallel()`, `phase()` and launch `args` come from pi-subagents. All other functions are our review code. No changes to pi-subagents are required.
 
-### What validation does
+Edit the named Markdown prompt imported by each step. `common.md` contains shared rules, `assessment.md` shared assessment guidance and `reporting.md` shared report guidance. Original report templates are embedded directly. Rule files, specialist skills, wrapper guidance and caller context remain runtime evidence for workers to inspect.
 
-Pi supplies the structured-output and shell-gate mechanisms. The checks we put inside them are review-specific:
+Run `npm run build` after source or prompt changes. `workflows/review.js` is generated JavaScript required by Pi’s restricted workflow VM; it is separate from the removed saved review bundle.
 
-| Checks | Why they exist | Where they run |
-| --- | --- | --- |
-| Schemas | Require fields, known outcomes and bounded collections | Pi’s structured-output contract and `contracts.ts` parsing |
-| Common answers | Require pinned revisions, evidence for verified checks and unique finding IDs | `validateAnswer` in the agent wrapper |
-| Step-specific policy | Reject missing rule coverage, lost findings or approval that contradicts required fixes | Explicit validation callback beside each named step’s prompt and schema |
-| Saved files | Confirm files match accepted answers, pinned Git state and actual rule indexes | `scripts/review/validate-bundle.ts`, after saving and before publication |
-| Publication receipts | Confirm the helper’s state matches the operation and approval being reported | `scripts/review/github.ts` |
+## Checks and limits
 
-Setup selects `validateSetup`, the rule pass selects `validateRuleCoverage`, report acceptance selects `validateFindingDecisions` and the decision selects `validateApproval`. These functions take typed step outputs and explicit dependencies; rule coverage receives only returned rules and expected paths. The agent wrapper does not inspect stage names to choose checks. The callbacks run inside the existing retry boundary.
+`npm test` runs TypeScript checking, oxfmt, generated-output freshness and three colocated unit tests. `validation.test.ts` covers an omitted rule and an explicitly skipped rule. `utils.test.ts` checks that nested awaited events finish before execution continues. These are small unit boundaries without a simulated Pi runtime or delivery fixtures.
 
-The pure function bodies stay in `validation.ts` so the Node saved-file gate can reuse them without importing Pi or Markdown prompts. The gate narrows saved answers by their stage before calling those same functions. Markdown headings and template placeholders are left to the worker instructions; they are not mechanically validated. Shape checks do not establish that evidence is true, and policy checks do not prove the model followed every instruction. These checks go beyond merely requiring stages to run; they preserve the agreed report, finding and approval guarantees.
-
-The restricted workflow VM cannot access Node or the filesystem. `scripts/review/validate-bundle.ts` owns the Node-only filesystem and Git checks; `scripts/review/github.ts` bridges helper operations. `workflow.ts` owns the literal `meta` declaration. `scripts/build/workflow.ts` copies it into the generated header and bundles authored TypeScript into `workflows/review.js`. Edit TypeScript and run `npm run format` (oxfmt), then `npm run build`; prompt and template changes also require a rebuild. `format:check` and `build:check` reject stale formatting or generated output. Authored `if` statements always use braces; use `switch` for branches over stages or outcomes.
-
-## Verification limits
-
-Run `npm test` for deterministic checks. The test boundaries are:
-
-| Suite | Real behaviour | Simulated boundary |
-| --- | --- | --- |
-| `tests/review-workflow.test.ts` | Generated script in pi-subagents, stage ordering, saving, GitHub command bridge and command gates | Worker answers, host notifications and Python/gh subprocess responses |
-| `tests/review-publication.test.ts` | Saved-file checks, publication restrictions and helper receipt validation | Python/gh subprocess responses |
-| `tests/review-bundle.test.ts` | Temporary committed repositories, copied rule indexes and damaged disk files | Accepted worker evidence |
-| `tests/review-stages.test.ts` | Pure stage and approval guards, resource defaults | Explicit assessment inputs |
-| `skills/review/scripts/test_github_progress.py` | Existing helper publication and recovery mechanics | GitHub API responses |
-
-These checks do not prove model judgement or actual remote delivery. Fixture JSDoc explains what each substitute can establish.
-
-Before this orchestration refactor, a local-only Pi run on 28 October 2026 completed all 14 review stages and the writer without retries. The known addition defect survived consolidation, editorial reduction and report acceptance. Its decision was `changes_needed`, and its saved files passed the Node gate. Artefacts and transcripts remain under `/tmp/review-workflow-live-j7dsm3fi`.
-
-The generated-runtime and saved-file suites check the refactored orchestration; there has been no new model run of the flattened code. Real notification and GitHub delivery remain deliberately unverified, as agreed. The older live run described in the handoff predates the reduced implementation and does not validate this version.
-
-Source restrictions remain prompt-enforced, and the checksum detects accidental writer changes rather than malicious edits.
+The current implementation has no new live Pi or real delivery validation. An older live model run predates these refactors and does not validate this implementation. GitHub tool availability, inline/review submission integration and end-to-end model behaviour remain unverified.

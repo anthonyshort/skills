@@ -34,4 +34,4 @@ Return one **rule assessment** with a row for every rule:
 - **Finding**: The problem, effect and recommended change, if supported.
 - **Limits**: Missing information or behaviour that could not be verified.
 
-Return the assessment. The workflow checks it against the supplied indexes for missing rules. Consolidation checks weak evidence and merges duplicate findings. The writer saves the accepted rule assessment, and the final report includes the results.
+Return the assessment. The workflow checks it against the supplied indexes for missing rules. Consolidation checks weak evidence and merges duplicate findings. The final report includes the accepted rule results.

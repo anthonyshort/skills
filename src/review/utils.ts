@@ -1,6 +1,6 @@
 /**
- * Text, quoting and host notification helpers shared by the review. Tool calls
- * occur only inside functions so Node commands can import the text utilities.
+ * Text, progress and host notification helpers shared by the review.
+ * Tool calls occur only inside functions.
  */
 import * as z from "zod";
 import {
@@ -77,7 +77,7 @@ export function createNotifications({
 }
 
 /**
- * Render a shared progress view without delivery or retained state. reviewSaved requests publication;
+ * Render a shared progress view without delivery or retained state. reviewCompleted requests publication;
  * only publicationFinished has the outcome needed for a final notification.
  */
 export function reviewEventProgress(
@@ -89,7 +89,7 @@ export function reviewEventProgress(
   let reason = "";
 
   switch (event.type) {
-    case "reviewSaved":
+    case "reviewCompleted":
       return;
     case "stepStarted":
       snapshot = event.snapshot;
@@ -107,28 +107,17 @@ export function reviewEventProgress(
       status = "blocked";
       reason = event.reason;
       break;
-    case "runFailed":
-      snapshot = event.review;
-      stage = "review";
-      status = "incomplete";
-      reason = `Saving review files failed: ${event.reason}`;
-      break;
     case "publicationFinished": {
-      const { bundle, result } = event.saved;
+      const { review } = event;
       const { publication } = event;
-      snapshot = bundle;
+      snapshot = review;
       stage = "review";
-      status = bundle.status;
+      status = review.status;
       reason = [
-        `Assessment: ${bundle.stages.decision?.approval.outcome ?? "incomplete"}`,
-        ...bundle.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
-        `Report: ${result.reportPath ?? `${bundle.input.artifacts}/incomplete.md`}`,
+        `Assessment: ${review.stages.decision?.approval.outcome ?? "incomplete"}`,
+        ...review.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
         `GitHub: ${publication.status}. ${publication.reason}`,
         publication.url ?? "",
-        publication.approval
-          ? `Approval submission: ${publication.approval.status}`
-          : "",
-        publication.newerCommits ? "Newer commits are not reviewed." : "",
       ]
         .filter(Boolean)
         .join("\n");
@@ -141,17 +130,11 @@ export function reviewEventProgress(
     return;
   }
   const statuses: ProgressStatuses = {
-    ...reviewProgress({
-      ...snapshot,
-      saved: event.type === "publicationFinished",
-    }),
+    ...reviewProgress(snapshot),
     [stage]: status,
   };
   if (event.type === "publicationFinished") {
     statuses.publication = event.publication.status;
-  }
-  if (event.type === "runFailed") {
-    statuses["save-artefacts"] = "blocked";
   }
   return { statuses, stage, status, reason };
 }
@@ -164,35 +147,22 @@ export function errorMessage(error: unknown): string {
 }
 
 /**
- * Preserves every check and gap in the canonical report. Bounded detail folds
- * let the existing GitHub helper split a long report into continuation comments.
+ * Preserve checks and gaps in the report as expandable sections.
  */
 export function coverageMarkdown(stages: StageResults): string {
   const lines = ["", "## Workflow assessment and rule coverage", ""];
-  function folds(title: string, blocks: string[]) {
-    let content = "";
-    let part = 1;
-    const flush = () => {
-      if (!content) {
-        return;
-      }
-      lines.push(
-        "<details>",
-        `<summary>${title} — part ${part++}</summary>`,
-        "",
-        content,
-        "</details>",
-        "",
-      );
-      content = "";
-    };
-    for (const block of blocks) {
-      if (content.length + block.length > 40000) {
-        flush();
-      }
-      content += block + "\n\n";
+  function fold(title: string, blocks: string[]): void {
+    if (!blocks.length) {
+      return;
     }
-    flush();
+    lines.push(
+      "<details>",
+      `<summary>${title}</summary>`,
+      "",
+      blocks.join("\n\n"),
+      "</details>",
+      "",
+    );
   }
   for (const [name, result] of Object.entries(stages)) {
     const blocks = result.checks.map((item) =>
@@ -202,9 +172,9 @@ export function coverageMarkdown(stages: StageResults): string {
       ].join("\n"),
     );
     blocks.push(...result.gaps.map((gap) => `- Coverage gap: ${gap}`));
-    folds(name, blocks);
+    fold(name, blocks);
   }
-  folds(
+  fold(
     "Rules",
     (stages.rules?.rules ?? []).map((item) =>
       [
@@ -214,24 +184,6 @@ export function coverageMarkdown(stages: StageResults): string {
     ),
   );
   return lines.join("\n");
-}
-
-/**
- * Detects accidental writer changes without putting the bundle in shell argv.
- * Both halves hash UTF-16 code units, so the VM and Node agree on non-BMP text.
- * This checksum is not a defence against a hostile writer.
- */
-export function fingerprint(text: string): string {
-  let first = 2166136261;
-  let second = 3339675911;
-  for (let index = 0; index < text.length; index++) {
-    const code = text.charCodeAt(index);
-    first = Math.imul(first ^ code, 16777619) >>> 0;
-    second = Math.imul(second ^ code, 16777619) >>> 0;
-  }
-  return (
-    first.toString(16).padStart(8, "0") + second.toString(16).padStart(8, "0")
-  );
 }
 
 /**
@@ -249,7 +201,7 @@ async function sendHostNotification({
   if (
     !state.enabled ||
     !input.notification ||
-    ["local-only", "staged"].includes(input.publication)
+    input.publication === "local-only"
   ) {
     return;
   }
@@ -332,13 +284,12 @@ async function requestHostNotification({
 
 /**
  * Accepted answers establish completed review steps; failures establish blocked
- * steps. Saving is complete only after the file gate returns successfully.
+ * steps.
  * The five assessments share one row and complete only as a full set.
  */
 export function reviewProgress({
   stages,
   failures,
-  saved,
 }: ReviewProgressInput): ProgressStatuses {
   const statuses: ProgressStatuses = {};
   for (const stage of stageNames) {
@@ -356,9 +307,6 @@ export function reviewProgress({
   if (failures.some((failure) => failure.stage === "assessments")) {
     statuses.assessments = "blocked";
   }
-  if (saved) {
-    statuses["save-artefacts"] = "complete";
-  }
   return statuses;
 }
 
@@ -372,11 +320,4 @@ export function progressChecklist(statuses: ProgressStatuses): string {
         `- [${value === "complete" ? "x" : " "}] ${name}: ${value}`,
     )
     .join("\n");
-}
-
-/**
- * Quote one argument for the host's POSIX command runner.
- */
-export function quote(value: string): string {
-  return "'" + value.replace(/'/g, "'\\''") + "'";
 }

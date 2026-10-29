@@ -27,26 +27,18 @@ import githubProgressTemplate from "../../skills/review/templates/github-progres
 import {
   assessmentNames,
   parseReviewInput,
-  SavedArtifactsSchema,
-  stageNames,
   StageSchemas,
   StageResultsSchema,
 } from "./contracts.js";
 import type {
-  Bundle,
   ReviewAgentInput,
   ReviewSnapshot,
   ReviewStepTask,
   ReviewWorkflowInput,
   ReviewRun,
   StepCoordinator,
-  ReviewFiles,
   ReviewStepInput,
-  SaveReviewInput,
-  SavedReview,
-  ReviewResult,
   ReviewOutput,
-  StageName,
   StageResult,
   StageResults,
 } from "./contracts.js";
@@ -60,12 +52,12 @@ import {
 } from "./validation.js";
 import {
   coverageMarkdown,
-  fingerprint,
   errorMessage,
-  quote,
   ReviewEvents,
   createNotifications,
 } from "./utils.js";
+
+const MAX_ATTEMPTS = 2;
 
 /**
  * Official Pi workflow metadata. The build copies this literal into the generated
@@ -74,11 +66,11 @@ import {
 export const meta = {
   name: "review",
   description:
-    "Experimental pinned review with required assessments and validated artefacts",
+    "Experimental pinned review with required assessments and a validated report",
 };
 
 /**
- * Compose review execution, validated saving and channel subscribers for one run.
+ * Compose review execution and channel subscribers for one run.
  */
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
@@ -94,24 +86,22 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   // Notifications can subscribe first: final publication has its own event.
   const notifications = createNotifications({ input, events });
   const githubComment = createGithubComment({ input, events });
-  const reviewFiles = createReviewFiles({ events });
 
   // The review knows only how to emit facts, not which objects observe them.
   const review = await executeWorkflow({ input, events });
 
-  // Saving owns validation and events; its success triggers private publication.
-  const saved = await reviewFiles.save({
-    review,
-    notifications: notifications.receipts,
-  });
+  // Completion passes accepted values directly to the publication subscriber.
+  await events.emit({ type: "reviewCompleted", review });
 
-  // Return file locations, the assessment and channel outcomes to the caller.
+  // Return the report, partial evidence and delivery outcomes without file IO.
   return {
-    ...saved.result,
+    ...review,
+    report:
+      review.stages.report?.markdown ??
+      review.stages.splitPlan?.markdown ??
+      null,
     approval: review.stages.decision?.approval ?? null,
     publication: githubComment.publication,
-    validationCommand: saved.validationCommand,
-    failures: review.failures,
     notifications: notifications.receipts,
   };
 }
@@ -166,8 +156,8 @@ function createStepCoordinator({
   events,
 }: ReviewWorkflowInput): StepCoordinator {
   let accepted: StageResults = {};
-  const attempts: Bundle["attempts"] = [];
-  const failures: Bundle["failures"] = [];
+  const attempts: ReviewRun["attempts"] = [];
+  const failures: ReviewRun["failures"] = [];
 
   /**
    * Copy containers so later acceptances cannot change an earlier event's view.
@@ -546,7 +536,7 @@ async function reviewAgent<Result extends StageResult>({
   ].join("\n");
   const outputSchema = z.toJSONSchema(schema, { target: "draft-7" });
   let feedback = "";
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const output = await agent(
         [
@@ -584,100 +574,7 @@ async function reviewAgent<Result extends StageResult>({
       attempts.push({ stage: label, attempt, reason: feedback });
     }
   }
-  throw new Error(`${label} failed after two attempts: ${feedback}`);
-}
-
-/**
- * Own the file operation and its events. Publication observers run only after
- * validated saving, outside the catch that reports writer or file-gate errors.
- */
-function createReviewFiles({
-  events,
-}: Pick<ReviewWorkflowInput, "events">): ReviewFiles {
-  async function save(args: SaveReviewInput): Promise<SavedReview> {
-    let saved: SavedReview;
-    try {
-      saved = await writeReviewFiles(args);
-    } catch (error) {
-      await events.emit({
-        type: "runFailed",
-        review: args.review,
-        reason: errorMessage(error),
-      });
-      throw error;
-    }
-
-    // Subscriber errors here belong to publication, not to the completed save.
-    await events.emit({ type: "reviewSaved", saved });
-    return saved;
-  }
-
-  return { save };
-}
-
-/**
- * Save accepted review data (bundle.json), readable stage reports and the final
- * report, decision payloads and result index. The workflow VM has no filesystem
- * API, so a tool-equipped worker copies these values without reviewing them.
- * Its command gate checks the actual files before publication. Do not retry a
- * writer whose filesystem work may already have completed.
- */
-async function writeReviewFiles({
-  review,
-  notifications,
-}: SaveReviewInput): Promise<SavedReview> {
-  const bundle: Bundle = {
-    version: 1,
-    ...review,
-    notifications: [...notifications],
-  };
-  const { input, status, stages } = bundle;
-  const required: readonly StageName[] =
-    stages.setup?.mode === "split"
-      ? ["setup", "splitPlan", "decision"]
-      : stageNames.filter((name) => name !== "splitPlan");
-  const result: ReviewResult = {
-    status,
-    runId: input.runId,
-    invocationId: input.invocationId,
-    base: input.base,
-    head: input.head,
-    bundlePath: `${input.artifacts}/bundle.json`,
-    reportPath:
-      status === "incomplete" ? null : `${input.artifacts}/review-report.md`,
-    fingerprint: fingerprint(JSON.stringify(bundle)),
-    missingStages: required.filter((name) => !stages[name]),
-    coverageGaps: Object.entries(stages).flatMap(([stage, value]) =>
-      value.gaps.map((reason) => ({ stage, reason })),
-    ),
-  };
-  const validationCommand = `node --import ${quote(input.tsxLoader)} ${quote(`${input.supportRoot}/validate-bundle.ts`)} ${quote(`${input.artifacts}/bundle.json`)} --fingerprint ${quote(result.fingerprint)}`;
-
-  // This worker writes accepted values; the command gate checks the actual files.
-  const saved = await agent(
-    [
-      "You save accepted review files using host filesystem tools, which the workflow VM cannot access directly. Do not review code, publish, notify, or call github_review_complete.",
-      "The bundle contains pinned inputs, accepted stage answers, failures, retry records and notification receipts. Copy its values exactly; do not infer or revise evidence.",
-      `Write the exact JSON bundle below to ${input.artifacts}/bundle.json.`,
-      "For each stages entry, write its markdown unchanged to <stage>.md in that directory.",
-      "Write review-report.md from stages.report.markdown, or stages.splitPlan.markdown for split output.",
-      "For incomplete output write incomplete.md explaining failures. Do not fabricate missing assessments.",
-      "If decision exists, write approval.json from decision.approval, summary.md from decision.summaryMarkdown and inline.json from decision.inlineComments. Preserve those values exactly.",
-      `Write the exact result JSON below to ${input.artifacts}/result.json.`,
-      JSON.stringify(result),
-      "Use only read/write tools or filesystem commands. Write only under the supplied artefact directory.",
-      JSON.stringify(bundle),
-    ].join("\n"),
-    {
-      label: "save-artefacts",
-      gate: validationCommand,
-      schema: z.toJSONSchema(SavedArtifactsSchema, { target: "draft-7" }),
-    },
+  throw new Error(
+    `${label} failed after ${MAX_ATTEMPTS} attempts: ${feedback}`,
   );
-  if (saved === null) {
-    throw new Error(
-      `Artefact validation failed. Inspect ${input.artifacts}; review is incomplete.`,
-    );
-  }
-  return { bundle, result, validationCommand };
 }

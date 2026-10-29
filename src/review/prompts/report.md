@@ -12,4 +12,4 @@ Account for every worker finding with `decisions.sourceId = '<stage>:<finding id
 - [ ] The initial risks have been revisited using the completed review. The scope recommendation is supported by evidence.
 - [ ] The report contains enough background and evidence to make sense on its own, including what was not verified.
 - [ ] Every selected check has a result. All template placeholders are filled in or removed with their optional sections.
-- [ ] The report is accepted, then saved and validated by the writer before its path is returned to the user.
+- [ ] The accepted report is returned directly to the caller and supplied to the GitHub subscriber.
