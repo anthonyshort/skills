@@ -4,6 +4,15 @@
 import * as z from "zod";
 import { errorMessage } from "./run.js";
 
+/**
+ * Call the supplied agent function with a JSON Schema, then parse and validate
+ * its answer locally. Null, rejected calls and invalid answers consume one of
+ * maxAttempts; the next call receives the previous failure as prompt feedback.
+ *
+ * maxAttempts must be a positive integer. Exhaustion throws after the last
+ * diagnostic callback. Diagnostic callback errors propagate without retrying.
+ * No agent implementation or delivery behaviour is supplied by this helper.
+ */
 export async function callValidatedAgent<Result>({
   call,
   label,

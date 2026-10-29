@@ -3,6 +3,7 @@
  * github_review host tools. The plugin owns authentication and HTTP.
  */
 import * as z from "zod";
+import type { WorkflowPlugin } from "../workflow/create.js";
 import { errorMessage } from "../workflow/run.js";
 import type { ProgressStatuses } from "./utils.js";
 import { InlineCommentSchema } from "./schemas.js";
@@ -10,8 +11,7 @@ import type {
   ReviewInput,
   ReviewRun,
   ReviewEvent,
-  ReviewEventEmitter,
-  StageSchemas,
+  ReviewResults,
 } from "./schemas.js";
 import {
   progressChecklist,
@@ -89,8 +89,8 @@ export function githubReviewRequest({
   body,
 }: {
   input: Pick<ReviewInput, "github" | "head" | "publication">;
-  outcome: z.infer<typeof StageSchemas.decision>["approval"]["outcome"];
-  comments: z.infer<typeof StageSchemas.decision>["inlineComments"];
+  outcome: ReviewResults["decision"]["approval"]["outcome"];
+  comments: ReviewResults["decision"]["inlineComments"];
   body: string;
 }): GithubReviewRequest {
   if (!input.github) {
@@ -118,13 +118,7 @@ export function githubReviewRequest({
  * Subscribe to review events. Comment identity stays in memory; completion
  * submits the accepted report and findings together in one GitHub review.
  */
-export function createGithubComment({
-  input,
-  events,
-}: {
-  input: ReviewInput;
-  events: ReviewEventEmitter;
-}) {
+export const createGithubComment = (({ input, events }) => {
   const target = input.github;
   const enabled = target && input.publication !== "local-only";
   let sequence = 0;
@@ -396,4 +390,8 @@ export function createGithubComment({
       return publication;
     },
   };
-}
+}) satisfies WorkflowPlugin<
+  ReviewInput,
+  ReviewEvent,
+  { readonly publication: PublicationResult }
+>;

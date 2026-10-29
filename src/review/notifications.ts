@@ -2,7 +2,8 @@
  * Own keyed host notifications and their delivery receipts for one review.
  */
 import * as z from "zod";
-import type { ReviewInput, ReviewEventEmitter } from "./schemas.js";
+import type { WorkflowPlugin } from "../workflow/create.js";
+import type { ReviewInput, ReviewEvent } from "./schemas.js";
 import { errorMessage } from "../workflow/run.js";
 import { reviewEventProgress } from "./utils.js";
 
@@ -51,13 +52,7 @@ export type Notification = {
  * Subscribe to review progress and publication outcomes. Delivery receipts and
  * the host-availability latch belong to this object, not review execution.
  */
-export function createNotifications({
-  input,
-  events,
-}: {
-  input: ReviewInput;
-  events: ReviewEventEmitter;
-}) {
+export const createNotifications = (({ input, events }) => {
   const receipts: Notification[] = [];
   let enabled = true;
 
@@ -166,4 +161,8 @@ export function createNotifications({
       return receipts;
     },
   };
-}
+}) satisfies WorkflowPlugin<
+  ReviewInput,
+  ReviewEvent,
+  { readonly receipts: Notification[] }
+>;

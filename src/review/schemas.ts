@@ -3,12 +3,15 @@
  * and execution mechanics belong to their respective consumers.
  */
 import * as z from "zod";
-import type { WorkflowEvent, WorkflowEvents } from "../workflow/run.js";
+import type { WorkflowEvent } from "../workflow/run.js";
 import type { WorkflowCompleted } from "../workflow/create.js";
 import type { PublicationResult } from "./github.js";
 import type { Notification } from "./notifications.js";
 
-const text = z
+/**
+ * Non-blank model text, retaining the worker’s original whitespace.
+ */
+export const text = z
   .string()
   .min(1)
   .refine((value) => Boolean(value.trim()), "Expected non-empty text");
@@ -110,54 +113,6 @@ export const FindingSchema = z.strictObject({
   evidence: z.array(text).min(1).max(10_000),
   existingThread: z.string().nullable(),
 });
-export const RuleSchema = z.strictObject({
-  path: text,
-  selection: z.enum(["selected", "skipped"]),
-  result: z.enum([
-    "Satisfied",
-    "Concern found",
-    "Not applicable",
-    "Not verified",
-    "Skipped",
-  ]),
-  reason: text,
-  evidence: strings,
-});
-export const FindingDecisionSchema = z.strictObject({
-  sourceId: text,
-  disposition: z.enum(["retained", "merged", "excluded", "open"]),
-  reportId: z.string().nullable(),
-  reason: text,
-});
-const approvalCheck = z.strictObject({
-  result: z.enum(["Pass", "Fail", "Not verified"]),
-  reason: text,
-});
-export const ApprovalSchema = z.strictObject({
-  outcome: z.enum([
-    "split",
-    "human_review",
-    "incomplete",
-    "changes_needed",
-    "waiting_checks",
-    "not_submitted",
-    "approve",
-  ]),
-  changed_lines: z.number().int().nonnegative(),
-  checks: z
-    .strictObject({
-      focused: approvalCheck,
-      low_risk: approvalCheck,
-      no_sensitive_changes: approvalCheck,
-      clean_review: approvalCheck,
-      complete_review: approvalCheck,
-      verification: approvalCheck,
-      concerns_resolved: approvalCheck,
-    })
-    .nullable(),
-  reason: text,
-  next_steps: strings,
-});
 export const InlineCommentSchema = z.strictObject({
   id: text,
   path: text,
@@ -186,62 +141,39 @@ export const stageNames = [
   "decision",
 ] as const;
 export type StageName = (typeof stageNames)[number];
-const envelope = {
+/**
+ * Evidence fields shared by every review worker. Steps extend this schema locally.
+ */
+export const ReviewEvidenceSchema = z.strictObject({
   base: revision,
   head: revision,
   markdown: z.string().min(1),
   checks: z.array(CheckSchema).min(1).max(10_000),
   findings: z.array(FindingSchema).max(10_000),
   gaps: strings,
-};
-export const StageSchemas = {
-  setup: z.strictObject({
-    ...envelope,
-    stage: z.literal("setup"),
-    mode: z.enum(["full", "split"]),
-    addedLines: z.number().int().nonnegative(),
-    deletedLines: z.number().int().nonnegative(),
-    sizeException: z.string().nullable(),
-    rulePaths: z.array(text).max(1000),
-  }),
-  research: z.strictObject({ ...envelope, stage: z.literal("research") }),
-  researchCheck: z.strictObject({
-    ...envelope,
-    stage: z.literal("researchCheck"),
-  }),
-  product: z.strictObject({ ...envelope, stage: z.literal("product") }),
-  systemFit: z.strictObject({ ...envelope, stage: z.literal("systemFit") }),
-  simplicity: z.strictObject({ ...envelope, stage: z.literal("simplicity") }),
-  readability: z.strictObject({ ...envelope, stage: z.literal("readability") }),
-  correctness: z.strictObject({ ...envelope, stage: z.literal("correctness") }),
-  rules: z.strictObject({
-    ...envelope,
-    stage: z.literal("rules"),
-    rules: z.array(RuleSchema).max(1000),
-  }),
-  consolidation: z.strictObject({
-    ...envelope,
-    stage: z.literal("consolidation"),
-  }),
-  draft: z.strictObject({ ...envelope, stage: z.literal("draft") }),
-  editorial: z.strictObject({ ...envelope, stage: z.literal("editorial") }),
-  report: z.strictObject({
-    ...envelope,
-    stage: z.literal("report"),
-    decisions: z.array(FindingDecisionSchema).max(10_000),
-  }),
-  splitPlan: z.strictObject({ ...envelope, stage: z.literal("splitPlan") }),
-  decision: z.strictObject({
-    ...envelope,
-    stage: z.literal("decision"),
-    findings: z.array(FindingSchema).max(0),
-    approval: ApprovalSchema,
-    summaryMarkdown: z.string().min(1),
-    inlineComments: z.array(InlineCommentSchema).max(100),
-  }),
-};
+});
 export type ReviewResults = {
-  [Name in StageName]: z.infer<(typeof StageSchemas)[Name]>;
+  setup: Awaited<ReturnType<typeof import("./steps.js").setupReview>>;
+  research: Awaited<ReturnType<typeof import("./steps.js").researchReview>>;
+  researchCheck: Awaited<ReturnType<typeof import("./steps.js").checkResearch>>;
+  product: Awaited<ReturnType<typeof import("./steps.js").assessProduct>>;
+  systemFit: Awaited<ReturnType<typeof import("./steps.js").assessSystemFit>>;
+  simplicity: Awaited<ReturnType<typeof import("./steps.js").assessSimplicity>>;
+  readability: Awaited<
+    ReturnType<typeof import("./steps.js").assessReadability>
+  >;
+  correctness: Awaited<
+    ReturnType<typeof import("./steps.js").assessCorrectness>
+  >;
+  rules: Awaited<ReturnType<typeof import("./steps.js").checkRules>>;
+  consolidation: Awaited<
+    ReturnType<typeof import("./steps.js").consolidateReview>
+  >;
+  draft: Awaited<ReturnType<typeof import("./steps.js").draftReport>>;
+  editorial: Awaited<ReturnType<typeof import("./steps.js").editReport>>;
+  report: Awaited<ReturnType<typeof import("./steps.js").acceptReport>>;
+  splitPlan: Awaited<ReturnType<typeof import("./steps.js").planSplit>>;
+  decision: Awaited<ReturnType<typeof import("./steps.js").decideReview>>;
 };
 export type StageResults = Partial<ReviewResults>;
 export type StageResult = ReviewResults[StageName];
@@ -259,7 +191,7 @@ export type ReviewRun = {
 };
 export type ReviewResult = ReviewRun & {
   report: string | null;
-  approval: z.infer<typeof ApprovalSchema> | null;
+  approval: ReviewResults["decision"]["approval"] | null;
 };
 export type ReviewOutput = ReviewResult & {
   notifications: Notification[];
@@ -274,7 +206,3 @@ export type ReviewEvent =
       review: ReviewRun;
       publication: PublicationResult;
     };
-export type ReviewEventEmitter = Pick<
-  WorkflowEvents<ReviewEvent>,
-  "subscribe" | "emit"
->;

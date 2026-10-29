@@ -1,7 +1,7 @@
 /**
  * Named review workers own their prompts, schemas and review-policy checks.
  */
-import type * as z from "zod";
+import * as z from "zod";
 import { callValidatedAgent } from "../workflow/agent.js";
 import type { StepInput } from "../workflow/run.js";
 import setupPrompt from "./prompts/setup.md";
@@ -23,24 +23,28 @@ import sharedRules from "./prompts/common.md";
 import assessmentRules from "./prompts/assessment.md";
 import reportingRules from "./prompts/reporting.md";
 import reportTemplate from "../../skills/review/templates/review-report.md";
-import { StageSchemas } from "./schemas.js";
+import {
+  ReviewEvidenceSchema,
+  InlineCommentSchema,
+  FindingSchema,
+  text,
+} from "./schemas.js";
 import type {
   ReviewInput,
   ReviewResults,
   ReviewRun,
   StageName,
-  StageResult,
-  StageResults,
 } from "./schemas.js";
 
 const MAX_ATTEMPTS = 2;
 
 /**
- * Review input and failed-attempt diagnostics shared by this run's workers.
+ * Review input, diagnostics and optional agent caller shared by this run's workers.
  */
 export type ReviewContext = {
   review: ReviewInput;
   attempts: ReviewRun["attempts"];
+  call?: typeof agent;
 };
 type ReviewStepInput = StepInput<ReviewContext, ReviewResults>;
 
@@ -51,29 +55,30 @@ export function setupReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "setup",
-    schema: StageSchemas.setup,
-    validate: (setup) => validateSetup({ setup }),
+    schema: ReviewEvidenceSchema.extend({
+      stage: z.literal("setup"),
+      mode: z.enum(["full", "split"]),
+      addedLines: z.number().int().nonnegative(),
+      deletedLines: z.number().int().nonnegative(),
+      sizeException: z.string().nullable(),
+      rulePaths: z.array(text).max(1000),
+    }),
+    validate: (setup) => {
+      if (new Set(setup.rulePaths).size !== setup.rulePaths.length) {
+        throw new Error("Rule inventory paths must be unique");
+      }
+      if (
+        setup.addedLines > 2000 &&
+        setup.mode === "full" &&
+        !setup.sizeException?.trim()
+      ) {
+        throw new Error(
+          "Oversized full review requires a documented permitted exception",
+        );
+      }
+    },
     prompt: setupPrompt,
   });
-}
-
-/**
- * Require a unique rule inventory and a documented exception for oversized full
- * reviews. Split-only reviews retain their shorter route without that exception.
- */
-function validateSetup({ setup }: { setup: ReviewResults["setup"] }): void {
-  if (new Set(setup.rulePaths).size !== setup.rulePaths.length) {
-    throw new Error("Rule inventory paths must be unique");
-  }
-  if (
-    setup.addedLines > 2000 &&
-    setup.mode === "full" &&
-    !setup.sizeException?.trim()
-  ) {
-    throw new Error(
-      "Oversized full review requires a documented permitted exception",
-    );
-  }
 }
 
 /**
@@ -83,7 +88,7 @@ export function researchReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "research",
-    schema: StageSchemas.research,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("research") }),
     prompt: researchPrompt,
   });
 }
@@ -95,7 +100,7 @@ export function checkResearch(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "researchCheck",
-    schema: StageSchemas.researchCheck,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("researchCheck") }),
     prompt: researchCheckPrompt,
   });
 }
@@ -107,7 +112,7 @@ export function assessProduct(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "product",
-    schema: StageSchemas.product,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("product") }),
     prompt: [assessmentRules, productPrompt].join("\n\n"),
   });
 }
@@ -119,7 +124,7 @@ export function assessSystemFit(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "systemFit",
-    schema: StageSchemas.systemFit,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("systemFit") }),
     prompt: [assessmentRules, systemFitPrompt].join("\n\n"),
   });
 }
@@ -131,7 +136,7 @@ export function assessSimplicity(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "simplicity",
-    schema: StageSchemas.simplicity,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("simplicity") }),
     prompt: [assessmentRules, simplicityPrompt].join("\n\n"),
   });
 }
@@ -143,7 +148,7 @@ export function assessReadability(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "readability",
-    schema: StageSchemas.readability,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("readability") }),
     prompt: [assessmentRules, readabilityPrompt].join("\n\n"),
   });
 }
@@ -155,7 +160,7 @@ export function assessCorrectness(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "correctness",
-    schema: StageSchemas.correctness,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("correctness") }),
     prompt: [assessmentRules, correctnessPrompt].join("\n\n"),
   });
 }
@@ -171,47 +176,52 @@ export function checkRules(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "rules",
-    schema: StageSchemas.rules,
-    validate: (assessment) =>
-      validateRuleCoverage({
-        rules: assessment.rules,
-        expectedPaths: setup.rulePaths,
-      }),
+    schema: ReviewEvidenceSchema.extend({
+      stage: z.literal("rules"),
+      rules: z
+        .array(
+          z.strictObject({
+            path: text,
+            selection: z.enum(["selected", "skipped"]),
+            result: z.enum([
+              "Satisfied",
+              "Concern found",
+              "Not applicable",
+              "Not verified",
+              "Skipped",
+            ]),
+            reason: text,
+            evidence: z.array(text).max(10_000),
+          }),
+        )
+        .max(1000),
+    }),
+    validate: ({ rules }) => {
+      const actual = rules.map((rule) => rule.path);
+      if (
+        new Set(actual).size !== actual.length ||
+        setup.rulePaths.length !== actual.length ||
+        setup.rulePaths.some((path) => !actual.includes(path))
+      ) {
+        throw new Error(
+          "Rule coverage has missing, duplicate or unexpected paths",
+        );
+      }
+      for (const rule of rules) {
+        if ((rule.selection === "skipped") !== (rule.result === "Skipped")) {
+          throw new Error("Rule selection and result disagree");
+        }
+        if (
+          rule.selection === "selected" &&
+          ["Satisfied", "Concern found"].includes(rule.result) &&
+          !rule.evidence.length
+        ) {
+          throw new Error("Selected verified rules require evidence");
+        }
+      }
+    },
     prompt: rulesPrompt,
   });
-}
-
-/**
- * Account for every indexed rule once and keep skipped or unverified work
- * distinct from selected rules supported by evidence.
- */
-export function validateRuleCoverage({
-  rules,
-  expectedPaths,
-}: {
-  rules: ReviewResults["rules"]["rules"];
-  expectedPaths: ReviewResults["setup"]["rulePaths"];
-}): void {
-  const actual = rules.map((rule) => rule.path);
-  if (
-    new Set(actual).size !== actual.length ||
-    expectedPaths.length !== actual.length ||
-    expectedPaths.some((path) => !actual.includes(path))
-  ) {
-    throw new Error("Rule coverage has missing, duplicate or unexpected paths");
-  }
-  for (const rule of rules) {
-    if ((rule.selection === "skipped") !== (rule.result === "Skipped")) {
-      throw new Error("Rule selection and result disagree");
-    }
-    if (
-      rule.selection === "selected" &&
-      ["Satisfied", "Concern found"].includes(rule.result) &&
-      !rule.evidence.length
-    ) {
-      throw new Error("Selected verified rules require evidence");
-    }
-  }
 }
 
 /**
@@ -221,7 +231,7 @@ export function consolidateReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "consolidation",
-    schema: StageSchemas.consolidation,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("consolidation") }),
     prompt: [reportingRules, consolidationPrompt].join("\n\n"),
   });
 }
@@ -233,7 +243,7 @@ export function draftReport(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "draft",
-    schema: StageSchemas.draft,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("draft") }),
     prompt: [reportingRules, draftPrompt, reportTemplate].join("\n\n"),
   });
 }
@@ -246,7 +256,7 @@ export function editReport(args: ReviewStepInput) {
     ...args,
     results: { draft: args.results.draft },
     label: "editorial",
-    schema: StageSchemas.editorial,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("editorial") }),
     prompt: [reportingRules, editorialPrompt, reportTemplate].join("\n\n"),
   });
 }
@@ -258,48 +268,50 @@ export function acceptReport(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "report",
-    schema: StageSchemas.report,
-    validate: (report) =>
-      validateFindingDecisions({ report, prior: args.results }),
+    schema: ReviewEvidenceSchema.extend({
+      stage: z.literal("report"),
+      decisions: z
+        .array(
+          z.strictObject({
+            sourceId: text,
+            disposition: z.enum(["retained", "merged", "excluded", "open"]),
+            reportId: z.string().nullable(),
+            reason: text,
+          }),
+        )
+        .max(10_000),
+    }),
+    validate: (report) => {
+      const expected = Object.entries(args.results)
+        .filter(([name]) => !["report", "decision"].includes(name))
+        .flatMap(([stage, result]) =>
+          result.findings.map((finding) => `${stage}:${finding.id}`),
+        );
+      const actual = report.decisions.map((decision) => decision.sourceId);
+      if (
+        new Set(actual).size !== actual.length ||
+        actual.length !== expected.length ||
+        expected.some((id) => !actual.includes(id))
+      ) {
+        throw new Error(
+          "Final report must account for every input finding exactly once",
+        );
+      }
+      if (
+        report.decisions.some(
+          (decision) =>
+            ["retained", "merged"].includes(decision.disposition) &&
+            (!decision.reportId ||
+              !report.markdown.includes(decision.reportId)),
+        )
+      ) {
+        throw new Error(
+          "Retained findings require an ID present in the report",
+        );
+      }
+    },
     prompt: [reportingRules, reportPrompt, reportTemplate].join("\n\n"),
   });
-}
-
-/**
- * Account for each input finding exactly once and keep retained finding IDs
- * visible in the accepted report. Exclusions require an explicit decision.
- */
-function validateFindingDecisions({
-  report,
-  prior,
-}: {
-  report: ReviewResults["report"];
-  prior: StageResults;
-}): void {
-  const expected = Object.entries(prior)
-    .filter(([name]) => !["report", "decision"].includes(name))
-    .flatMap(([stage, result]) =>
-      result.findings.map((finding) => `${stage}:${finding.id}`),
-    );
-  const actual = report.decisions.map((decision) => decision.sourceId);
-  if (
-    new Set(actual).size !== actual.length ||
-    actual.length !== expected.length ||
-    expected.some((id) => !actual.includes(id))
-  ) {
-    throw new Error(
-      "Final report must account for every input finding exactly once",
-    );
-  }
-  if (
-    report.decisions.some(
-      (decision) =>
-        ["retained", "merged"].includes(decision.disposition) &&
-        (!decision.reportId || !report.markdown.includes(decision.reportId)),
-    )
-  ) {
-    throw new Error("Retained findings require an ID present in the report");
-  }
 }
 
 /**
@@ -309,7 +321,7 @@ export function planSplit(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "splitPlan",
-    schema: StageSchemas.splitPlan,
+    schema: ReviewEvidenceSchema.extend({ stage: z.literal("splitPlan") }),
     prompt: splitPlanPrompt,
   });
 }
@@ -322,217 +334,212 @@ export function decideReview(args: ReviewStepInput) {
   if (!setup) {
     throw new Error("Approval requires accepted setup");
   }
+  const approvalCheck = z.strictObject({
+    result: z.enum(["Pass", "Fail", "Not verified"]),
+    reason: text,
+  });
   return reviewAgent({
     ...args,
     label: "decision",
-    schema: StageSchemas.decision,
-    validate: (decision) =>
-      validateApproval({
-        decision,
-        setup,
-        report: args.results.report,
-        prior: args.results,
+    schema: ReviewEvidenceSchema.extend({
+      stage: z.literal("decision"),
+      findings: z.array(FindingSchema).max(0),
+      approval: z.strictObject({
+        outcome: z.enum([
+          "split",
+          "human_review",
+          "incomplete",
+          "changes_needed",
+          "waiting_checks",
+          "not_submitted",
+          "approve",
+        ]),
+        changed_lines: z.number().int().nonnegative(),
+        checks: z
+          .strictObject({
+            focused: approvalCheck,
+            low_risk: approvalCheck,
+            no_sensitive_changes: approvalCheck,
+            clean_review: approvalCheck,
+            complete_review: approvalCheck,
+            verification: approvalCheck,
+            concerns_resolved: approvalCheck,
+          })
+          .nullable(),
+        reason: text,
+        next_steps: z.array(text).max(10_000),
       }),
+      summaryMarkdown: z.string().min(1),
+      inlineComments: z.array(InlineCommentSchema).max(100),
+    }),
+    validate: (decision) => {
+      const { approval, inlineComments } = decision;
+      const report = args.results.report;
+      if (approval.changed_lines !== setup.addedLines + setup.deletedLines) {
+        throw new Error("Approval changed_lines must match the complete diff");
+      }
+      const checks = approval.checks;
+      const reasons = [
+        approval.reason,
+        ...approval.next_steps,
+        ...Object.values(checks ?? {}).map((check) => check.reason),
+      ];
+      if (reasons.some((reason) => /[\r\n]/.test(reason))) {
+        throw new Error(
+          "Approval reasons and next steps must be single-line strings",
+        );
+      }
+      if (approval.outcome !== "approve" && !approval.next_steps.length) {
+        throw new Error(
+          "Withheld approval requires a concrete next step and owner",
+        );
+      }
+      if (approval.outcome === "split") {
+        if (checks !== null) {
+          throw new Error("Split approval must use checks null");
+        }
+        // Continue to the scope check below before accepting a split outcome.
+      } else {
+        if (!checks) {
+          throw new Error("Full review requires all seven approval checks");
+        }
+        const allPass = Object.values(checks).every(
+          (check) => check.result === "Pass",
+        );
+        switch (approval.outcome) {
+          case "approve":
+          case "not_submitted":
+            if (!allPass) {
+              throw new Error(
+                "Passing approval requires every checklist item to pass",
+              );
+            }
+            break;
+          case "incomplete":
+            if (checks.complete_review.result === "Pass") {
+              throw new Error("Incomplete review cannot pass complete_review");
+            }
+            break;
+          case "waiting_checks":
+            if (
+              checks.verification.result !== "Not verified" ||
+              Object.entries(checks).some(
+                ([name, check]) =>
+                  name !== "verification" && check.result !== "Pass",
+              )
+            ) {
+              throw new Error(
+                "Waiting for checks requires all other items to pass",
+              );
+            }
+            break;
+          case "changes_needed":
+            if (
+              allPass ||
+              [
+                checks.focused,
+                checks.low_risk,
+                checks.no_sensitive_changes,
+                checks.complete_review,
+              ].some((check) => check.result !== "Pass")
+            ) {
+              throw new Error(
+                "Changes needed requires a completed focused low-risk review and a remaining blocker",
+              );
+            }
+            break;
+        }
+        if (
+          approval.outcome !== "human_review" &&
+          [checks.low_risk, checks.no_sensitive_changes].some(
+            (check) => check.result === "Fail",
+          )
+        ) {
+          throw new Error(
+            "Known risk or sensitive behaviour failures require human review",
+          );
+        }
+      }
+      if (setup.mode === "split") {
+        if (approval.outcome !== "split" || inlineComments.length > 0) {
+          throw new Error(
+            "Split-only output must not claim implementation approval or inline findings",
+          );
+        }
+        return;
+      }
+      if (approval.outcome === "split" || !checks) {
+        throw new Error("Full review requires all seven approval checks");
+      }
+      if (!report) {
+        throw new Error("Approval requires an accepted report");
+      }
+      const sources = Object.entries(args.results).flatMap(([stage, result]) =>
+        result.findings.map((finding) => ({
+          sourceId: `${stage}:${finding.id}`,
+          finding,
+        })),
+      );
+      const includedFindings = report.decisions
+        .filter((reportDecision) => reportDecision.disposition !== "excluded")
+        .map((reportDecision) => {
+          const source = sources.find(
+            (source) => source.sourceId === reportDecision.sourceId,
+          );
+          if (!source) {
+            throw new Error(
+              "Report decision refers to an unknown source finding",
+            );
+          }
+          return { finding: source.finding, reportDecision };
+        });
+      const hasUnresolvedFindings =
+        report.findings.some((finding) =>
+          ["required", "open"].includes(finding.disposition),
+        ) ||
+        includedFindings.some(
+          (item) =>
+            ["required", "open"].includes(item.finding.disposition) ||
+            item.reportDecision.disposition === "open",
+        );
+      if (
+        (hasUnresolvedFindings || inlineComments.length > 0) &&
+        checks.clean_review.result === "Pass"
+      ) {
+        throw new Error(
+          "Clean review cannot pass with retained required or unresolved findings",
+        );
+      }
+      if (
+        new Set(inlineComments.map((comment) => comment.id)).size !==
+        inlineComments.length
+      ) {
+        throw new Error("Inline finding IDs must be unique");
+      }
+      for (const comment of inlineComments) {
+        const isAcceptedNewBug = includedFindings.some(
+          ({ finding, reportDecision }) =>
+            reportDecision.reportId === comment.id &&
+            ["retained", "merged"].includes(reportDecision.disposition) &&
+            finding.kind === "bug" &&
+            finding.existingThread === null,
+        );
+        if (!isAcceptedNewBug) {
+          throw new Error(
+            "Inline findings must reference an accepted new bug by exact report ID",
+          );
+        }
+      }
+    },
     prompt: decisionPrompt,
   });
 }
 
 /**
- * Rejects approval answers that contradict the review scope or included findings.
- * Inline comments must resolve to an accepted new bug, never an arbitrary ID.
- */
-function validateApproval({
-  decision,
-  setup,
-  report,
-  prior,
-}: {
-  decision: ReviewResults["decision"];
-  setup: ReviewResults["setup"];
-  report: ReviewResults["report"] | undefined;
-  prior: StageResults;
-}): void {
-  const { approval, inlineComments } = decision;
-  if (approval.changed_lines !== setup.addedLines + setup.deletedLines) {
-    throw new Error("Approval changed_lines must match the complete diff");
-  }
-  validateApprovalOutcome(approval);
-  if (setup.mode === "split") {
-    if (approval.outcome !== "split" || inlineComments.length > 0) {
-      throw new Error(
-        "Split-only output must not claim implementation approval or inline findings",
-      );
-    }
-    return;
-  }
-  const checks = approval.checks;
-  if (approval.outcome === "split" || !checks) {
-    throw new Error("Full review requires all seven approval checks");
-  }
-  if (!report) {
-    throw new Error("Approval requires an accepted report");
-  }
-  const includedFindings = resolveReportFindings({ report, prior });
-  const hasUnresolvedFindings =
-    report.findings.some((finding) =>
-      ["required", "open"].includes(finding.disposition),
-    ) ||
-    includedFindings.some(
-      (item) =>
-        ["required", "open"].includes(item.finding.disposition) ||
-        item.reportDecision.disposition === "open",
-    );
-  if (
-    (hasUnresolvedFindings || inlineComments.length > 0) &&
-    checks.clean_review.result === "Pass"
-  ) {
-    throw new Error(
-      "Clean review cannot pass with retained required or unresolved findings",
-    );
-  }
-  validateInlineSources({ comments: inlineComments, includedFindings });
-}
-
-function validateApprovalOutcome(
-  approval: ReviewResults["decision"]["approval"],
-): void {
-  const checks = approval.checks;
-  const reasons = [
-    approval.reason,
-    ...approval.next_steps,
-    ...Object.values(checks ?? {}).map((check) => check.reason),
-  ];
-  if (reasons.some((reason) => /[\r\n]/.test(reason))) {
-    throw new Error(
-      "Approval reasons and next steps must be single-line strings",
-    );
-  }
-  if (approval.outcome !== "approve" && !approval.next_steps.length) {
-    throw new Error(
-      "Withheld approval requires a concrete next step and owner",
-    );
-  }
-  if (approval.outcome === "split") {
-    if (checks !== null) {
-      throw new Error("Split approval must use checks null");
-    }
-    return;
-  }
-  if (!checks) {
-    throw new Error("Full review requires all seven approval checks");
-  }
-  const allPass = Object.values(checks).every(
-    (check) => check.result === "Pass",
-  );
-  switch (approval.outcome) {
-    case "approve":
-    case "not_submitted":
-      if (!allPass) {
-        throw new Error(
-          "Passing approval requires every checklist item to pass",
-        );
-      }
-      break;
-    case "incomplete":
-      if (checks.complete_review.result === "Pass") {
-        throw new Error("Incomplete review cannot pass complete_review");
-      }
-      break;
-    case "waiting_checks":
-      if (
-        checks.verification.result !== "Not verified" ||
-        Object.entries(checks).some(
-          ([name, check]) => name !== "verification" && check.result !== "Pass",
-        )
-      ) {
-        throw new Error("Waiting for checks requires all other items to pass");
-      }
-      break;
-    case "changes_needed":
-      if (
-        allPass ||
-        [
-          checks.focused,
-          checks.low_risk,
-          checks.no_sensitive_changes,
-          checks.complete_review,
-        ].some((check) => check.result !== "Pass")
-      ) {
-        throw new Error(
-          "Changes needed requires a completed focused low-risk review and a remaining blocker",
-        );
-      }
-      break;
-  }
-  if (
-    approval.outcome !== "human_review" &&
-    [checks.low_risk, checks.no_sensitive_changes].some(
-      (check) => check.result === "Fail",
-    )
-  ) {
-    throw new Error(
-      "Known risk or sensitive behaviour failures require human review",
-    );
-  }
-}
-
-function resolveReportFindings({
-  report,
-  prior,
-}: {
-  report: ReviewResults["report"];
-  prior: StageResults;
-}) {
-  const sources = Object.entries(prior).flatMap(([stage, result]) =>
-    result.findings.map((finding) => ({
-      sourceId: `${stage}:${finding.id}`,
-      finding,
-    })),
-  );
-  return report.decisions
-    .filter((reportDecision) => reportDecision.disposition !== "excluded")
-    .map((reportDecision) => {
-      const source = sources.find(
-        (source) => source.sourceId === reportDecision.sourceId,
-      );
-      if (!source) {
-        throw new Error("Report decision refers to an unknown source finding");
-      }
-      return { finding: source.finding, reportDecision };
-    });
-}
-
-function validateInlineSources({
-  comments,
-  includedFindings,
-}: {
-  comments: ReviewResults["decision"]["inlineComments"];
-  includedFindings: ReturnType<typeof resolveReportFindings>;
-}): void {
-  if (new Set(comments.map((comment) => comment.id)).size !== comments.length) {
-    throw new Error("Inline finding IDs must be unique");
-  }
-  for (const comment of comments) {
-    const isAcceptedNewBug = includedFindings.some(
-      ({ finding, reportDecision }) =>
-        reportDecision.reportId === comment.id &&
-        ["retained", "merged"].includes(reportDecision.disposition) &&
-        finding.kind === "bug" &&
-        finding.existingThread === null,
-    );
-    if (!isAcceptedNewBug) {
-      throw new Error(
-        "Inline findings must reference an accepted new bug by exact report ID",
-      );
-    }
-  }
-}
-
-/**
  * Add review guidance and evidence checks to the shared validated agent call.
  */
-function reviewAgent<Result extends StageResult>({
-  input: { review: input, attempts },
+function reviewAgent<Result extends z.infer<typeof ReviewEvidenceSchema>>({
+  input: { review: input, attempts, call },
   results,
   label,
   schema,
@@ -545,7 +552,7 @@ function reviewAgent<Result extends StageResult>({
   validate?: (result: Result) => void;
 }): Promise<Result> {
   return callValidatedAgent({
-    call: agent,
+    call: call ?? agent,
     label,
     schema,
     maxAttempts: MAX_ATTEMPTS,
@@ -558,49 +565,35 @@ function reviewAgent<Result extends StageResult>({
       prompt,
     ].join("\n"),
     validate: (result) => {
-      validateAnswer({ result, input });
+      if (result.base !== input.base || result.head !== input.head) {
+        throw new Error("Assessment revisions differ from pinned inputs");
+      }
+      if (
+        result.checks.some(
+          (check) =>
+            !check.evidence.length &&
+            ![
+              "Blocked",
+              "Not run",
+              "N/A",
+              "CI pending",
+              "CI skipped",
+              "CI cancelled",
+            ].includes(check.result),
+        )
+      ) {
+        throw new Error("Verified checks require evidence");
+      }
+      if (
+        new Set(result.findings.map((finding) => finding.id)).size !==
+        result.findings.length
+      ) {
+        throw new Error("Finding IDs must be unique within an assessment");
+      }
       validate?.(result);
     },
     onAttemptFailed: ({ attempt, reason }) => {
       attempts.push({ stage: label, attempt, reason });
     },
   });
-}
-
-/**
- * Require pinned revisions, evidence for verified checks and unique finding IDs.
- * These common checks do not depend on the answer's stage or report format.
- */
-export function validateAnswer({
-  result,
-  input,
-}: {
-  result: Pick<StageResult, "base" | "head" | "checks" | "findings">;
-  input: Pick<ReviewInput, "base" | "head">;
-}): void {
-  if (result.base !== input.base || result.head !== input.head) {
-    throw new Error("Assessment revisions differ from pinned inputs");
-  }
-  if (
-    result.checks.some(
-      (check) =>
-        !check.evidence.length &&
-        ![
-          "Blocked",
-          "Not run",
-          "N/A",
-          "CI pending",
-          "CI skipped",
-          "CI cancelled",
-        ].includes(check.result),
-    )
-  ) {
-    throw new Error("Verified checks require evidence");
-  }
-  if (
-    new Set(result.findings.map((finding) => finding.id)).size !==
-    result.findings.length
-  ) {
-    throw new Error("Finding IDs must be unique within an assessment");
-  }
 }
