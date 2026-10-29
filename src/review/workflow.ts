@@ -1,5 +1,5 @@
 /**
- * Run the review in Pi's workflow VM. agent(), parallel() and phase() are
+ * Run the review in Pi's workflow VM. agent() and parallel() are
  * official pi-subagents globals, declared in pi-workflow.d.ts. The local
  * reviewAgent wrapper adds common rules, validation and one fresh retry.
  */
@@ -25,7 +25,6 @@ import reportingRules from "./prompts/reporting.md";
 import reportTemplate from "../../skills/review/templates/review-report.md";
 import githubProgressTemplate from "../../skills/review/templates/github-progress.md";
 import {
-  assessmentNames,
   parseReviewInput,
   StageSchemas,
   StageResultsSchema,
@@ -36,7 +35,6 @@ import type {
   ReviewStepTask,
   ReviewWorkflowInput,
   ReviewRun,
-  StepCoordinator,
   ReviewStepInput,
   ReviewOutput,
   StageResult,
@@ -60,6 +58,11 @@ import {
 const MAX_ATTEMPTS = 2;
 
 /**
+ * Stop dependent work after task exhaustion without hiding observer failures.
+ */
+class ReviewStepFailure extends Error {}
+
+/**
  * Official Pi workflow metadata. The build copies this literal into the generated
  * script header so Pi can read it before executing the coordinator.
  */
@@ -75,13 +78,7 @@ export const meta = {
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
 
-  // Subscribers own their effects. Pi grouping is an optional UI observer.
   const events = new ReviewEvents();
-  events.subscribe((event) => {
-    if (event.type === "stepStarted") {
-      phase(event.step);
-    }
-  });
 
   // Notifications can subscribe first: final publication has its own event.
   const notifications = createNotifications({ input, events });
@@ -117,29 +114,37 @@ async function executeWorkflow({
   const steps = createStepCoordinator({ input, events });
 
   try {
-    const setup = await steps.runStep({ step: "setup", run: setupReview });
+    const [setup] = await steps.run([{ name: "setup", execute: setupReview }]);
     switch (setup.mode) {
       case "split":
         // Oversized reviews produce a split plan without full assessments.
-        await steps.runStep({ step: "splitPlan", run: planSplit });
+        await steps.run([{ name: "splitPlan", execute: planSplit }]);
         break;
       case "full":
         // Check research before the parallel barrier; reconcile before reporting.
-        await steps.runStep({ step: "research", run: researchReview });
-        await steps.runStep({ step: "researchCheck", run: checkResearch });
-        await steps.runAssessments();
-        await steps.runStep({ step: "rules", run: checkRules });
-        await steps.runStep({ step: "consolidation", run: consolidateReview });
-        await steps.runStep({ step: "draft", run: draftReport });
-        await steps.runStep({ step: "editorial", run: editReport });
-        await steps.runStep({ step: "report", run: acceptReport });
+        await steps.run([{ name: "research", execute: researchReview }]);
+        await steps.run([{ name: "researchCheck", execute: checkResearch }]);
+        await steps.run([
+          { name: "product", execute: assessProduct },
+          { name: "systemFit", execute: assessSystemFit },
+          { name: "simplicity", execute: assessSimplicity },
+          { name: "readability", execute: assessReadability },
+          { name: "correctness", execute: assessCorrectness },
+        ]);
+        await steps.run([{ name: "rules", execute: checkRules }]);
+        await steps.run([
+          { name: "consolidation", execute: consolidateReview },
+        ]);
+        await steps.run([{ name: "draft", execute: draftReport }]);
+        await steps.run([{ name: "editorial", execute: editReport }]);
+        await steps.run([{ name: "report", execute: acceptReport }]);
         break;
     }
-    await steps.runStep({ step: "decision", run: decideReview });
+    await steps.run([{ name: "decision", execute: decideReview }]);
   } catch (error) {
     // Recorded task failures stop dependent work and return partial evidence.
     // Unexpected observer failures propagate instead of claiming completion.
-    if (!steps.hasFailures) {
+    if (!(error instanceof ReviewStepFailure)) {
       throw error;
     }
   }
@@ -151,10 +156,7 @@ async function executeWorkflow({
  * Own accepted evidence, attempts and lifecycle events. executeWorkflow supplies
  * each concrete task in review order.
  */
-function createStepCoordinator({
-  input,
-  events,
-}: ReviewWorkflowInput): StepCoordinator {
+function createStepCoordinator({ input, events }: ReviewWorkflowInput) {
   let accepted: StageResults = {};
   const attempts: ReviewRun["attempts"] = [];
   const failures: ReviewRun["failures"] = [];
@@ -177,61 +179,63 @@ function createStepCoordinator({
   }
 
   /**
-   * Run a named task between awaited lifecycle events. Only task failures are
-   * recorded as review failures; callbacks are outside the worker retry loop.
+   * Run tasks against one evidence snapshot, then accept results in task order.
+   * Observer calls stay outside parallel(), which turns thrown errors into null.
    */
-  async function runStep<Result extends StageResult | void>({
-    step,
-    run,
-  }: ReviewStepTask<Result>): Promise<Result> {
-    await events.emit({ type: "stepStarted", step, snapshot: snapshot() });
-    let result: Result;
-    try {
-      result = await run({ input, context: { ...accepted }, attempts });
-      if (result) {
-        accept(result);
+  async function run<Result extends StageResult>(
+    tasks: [ReviewStepTask<Result>],
+  ): Promise<[Result]>;
+  async function run(
+    tasks: ReviewStepTask<StageResult>[],
+  ): Promise<StageResult[]>;
+  async function run(
+    tasks: ReviewStepTask<StageResult>[],
+  ): Promise<StageResult[]> {
+    const context = { ...accepted };
+    const names = tasks.map(({ name }) => name);
+    await events.emit({
+      type: "stepStarted",
+      steps: names,
+      snapshot: snapshot(),
+    });
+    const outcomes = await parallel(
+      tasks.map(({ execute }) => async () => {
+        try {
+          return { result: await execute({ input, context, attempts }) };
+        } catch (error) {
+          return { reason: errorMessage(error) };
+        }
+      }),
+    );
+    const results: StageResult[] = [];
+    for (const [index, { name }] of tasks.entries()) {
+      const outcome = outcomes[index];
+      if (outcome?.result) {
+        accept(outcome.result);
+        results.push(outcome.result);
+      } else {
+        const reason = outcome?.reason ?? "Parallel task returned no result";
+        failures.push({ stage: name, reason });
       }
-    } catch (error) {
-      const reason = errorMessage(error);
-      failures.push({ stage: step, reason });
+    }
+    if (results.length !== tasks.length) {
+      const reason = failures
+        .map(({ stage, reason }) => `${stage}: ${reason}`)
+        .join("\n");
       await events.emit({
         type: "stepFailed",
-        step,
+        steps: names,
         reason,
         snapshot: snapshot(),
       });
-      throw error;
+      throw new ReviewStepFailure(reason);
     }
-    await events.emit({ type: "stepAccepted", step, snapshot: snapshot() });
-    return result;
-  }
-
-  /**
-   * All five assessments see one research snapshot. Preserve successful siblings
-   * in question order before failing the barrier, which emits one lifecycle.
-   */
-  async function assess({
-    input,
-    context,
-    attempts,
-  }: ReviewStepInput): Promise<void> {
-    const results = await parallel<StageResult>([
-      () => assessProduct({ input, context, attempts }),
-      () => assessSystemFit({ input, context, attempts }),
-      () => assessSimplicity({ input, context, attempts }),
-      () => assessReadability({ input, context, attempts }),
-      () => assessCorrectness({ input, context, attempts }),
-    ]);
-    // Pi returns null for failed parallel tasks instead of cancelling siblings.
-    for (const result of results) {
-      if (result) {
-        accept(result);
-      }
-    }
-    const missing = assessmentNames.filter((name) => !accepted[name]);
-    if (missing.length) {
-      throw new Error(`Missing assessments: ${missing.join(", ")}`);
-    }
+    await events.emit({
+      type: "stepAccepted",
+      steps: names,
+      snapshot: snapshot(),
+    });
+    return results;
   }
 
   /**
@@ -257,11 +261,7 @@ function createStepCoordinator({
   }
 
   return {
-    runStep,
-    runAssessments: () => runStep({ step: "assessments", run: assess }),
-    get hasFailures() {
-      return failures.length > 0;
-    },
+    run,
     finish,
   };
 }
@@ -514,8 +514,8 @@ async function decideReview({ input, context, attempts }: ReviewStepInput) {
  * Our small wrapper around Pi's agent API. The caller supplies the prompt,
  * label, schema and optional step-specific check. Shared evidence and revision
  * checks apply to every worker; invalid answers get one fresh retry. This
- * function does not schedule steps, update progress or accept evidence. Labels identify Pi workers and retry
- * diagnostics; the coordinator selects display groups from lifecycle events.
+ * function does not schedule steps, update progress or accept evidence. Labels
+ * identify Pi workers, display groups and retry diagnostics.
  */
 async function reviewAgent<Result extends StageResult>({
   input,
@@ -550,6 +550,7 @@ async function reviewAgent<Result extends StageResult>({
           .join("\n"),
         {
           label: `${label}:${attempt}`,
+          phase: label,
           schema: {
             ...outputSchema,
             properties: {

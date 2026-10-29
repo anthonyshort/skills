@@ -400,11 +400,10 @@ export const ReviewOutputSchema = ReviewRunSchema.extend({
 export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
 
 /**
- * Review stages share progress names with the assessment barrier and
- * delivery. Statuses reuse the review and publication outcomes where applicable.
+ * Review stages share progress names with delivery. Statuses reuse the review
+ * and publication outcomes where applicable.
  */
-export type ReviewStep = StageName | "assessments";
-export type ProgressStep = ReviewStep | "publication" | "review";
+export type ProgressStep = StageName | "publication" | "review";
 export type ProgressStatus =
   | z.infer<typeof ReviewStatusSchema>
   | PublicationResult["status"]
@@ -460,7 +459,7 @@ export type ReviewSnapshot = {
   readonly failures: readonly ReviewRun["failures"][number][];
 };
 export type ReviewStepEvent = {
-  readonly step: ReviewStep;
+  readonly steps: readonly StageName[];
   readonly snapshot: ReviewSnapshot;
 } & (
   | { readonly type: "stepStarted" }
@@ -480,20 +479,9 @@ export type ReviewWorkflowInput = {
   input: ReviewInput;
   events: Pick<ReviewEventEmitter, "emit">;
 };
-export type ReviewStepTask<Result extends StageResult | void> = {
-  step: ReviewStep;
-  run: (args: ReviewStepInput) => Promise<Result>;
-};
-/**
- * Coordinate acceptance and lifecycle events without choosing the review order.
- */
-export type StepCoordinator = {
-  runStep: <Result extends StageResult | void>(
-    args: ReviewStepTask<Result>,
-  ) => Promise<Result>;
-  runAssessments: () => Promise<void>;
-  readonly hasFailures: boolean;
-  finish: () => ReviewRun;
+export type ReviewStepTask<Result extends StageResult> = {
+  name: StageName;
+  execute: (args: ReviewStepInput) => Promise<Result>;
 };
 /**
  * A per-run emitter awaits every observer, including nested emissions.
@@ -505,7 +493,7 @@ export type ReviewEventEmitter = {
 };
 export type ReviewEventProgress = {
   statuses: ProgressStatuses;
-  stage: ProgressStep;
+  stage: string;
   status: ProgressStatus;
   reason: string;
 };
@@ -517,7 +505,7 @@ export type NotificationUpdateInput = {
   input: ReviewInput;
   state: NotificationState;
   statuses: ProgressStatuses;
-  stage: ProgressStep;
+  stage: string;
   status: ProgressStatus;
   reason?: string;
 };

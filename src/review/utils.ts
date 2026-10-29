@@ -3,11 +3,7 @@
  * Tool calls occur only inside functions.
  */
 import * as z from "zod";
-import {
-  assessmentNames,
-  stageNames,
-  NotificationAnswerSchema,
-} from "./contracts.js";
+import { stageNames, NotificationAnswerSchema } from "./contracts.js";
 import type {
   NotificationUpdateInput,
   RequestHostNotificationInput,
@@ -84,7 +80,7 @@ export function reviewEventProgress(
   event: ReviewEvent,
 ): ReviewEventProgress | undefined {
   let snapshot: ReviewSnapshot;
-  let stage: ProgressStep;
+  let steps: readonly ProgressStep[];
   let status: ProgressStatus;
   let reason = "";
 
@@ -93,17 +89,17 @@ export function reviewEventProgress(
       return;
     case "stepStarted":
       snapshot = event.snapshot;
-      stage = event.step;
+      steps = event.steps;
       status = "running";
       break;
     case "stepAccepted":
       snapshot = event.snapshot;
-      stage = event.step;
+      steps = event.steps;
       status = "complete";
       break;
     case "stepFailed":
       snapshot = event.snapshot;
-      stage = event.step;
+      steps = event.steps.filter((step) => !snapshot.stages[step]);
       status = "blocked";
       reason = event.reason;
       break;
@@ -111,7 +107,7 @@ export function reviewEventProgress(
       const { review } = event;
       const { publication } = event;
       snapshot = review;
-      stage = "review";
+      steps = ["review"];
       status = review.status;
       reason = [
         `Assessment: ${review.stages.decision?.approval.outcome ?? "incomplete"}`,
@@ -132,14 +128,14 @@ export function reviewEventProgress(
   if (!snapshot.stages.setup) {
     return;
   }
-  const statuses: ProgressStatuses = {
-    ...reviewProgress(snapshot),
-    [stage]: status,
-  };
+  const statuses = reviewProgress(snapshot);
+  for (const step of steps) {
+    statuses[step] = status;
+  }
   if (event.type === "publicationFinished") {
     statuses.publication = event.publication.status;
   }
-  return { statuses, stage, status, reason };
+  return { statuses, stage: steps.join(", "), status, reason };
 }
 
 /**
@@ -287,8 +283,7 @@ async function requestHostNotification({
 
 /**
  * Accepted answers establish completed review steps; failures establish blocked
- * steps.
- * The five assessments share one row and complete only as a full set.
+ * steps, including each parallel assessment.
  */
 export function reviewProgress({
   stages,
@@ -296,19 +291,12 @@ export function reviewProgress({
 }: ReviewProgressInput): ProgressStatuses {
   const statuses: ProgressStatuses = {};
   for (const stage of stageNames) {
-    if (assessmentNames.some((name) => name === stage)) {
-      if (assessmentNames.every((name) => stages[name])) {
-        statuses.assessments = "complete";
-      }
-    } else if (stages[stage]) {
+    if (stages[stage]) {
       statuses[stage] = "complete";
     }
     if (failures.some((failure) => failure.stage === stage)) {
       statuses[stage] = "blocked";
     }
-  }
-  if (failures.some((failure) => failure.stage === "assessments")) {
-    statuses.assessments = "blocked";
   }
   return statuses;
 }
