@@ -14,7 +14,8 @@ Help the reviewer understand the relevant system and how the change reshapes it 
 - Prefer short sentences and short bullets. Give each bullet one point. Avoid dense paragraphs, long table cells and lists of technical terms.
 - Use a concrete example and small diagrams to carry the explanation. Keep diagram labels short and readable without studying the code.
 - Default to roughly 500–800 words for the main brief. Treat this as a guide, not a quota. A small change needs less. Add detail only when it changes the reader’s understanding.
-- Keep the main path prominent. Include exceptions and trade-offs when they affect the design. When useful, group important changed files by what they do together. Omit inventories of every changed consumer or test.
+- Keep the main path prominent. Include exceptions and trade-offs when they affect the design. When useful, group selected changed files by what they do together, with links and a short explanation. Omit inventories of every changed consumer or test.
+- Point the reader to the few source locations that best explain the design. Suggest a reading order when useful. Work these pointers into the explanation or give them their own section, whichever reads better.
 - Keep source links beside the relevant point, but avoid long evidence lists. Put full commit IDs, preparation metadata and verification notes at the end. Put an essential missing dependency near the top.
 - Explain each fact once. A diagram and nearby prose should help each other, rather than repeat the same steps.
 - Before finishing, reread the opening as a tired reviewer. Can they explain the problem and new design without decoding terms or following links? Simplify until they can.
@@ -26,7 +27,7 @@ Help the reviewer understand the relevant system and how the change reshapes it 
 - Work without requiring a conversation. Resolve routine choices from the available evidence. If essential source or scope is unavailable, save a clearly labelled partial brief explaining the gap and what is needed to complete it. Do not fill gaps with plausible architecture.
 - Save to the caller’s requested path. Otherwise use `~/.cache/pi/pr-architecture-walkthrough/<owner>/<repo>/pr-<number>/walkthrough.md`, or a similarly named directory for a local branch or stack. If unavailable, use a temporary directory and return its path.
 - Record the repository, PR links, preparation time and exact compared revisions in the brief. State whether it is complete or partial. Completion means the explanation covers the identified scope, not that the change is correct.
-- Read [the output guide](templates/walkthrough.md) before drafting. Its structure is an example. Add, edit, reorder, combine or remove sections to help the reviewer understand this change. Keep the first screen useful to someone about to review.
+- Choose the headings, order and shape of the brief to suit the change. There is no prescribed outline or section checklist. Keep the first screen useful to someone about to review.
 
 ## Establish what is changing
 
