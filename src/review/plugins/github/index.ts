@@ -4,6 +4,7 @@
  */
 import * as z from "zod";
 import type { WorkflowPlugin } from "../../../workflow/create.js";
+import type { ReviewContext } from "../../steps.js";
 import { errorMessage } from "../../../workflow/run.js";
 import type { ProgressStatuses } from "../progress.js";
 import { InlineCommentSchema } from "../../schemas.js";
@@ -11,6 +12,8 @@ import type {
   ReviewInput,
   ReviewRun,
   ReviewEvent,
+  ReviewResult,
+  ReviewPluginResults,
   ReviewResults,
 } from "../../schemas.js";
 import { reviewProgress, reviewEventProgress } from "../progress.js";
@@ -115,10 +118,11 @@ export function githubReviewRequest({
  * submits the accepted report and findings together in one GitHub review.
  */
 export const createGithubComment: WorkflowPlugin<
-  ReviewInput,
+  ReviewContext,
   ReviewEvent,
-  { readonly publication: PublicationResult }
-> = ({ input, events }) => {
+  ReviewResult,
+  ReviewPluginResults["github"]
+> = ({ input: { review: input }, events }) => {
   const target = input.github;
   const enabled = target && input.publication !== "local-only";
   let sequence = 0;
@@ -136,41 +140,8 @@ export const createGithubComment: WorkflowPlugin<
   let creationFailure: z.infer<typeof GithubFailureSchema> | undefined;
 
   events.subscribe(async (event: ReviewEvent) => {
-    switch (event.type) {
-      case "workflowCompleted": {
-        publication = await publishToGithub({ review: event.result });
-
-        // Keep the live comment consistent with the actual submission outcome.
-        if (
-          enabled &&
-          event.result.status !== "incomplete" &&
-          !creationFailure
-        ) {
-          const progress = await updateProgress({
-            statuses: {
-              ...reviewProgress(event.result),
-              publication:
-                publication.status === "confirmed"
-                  ? "complete"
-                  : publication.status,
-            },
-            reason: [publication.reason, publication.url]
-              .filter(Boolean)
-              .join("\n"),
-          });
-          if (progress.status !== "confirmed") {
-            publication.reason += ` Progress comment: ${progress.status === "rejected" ? progress.reason : progress.message}`;
-          }
-        }
-        await events.emit({
-          type: "publicationFinished",
-          review: event.result,
-          publication,
-        });
-        return;
-      }
-      case "publicationFinished":
-        return;
+    if (event.type === "workflowCompleted") {
+      return;
     }
 
     // Setup establishes scope before any external progress is sent.
@@ -386,12 +357,35 @@ export const createGithubComment: WorkflowPlugin<
   }
 
   return {
-    get publication() {
-      return publication;
+    state: {
+      get publication() {
+        return publication;
+      },
+    },
+    complete: async ({ result: review }) => {
+      publication = await publishToGithub({ review });
+
+      // Keep the live comment consistent with the actual submission outcome.
+      if (enabled && review.status !== "incomplete" && !creationFailure) {
+        const progress = await updateProgress({
+          statuses: {
+            ...reviewProgress(review),
+            publication:
+              publication.status === "confirmed"
+                ? "complete"
+                : publication.status,
+          },
+          reason: [publication.reason, publication.url]
+            .filter(Boolean)
+            .join("\n"),
+        });
+        if (progress.status !== "confirmed") {
+          publication.reason += ` Progress comment: ${progress.status === "rejected" ? progress.reason : progress.message}`;
+        }
+      }
     },
   };
 };
-
 /**
  * Describe actual work status without treating completed review work as passing.
  */

@@ -193,6 +193,10 @@ export type ReviewResult = ReviewRun & {
   report: string | null;
   approval: ReviewResults["decision"]["approval"] | null;
 };
+export type ReviewPluginResults = {
+  github: { readonly publication: PublicationResult };
+  notifications: { readonly receipts: Notification[] };
+};
 export type ReviewOutput = ReviewResult & {
   notifications: Notification[];
   publication: PublicationResult;
@@ -200,9 +204,4 @@ export type ReviewOutput = ReviewResult & {
 
 export type ReviewEvent =
   | WorkflowEvent<ReviewResults>
-  | WorkflowCompleted<ReviewResult>
-  | {
-      type: "publicationFinished";
-      review: ReviewRun;
-      publication: PublicationResult;
-    };
+  | WorkflowCompleted<ReviewResult, ReviewPluginResults>;

@@ -15,8 +15,8 @@ export type ProgressStatuses = Partial<Record<ProgressStep, ProgressStatus>>;
 type ReviewSnapshot = Pick<ReviewRun, "stages" | "failures">;
 
 /**
- * Render a shared progress view without delivery or retained state. workflowCompleted requests publication;
- * only publicationFinished has the outcome needed for a final notification.
+ * Derive progress without retaining state. workflowCompleted carries plugin
+ * outcomes after all completion hooks, so final notifications include delivery.
  */
 export function reviewEventProgress(event: ReviewEvent):
   | {
@@ -32,8 +32,6 @@ export function reviewEventProgress(event: ReviewEvent):
   let reason = "";
 
   switch (event.type) {
-    case "workflowCompleted":
-      return;
     case "tasksStarted":
     case "tasksFinished":
       snapshot = {
@@ -49,9 +47,9 @@ export function reviewEventProgress(event: ReviewEvent):
         .map(({ stage, reason }) => `${stage}: ${reason}`)
         .join("\n");
       break;
-    case "publicationFinished": {
-      const { review } = event;
-      const { publication } = event;
+    case "workflowCompleted": {
+      const review = event.result;
+      const { publication } = event.plugins.github;
       snapshot = review;
       steps = ["review"];
       status = review.status;
@@ -80,8 +78,8 @@ export function reviewEventProgress(event: ReviewEvent):
       statuses[step] = status;
     }
   }
-  if (event.type === "publicationFinished") {
-    statuses.publication = event.publication.status;
+  if (event.type === "workflowCompleted") {
+    statuses.publication = event.plugins.github.publication.status;
   }
   if (event.type === "tasksFinished" && event.snapshot.failures.length) {
     status = "blocked";

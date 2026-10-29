@@ -6,7 +6,6 @@ import type { WorkflowSnapshot, WorkflowSteps } from "../workflow/run.js";
 import { parseReviewInput } from "./schemas.js";
 import type {
   ReviewResults,
-  ReviewEvent,
   ReviewOutput,
   ReviewResult,
   StageResults,
@@ -45,16 +44,7 @@ export const meta = {
 /**
  * Plugin functions receive fresh input and events for every workflow execution.
  */
-const workflow = createWorkflow<
-  ReviewContext,
-  ReviewResults,
-  ReviewResult,
-  {
-    notifications: Awaited<ReturnType<typeof createNotifications>>;
-    github: Awaited<ReturnType<typeof createGithubComment>>;
-  },
-  Extract<ReviewEvent, { type: "publicationFinished" }>
->({
+const workflow = createWorkflow({
   input: {
     parse: (args: unknown): ReviewContext => ({
       review: parseReviewInput(args),
@@ -62,10 +52,8 @@ const workflow = createWorkflow<
     }),
   },
   plugins: {
-    notifications: ({ input, events }) =>
-      createNotifications({ input: input.review, events }),
-    github: ({ input, events }) =>
-      createGithubComment({ input: input.review, events }),
+    notifications: createNotifications,
+    github: createGithubComment,
   },
   execute: executeWorkflow,
   finalize: finalizeReview,

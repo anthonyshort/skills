@@ -9,36 +9,42 @@ import {
 import type { WorkflowEvent, WorkflowSnapshot, WorkflowSteps } from "./run.js";
 
 /**
- * Emitted after finalisation, including when task failures produced partial work.
+ * Emitted after finalisation and plugin completion hooks, with resolved plugin states.
  */
-export type WorkflowCompleted<Result> = {
+export type WorkflowCompleted<Result, Plugins> = {
   readonly type: "workflowCompleted";
   readonly result: Result;
+  readonly plugins: Plugins;
 };
 
 /**
- * Initialise one plugin for a run. Register observers before resolving; the
- * returned state remains available after completion observers finish.
+ * Per-run state and optional completion work. Completion receives the finalised
+ * result, including partial work, and finishes before workflowCompleted.
  */
-export type WorkflowPlugin<Input, Event, State> = (args: {
+export type WorkflowPluginInstance<Result, State> = {
+  state: State;
+  complete?: (args: { result: Result }) => void | Promise<void>;
+};
+
+/**
+ * Initialise a plugin and register progress or final observers before resolving.
+ * Put result-dependent work in complete; only the workflow publishes lifecycle events.
+ */
+export type WorkflowPlugin<Input, Event, Result, State> = (args: {
   input: Input;
-  events: WorkflowEvents<Event>;
-}) => State | Promise<State>;
+  events: Pick<WorkflowEvents<Event>, "subscribe">;
+}) =>
+  | WorkflowPluginInstance<Result, State>
+  | Promise<WorkflowPluginInstance<Result, State>>;
 
 /**
  * Create a reusable workflow whose run(args) parses before initialising plugins.
  * Plugins initialise in declaration order, then execute schedules named tasks.
  * Recorded task failures reach finalize as partial results; other errors escape.
- * Completion observers, including nested emissions, finish before run returns
- * the final result and the per-run plugin states.
+ * Completion hooks finish before the final event is emitted. Observers then
+ * finish before run returns the result and the per-run plugin states.
  */
-export function createWorkflow<
-  Input,
-  Results,
-  Result,
-  Plugins,
-  ExtraEvent = never,
->({
+export function createWorkflow<Input, Results, Result, Plugins>({
   input: parser,
   plugins,
   execute,
@@ -48,7 +54,8 @@ export function createWorkflow<
   plugins: {
     [Name in keyof Plugins]: WorkflowPlugin<
       Input,
-      WorkflowEvent<Results> | WorkflowCompleted<Result> | ExtraEvent,
+      WorkflowEvent<Results> | WorkflowCompleted<Result, Plugins>,
+      Result,
       Plugins[Name]
     >;
   };
@@ -67,14 +74,19 @@ export function createWorkflow<
   async function run(args: unknown) {
     const input = parser.parse(args);
     const events = new WorkflowEvents<
-      WorkflowEvent<Results> | WorkflowCompleted<Result> | ExtraEvent
+      WorkflowEvent<Results> | WorkflowCompleted<Result, Plugins>
     >();
     const steps = createWorkflowRun<Input, Results>({ input, events });
 
     // Each configured plugin initialises once, before any task can emit progress.
     const states = {} as Plugins;
+    const completions: ((result: Result) => void | Promise<void>)[] = [];
     for (const name in plugins) {
-      states[name] = await plugins[name]({ input, events });
+      const plugin = await plugins[name]({ input, events });
+      states[name] = plugin.state;
+      if (plugin.complete) {
+        completions.push((result) => plugin.complete?.({ result }));
+      }
     }
 
     try {
@@ -86,8 +98,11 @@ export function createWorkflow<
     }
 
     const result = await finalize({ input, execution: steps.result() });
-    // Completion listeners may await further plugin events, such as publication.
-    await events.emit({ type: "workflowCompleted", result });
+    // Finish delivery before final observers read the resolved plugin states.
+    for (const complete of completions) {
+      await complete(result);
+    }
+    await events.emit({ type: "workflowCompleted", result, plugins: states });
     return { result, plugins: states };
   }
 

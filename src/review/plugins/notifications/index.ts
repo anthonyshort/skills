@@ -3,7 +3,12 @@
  */
 import * as z from "zod";
 import type { WorkflowPlugin } from "../../../workflow/create.js";
-import type { ReviewInput, ReviewEvent } from "../../schemas.js";
+import type {
+  ReviewEvent,
+  ReviewResult,
+  ReviewPluginResults,
+} from "../../schemas.js";
+import type { ReviewContext } from "../../steps.js";
 import { errorMessage } from "../../../workflow/run.js";
 import { reviewEventProgress } from "../progress.js";
 
@@ -53,10 +58,11 @@ export type Notification = {
  * the host-availability latch belong to this object, not review execution.
  */
 export const createNotifications: WorkflowPlugin<
-  ReviewInput,
+  ReviewContext,
   ReviewEvent,
-  { readonly receipts: Notification[] }
-> = ({ input, events }) => {
+  ReviewResult,
+  ReviewPluginResults["notifications"]
+> = ({ input: { review: input }, events }) => {
   const receipts: Notification[] = [];
   let enabled = true;
 
@@ -161,8 +167,10 @@ export const createNotifications: WorkflowPlugin<
   }
 
   return {
-    get receipts() {
-      return receipts;
+    state: {
+      get receipts() {
+        return receipts;
+      },
     },
   };
 };
