@@ -3,7 +3,7 @@
  * The coordinator owns progress timing and never retries a review for delivery.
  */
 import * as z from "zod";
-import publicationInstructions from "../../skills/review-workflow/prompts/publication.md";
+import publicationInstructions from "./prompts/publication.md";
 import { PublicationResultSchema } from "./contracts.js";
 import type {
   GitHubRequest,

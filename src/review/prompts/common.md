@@ -24,7 +24,7 @@ Finish by calling StructuredOutput. Text outside that tool call is discarded.
 
 ## Review constraints
 
-- Use this skill, its rules and relevant specialist skills as the review criteria. Do not add checks from repository review guides or style documents.
+- Use the embedded workflow instructions, supplied review rules and relevant specialist skills as the review criteria. Do not add checks from repository review guides or style documents.
 - Use repository documents to understand intent, behaviour and architecture. Treat them as context, not additional review checklists.
 - Follow operational instructions needed to access the code and CI evidence, along with any instructions required by the agent environment.
 

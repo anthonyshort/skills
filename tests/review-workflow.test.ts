@@ -575,15 +575,12 @@ for (const split of [false, true]) {
       const result = await state.run();
       assert.equal(result.value.status, split ? "split" : "complete");
       const sharedRules = readFileSync(
-        new URL("../skills/review-workflow/prompts/common.md", import.meta.url),
+        new URL("../src/review/prompts/common.md", import.meta.url),
         "utf8",
       );
       for (const stage of Object.keys(state.bundle.stages)) {
         const instructions = readFileSync(
-          new URL(
-            `../skills/review-workflow/prompts/${stage}.md`,
-            import.meta.url,
-          ),
+          new URL(`../src/review/prompts/${stage}.md`, import.meta.url),
           "utf8",
         );
         const prompt = state.prompts.get(`${stage}:1`);

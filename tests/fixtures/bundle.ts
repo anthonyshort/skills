@@ -155,7 +155,7 @@ function commitFixtureChange(git: FixtureGit, description: string): void {
  */
 function copyReviewSkill(root: string) {
   const skillRoot = path.join(root, "review-skill");
-  cpSync(path.join(packageRoot, "skills/review-workflow"), skillRoot, {
+  cpSync(path.join(packageRoot, "skills/review"), skillRoot, {
     recursive: true,
   });
   const rulePaths = [

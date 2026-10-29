@@ -89,7 +89,7 @@ export function parseReviewInput(value: unknown): ReviewInput {
       supplied.notification === undefined
         ? { messageKey: `review:${supplied.runId}` }
         : supplied.notification,
-    skillRoot: roots.skillRoot ?? `${roots.packageRoot}/skills/review-workflow`,
+    skillRoot: roots.skillRoot ?? `${roots.packageRoot}/skills/review`,
     supportRoot: roots.supportRoot ?? `${roots.packageRoot}/scripts/review`,
     tsxLoader:
       roots.tsxLoader ??

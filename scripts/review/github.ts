@@ -1,5 +1,5 @@
 /**
- * Command bridge to the copied GitHub helper, with a receipt checked by Pi.
+ * Command bridge to the existing GitHub helper, with a receipt checked by Pi.
  * The helper remains responsible for transport, publication and recovery.
  */
 import { execFile } from "node:child_process";

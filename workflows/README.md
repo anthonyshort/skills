@@ -1,8 +1,8 @@
 # Review workflow
 
-This Pi package provides the experimental `review` workflow for pi-subagents 0.22.0. Select the separate `review-workflow` skill to launch it in your existing Pi session. The workflow schedules every required review stage, validates saved results and owns progress and publication. The calling agent returns the result without running the original review skill afterwards.
+This Pi package provides the experimental named `review` workflow for pi-subagents 0.22.0. Invoke it through `SubagentWorkflow` in an existing Pi session. It schedules the required review steps, validates saved results and owns progress and publication. The calling agent returns its result without publishing again.
 
-`skills/review-workflow/` is an editable snapshot of `skills/review/` at `0995471`. Its concise `SKILL.md` launches the workflow; `criteria.md` preserves the detailed review policy and assigns coordination to workflow stages. Rules, templates and GitHub helpers are copied alongside it. The ordinary `review` skill remains unchanged. There is no automatic synchronisation between the two versions.
+Workflow-specific instructions live in `src/review/prompts/`. The workflow reuses the existing review skill’s rules, report templates and GitHub helper. The ordinary review skill stays unchanged; there is no copied skill or separate launcher skill.
 
 ## Install and run
 
@@ -14,7 +14,7 @@ pi install npm:@tintinweb/pi-subagents@0.22.0
 pi install /absolute/path/to/skills
 ```
 
-Enable package workflow discovery in pi-subagents and reload Pi. Ask to use `review-workflow`, or invoke `SubagentWorkflow` with `name: "review"` directly:
+Enable package workflow discovery in pi-subagents and reload Pi. Invoke `SubagentWorkflow` with `name: "review"`:
 
 ```json
 {
@@ -37,7 +37,7 @@ Enable package workflow discovery in pi-subagents and reload Pi. Ask to use `rev
 
 Replace the comparison with full base and head commit IDs covering the whole PR. Use a clean checkout at that head, an output directory outside source directories and a fresh `invocationId` on every launch so cached workers cannot bypass file checks. Keep the `runId`, notification key and GitHub state for the same review run. For a branch or diff without a PR, omit `github` or set it to `null`. Host updates default to the message key `review:RUN_ID`; pass `notification: null` to disable them. The host chooses recipients, so an unavailable notification tool records a rejected attempt and disables later host sends.
 
-Optional `contextFiles` supply absolute paths to requirements. `wrapperSkillRoots` adds wrapper guidance and rule indexes without changing ordinary wrapper skills. Resource paths default to the experimental skill, gate scripts and installed `tsx` loader.
+Optional `contextFiles` supply absolute paths to requirements. `wrapperSkillRoots` adds wrapper guidance and rule indexes without changing ordinary wrapper skills. Resource paths default to the original `skills/review` rules/helper directory, workflow gate scripts and installed `tsx` loader.
 
 | Publication mode | GitHub | Host notifications, including Telegram |
 | --- | --- | --- |
@@ -79,7 +79,7 @@ notify({ action: "send", messageKey: "app-pr42-review", text: "…" });
 
 The authenticated host selects channels such as Telegram. There is no caller-supplied destination or event key. Repeated sends edit the same message only within the same host scope and message key. The host bridge must preserve that scope; a new host session is not interchangeable. If receipts show a changed scope, the workflow disables further host updates to avoid creating more messages. A missing host tool also disables later attempts. A native Pi session without the bridge records unavailable delivery as rejected. The workflow does not emulate a missing tool with HTTP or shell commands. Receipts preserve the broadcast scope and per-channel delivery results.
 
-Final GitHub publication runs only after the saved-file gate passes. A small Node bridge revalidates the accepted files immediately before invoking the copied `github_progress.py` helper. The helper owns GitHub calls, frozen publication inputs, recovery and confirmed submission. The workflow does not implement a second publisher. Its publication worker refreshes current discussion and CI and rejects stale assessments; the helper flags newer commits and withholds unsafe submission. Delivery is outside the review-stage retry loop. Inspect the existing helper state before recovering an uncertain publication.
+Final GitHub publication runs only after the saved-file gate passes. A small Node bridge revalidates the accepted files immediately before invoking the existing `skills/review/scripts/github_progress.py` helper. The helper owns GitHub calls, frozen publication inputs, recovery and confirmed submission. The workflow does not implement a second publisher. Its publication worker refreshes current discussion and CI and rejects stale assessments; the helper flags newer commits and withholds unsafe submission. Delivery is outside the review-stage retry loop. Inspect the existing helper state before recovering an uncertain publication.
 
 The writer saves `bundle.json`, stage Markdown, `review-report.md`, `approval.json`, `summary.md`, `inline.json` and `result.json`. Incomplete reviews also save `incomplete.md`. Writer validation failure stops final publication. A saved complete review can still require fixes, withhold approval or have incomplete delivery.
 
@@ -113,7 +113,7 @@ await runStep({ step: "report", run: acceptReport });
 
 `reviewWorkflow` owns accepted evidence, attempts and failures. It does not notify, save or publish, and the sequence does not manually assign results or update progress. The outer coordinator switches on events to choose Pi display groups and send notifications. After the review returns, it saves and validates files, then publishes accepted results. Delivery helpers record transport failures without retrying reviewer work. There is no event bus, queue, generator or state-machine library.
 
-Each named review function shows its direct Markdown imports, worker label and schema. `reviewAgent` prepends shared Markdown rules and explicit context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not receive a phase, choose tasks, update progress or accept evidence. Labels identify Pi workers and retry diagnostics. Step, wrapper and delivery calls use object parameters. A package-local `AGENTS.md` is authoring guidance, not an assumed automatic source of worker criteria.
+Each named review function shows its direct Markdown imports, worker label and schema. `reviewAgent` prepends shared Markdown rules and explicit context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not receive a phase, choose tasks, update progress or accept evidence. Labels identify Pi workers and retry diagnostics. Step, wrapper and delivery calls use object parameters.
 
 A review step is the domain concept. Pi’s `phase()` is only display grouping and is called by the coordinator on `stepStarted`. The five assessments share the `assessments` group. Notification and GitHub workers use their own explicit display groups without changing the ambient review group. Groups appear as steps start; metadata keeps no second list of future steps. There is no separate milestone state or phase passed through the review agent wrapper.
 
@@ -123,7 +123,7 @@ GitHub operations return their own receipts. The final publication outcome is a 
 
 ### Edit worker instructions
 
-Edit the named Markdown file under `skills/review-workflow/prompts/`, such as `research.md`. `common.md` contains shared rules, `assessment.md` contains shared assessment guidance and `reporting.md` contains shared report guidance. Each named function imports its task directly, adding the shared guidance and fixed templates it needs. The experimental skill’s `criteria.md` is an index rather than a second copy of those instructions. The original review skill stays unchanged.
+Edit the named Markdown file under `src/review/prompts/`, such as `research.md`. `common.md` contains shared rules, `assessment.md` contains shared assessment guidance and `reporting.md` contains shared report guidance. Each named function imports its task directly, adding the shared guidance and fixed templates it needs. The original review skill stays unchanged.
 
 The build embeds these files using esbuild’s text loader. Run `npm run build` after editing prompts or templates; `npm run build:check` detects stale embedded text. Workers receive the instructions in their prompt and do not need to open Markdown heading links at runtime. Repository rules, specialist skills, wrapper guidance and caller-supplied context remain runtime evidence for workers to inspect.
 
@@ -169,7 +169,7 @@ Run `npm test` for deterministic checks. The test boundaries are:
 | `tests/review-publication.test.ts` | Saved-file checks, publication restrictions and helper receipt validation | Python/gh subprocess responses |
 | `tests/review-bundle.test.ts` | Temporary committed repositories, copied rule indexes and damaged disk files | Accepted worker evidence |
 | `tests/review-stages.test.ts` | Pure stage and approval guards, resource defaults | Explicit assessment inputs |
-| Original and copied `test_github_progress.py` | Existing helper publication and recovery mechanics | GitHub API responses |
+| `skills/review/scripts/test_github_progress.py` | Existing helper publication and recovery mechanics | GitHub API responses |
 
 These checks do not prove model judgement or actual remote delivery. Fixture JSDoc explains what each substitute can establish.
 

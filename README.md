@@ -25,20 +25,13 @@ src/review/
 workflows/review.js  # generated from TypeScript
 ```
 
-The `pi` manifest exports the skills and an opt-in review workflow. Workflow source is TypeScript; the build supplies the JavaScript required by pi-subagents.
+The `pi` manifest exports the skills and an opt-in review workflow. The ordinary review skill uses equivalent agents or its documented fallback when named agents are unavailable. The personal GitHub review attribution remains `Sent with Pi` on all agents.
 
 ## Review workflow for Pi
 
-The [workflow guide](workflows/README.md) explains installation, invocation, the source files in execution order and what each test suite covers. The workflow runs in your existing Pi session and returns a validated report and approval assessment. Optional progress updates use the host notification tool.
+The [workflow guide](workflows/README.md) explains installation and invocation of the named `review` workflow in an existing Pi session, its source files and test boundaries. The workflow owns required assessments, host notification updates and GitHub publication, and returns a validated report and decision. The original review skill remains unchanged.
 
-```sh
-npm install
-npm test
-pi install npm:@tintinweb/pi-subagents@0.22.0
-pi install /absolute/path/to/skills
-```
-
-Invoke the named `review` workflow with pinned base/head revisions and a separate output directory. Publishing remains an explicit caller action through the review skill’s existing helper.
+Workflow source is TypeScript under `src/review/`. Run `npm install`, then `npm run build` to rebuild the JavaScript required by pi-subagents; `npm test` checks the workflow and existing publication helper.
 
 ## Communication style
 

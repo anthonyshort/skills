@@ -10,7 +10,7 @@
     "format:check": "oxfmt --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\"",
     "test:workflow": "node --import tsx --test tests/review-workflow.test.ts tests/review-stages.test.ts tests/review-publication.test.ts",
     "test:unit": "node --import tsx --test tests/review-bundle.test.ts",
-    "test": "npm run typecheck && npm run format:check && npm run build:check && npm run test:workflow && npm run test:unit && python3 -m unittest discover -s skills/review/scripts -p test_*.py && python3 -m unittest discover -s skills/review-workflow/scripts -p test_*.py",
+    "test": "npm run typecheck && npm run format:check && npm run build:check && npm run test:workflow && npm run test:unit && python3 -m unittest discover -s skills/review/scripts -p test_*.py",
     "format": "oxfmt --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\""
   },
   "keywords": [
@@ -33,9 +33,6 @@
     "esbuild": "0.28.2",
     "oxfmt": "0.75.0",
     "typescript": "7.0.2"
-  },
-  "overrides": {
-    "undici": "8.12.3"
   },
   "engines": {
     "node": ">=22.19.0"

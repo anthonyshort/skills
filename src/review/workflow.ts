@@ -4,26 +4,26 @@
  * reviewAgent wrapper adds common rules, validation and one fresh retry.
  */
 import * as z from "zod";
-import setupPrompt from "../../skills/review-workflow/prompts/setup.md";
-import researchPrompt from "../../skills/review-workflow/prompts/research.md";
-import researchCheckPrompt from "../../skills/review-workflow/prompts/researchCheck.md";
-import productPrompt from "../../skills/review-workflow/prompts/product.md";
-import systemFitPrompt from "../../skills/review-workflow/prompts/systemFit.md";
-import simplicityPrompt from "../../skills/review-workflow/prompts/simplicity.md";
-import readabilityPrompt from "../../skills/review-workflow/prompts/readability.md";
-import correctnessPrompt from "../../skills/review-workflow/prompts/correctness.md";
-import rulesPrompt from "../../skills/review-workflow/prompts/rules.md";
-import consolidationPrompt from "../../skills/review-workflow/prompts/consolidation.md";
-import draftPrompt from "../../skills/review-workflow/prompts/draft.md";
-import editorialPrompt from "../../skills/review-workflow/prompts/editorial.md";
-import reportPrompt from "../../skills/review-workflow/prompts/report.md";
-import splitPlanPrompt from "../../skills/review-workflow/prompts/splitPlan.md";
-import decisionPrompt from "../../skills/review-workflow/prompts/decision.md";
-import sharedRules from "../../skills/review-workflow/prompts/common.md";
-import assessmentRules from "../../skills/review-workflow/prompts/assessment.md";
-import reportingRules from "../../skills/review-workflow/prompts/reporting.md";
-import reportTemplate from "../../skills/review-workflow/templates/review-report.md";
-import githubProgressTemplate from "../../skills/review-workflow/templates/github-progress.md";
+import setupPrompt from "./prompts/setup.md";
+import researchPrompt from "./prompts/research.md";
+import researchCheckPrompt from "./prompts/researchCheck.md";
+import productPrompt from "./prompts/product.md";
+import systemFitPrompt from "./prompts/systemFit.md";
+import simplicityPrompt from "./prompts/simplicity.md";
+import readabilityPrompt from "./prompts/readability.md";
+import correctnessPrompt from "./prompts/correctness.md";
+import rulesPrompt from "./prompts/rules.md";
+import consolidationPrompt from "./prompts/consolidation.md";
+import draftPrompt from "./prompts/draft.md";
+import editorialPrompt from "./prompts/editorial.md";
+import reportPrompt from "./prompts/report.md";
+import splitPlanPrompt from "./prompts/splitPlan.md";
+import decisionPrompt from "./prompts/decision.md";
+import sharedRules from "./prompts/common.md";
+import assessmentRules from "./prompts/assessment.md";
+import reportingRules from "./prompts/reporting.md";
+import reportTemplate from "../../skills/review/templates/review-report.md";
+import githubProgressTemplate from "../../skills/review/templates/github-progress.md";
 import {
   assessmentNames,
   parseReviewInput,

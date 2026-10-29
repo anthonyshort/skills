@@ -1,6 +1,6 @@
 /**
  * Exercise the GitHub command bridge with real accepted files and a simulated
- * subprocess boundary. The copied Python helper has its own recovery suite;
+ * subprocess boundary. The Python helper has its own recovery suite;
  * these cases establish validation, restrictions and receipt consistency.
  */
 import assert from "node:assert/strict";

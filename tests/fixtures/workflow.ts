@@ -72,7 +72,7 @@ export type FixtureOptions = {
 
 function createSources(options: FixtureOptions) {
   const root = mkdtempSync(path.join(os.tmpdir(), "review-workflow-"));
-  const skillRoot = path.join(root, "skills/review-workflow");
+  const skillRoot = path.join(root, "skills/review");
   const repository = path.join(root, "repository");
   const artifacts = path.join(root, "artifacts with 'quotes'");
   mkdirSync(path.join(skillRoot, "rules"), { recursive: true });
