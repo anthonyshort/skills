@@ -118,7 +118,11 @@ export function githubReviewRequest({
  * Subscribe to review events. Comment identity stays in memory; completion
  * submits the accepted report and findings together in one GitHub review.
  */
-export const createGithubComment = (({ input, events }) => {
+export const createGithubComment: WorkflowPlugin<
+  ReviewInput,
+  ReviewEvent,
+  { readonly publication: PublicationResult }
+> = ({ input, events }) => {
   const target = input.github;
   const enabled = target && input.publication !== "local-only";
   let sequence = 0;
@@ -390,8 +394,4 @@ export const createGithubComment = (({ input, events }) => {
       return publication;
     },
   };
-}) satisfies WorkflowPlugin<
-  ReviewInput,
-  ReviewEvent,
-  { readonly publication: PublicationResult }
->;
+};

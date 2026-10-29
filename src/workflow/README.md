@@ -23,7 +23,7 @@ type Completion = { readonly value: number | null };
 A plugin receives parsed input and the run’s event emitter. It may initialise asynchronously; it must register its observers before resolving. Its returned object belongs to that run and remains available after completion.
 
 ```typescript
-const completion = (({ events }) => {
+const completion: WorkflowPlugin<Input, Event, Completion> = ({ events }) => {
   let value: number | null = null;
   events.subscribe((event) => {
     if (event.type === "workflowCompleted") {
@@ -31,7 +31,7 @@ const completion = (({ events }) => {
     }
   });
   return { get value() { return value; } };
-}) satisfies WorkflowPlugin<Input, Event, Completion>;
+};
 ```
 
 The task name determines its result key and return type. A call to `steps.run` starts every supplied task in parallel. Await a singleton array when the next step depends on its result.
@@ -58,7 +58,7 @@ console.log(result.value, plugins.completion.value); // 6, 6
 
 The type parameters are parsed input, task-result map, final result, plugin-state map and optional extra events. Named parser, execution and finalisation functions often provide enough information for inference. Declare the parameters explicitly when plugins emit domain-specific events, so their event union includes `WorkflowEvent<Results>`, `WorkflowCompleted<Output>` and those extra events.
 
-Review’s GitHub and notification functions satisfy `WorkflowPlugin<ReviewInput, ReviewEvent, State>` in their own modules. Using `satisfies` checks the plugin contract while preserving each function’s inferred synchronous return type. The review workflow adapts its worker context to those plugins by passing `input.review` as their input. Delivery state and additional events belong to the plugins.
+Review’s GitHub and notification functions are explicitly typed as `WorkflowPlugin<ReviewInput, ReviewEvent, State>` in their own modules. The plugin-state map contains resolved states; use `Awaited<ReturnType<typeof plugin>>` when deriving one from a plugin function that may return a promise. The review workflow adapts its worker context to those plugins by passing `input.review` as their input. Delivery state and additional events belong to the plugins.
 
 ## Lifecycle and failures
 

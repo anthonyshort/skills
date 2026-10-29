@@ -50,8 +50,8 @@ const workflow = createWorkflow<
   ReviewResults,
   ReviewResult,
   {
-    notifications: ReturnType<typeof createNotifications>;
-    github: ReturnType<typeof createGithubComment>;
+    notifications: Awaited<ReturnType<typeof createNotifications>>;
+    github: Awaited<ReturnType<typeof createGithubComment>>;
   },
   Extract<ReviewEvent, { type: "publicationFinished" }>
 >({

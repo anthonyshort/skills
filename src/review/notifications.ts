@@ -52,7 +52,11 @@ export type Notification = {
  * Subscribe to review progress and publication outcomes. Delivery receipts and
  * the host-availability latch belong to this object, not review execution.
  */
-export const createNotifications = (({ input, events }) => {
+export const createNotifications: WorkflowPlugin<
+  ReviewInput,
+  ReviewEvent,
+  { readonly receipts: Notification[] }
+> = ({ input, events }) => {
   const receipts: Notification[] = [];
   let enabled = true;
 
@@ -161,8 +165,4 @@ export const createNotifications = (({ input, events }) => {
       return receipts;
     },
   };
-}) satisfies WorkflowPlugin<
-  ReviewInput,
-  ReviewEvent,
-  { readonly receipts: Notification[] }
->;
+};
