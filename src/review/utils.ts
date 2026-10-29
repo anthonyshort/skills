@@ -9,7 +9,7 @@ import {
   NotificationAnswerSchema,
 } from "./contracts.js";
 import type {
-  ProgressUpdateInput,
+  NotificationUpdateInput,
   RequestHostNotificationInput,
   ProgressStatuses,
   ReviewProgressInput,
@@ -105,9 +105,9 @@ export async function sendHostNotification({
   stage,
   status,
   reason = "",
-}: ProgressUpdateInput): Promise<void> {
+}: NotificationUpdateInput): Promise<void> {
   if (
-    !state.hostNotifications ||
+    !state.enabled ||
     !input.notification ||
     ["local-only", "staged"].includes(input.publication)
   ) {
@@ -126,18 +126,18 @@ export async function sendHostNotification({
     label: `${stage}:${status}`,
     text,
   });
-  const prior = state.notifications.find((entry) => entry.receipt.broadcast)
-    ?.receipt.broadcast;
+  const prior = state.receipts.find((entry) => entry.receipt.broadcast)?.receipt
+    .broadcast;
   if (prior && receipt.broadcast && receipt.broadcast.scope !== prior.scope) {
     receipt.status = "uncertain";
     receipt.reason =
       "Host notification scope changed; further updates disabled to avoid creating more messages";
-    state.hostNotifications = false;
+    state.enabled = false;
   }
   if (!receipt.broadcast && receipt.status === "rejected") {
-    state.hostNotifications = false;
+    state.enabled = false;
   }
-  state.notifications.push({ stage, status, receipt });
+  state.receipts.push({ stage, status, receipt });
 }
 
 /**

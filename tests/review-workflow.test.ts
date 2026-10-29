@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import type { WorkflowJournalEntry } from "../node_modules/@tintinweb/pi-subagents/dist/workflow/journal.js";
+import { GitHubRequestSchema } from "../src/review/contracts.js";
 import { scenario, questions } from "./fixtures/workflow.js";
 import type { FixtureOptions } from "./fixtures/workflow.js";
 test("complete review uses all required stages and validates real saved files", () =>
@@ -703,6 +704,20 @@ test("GitHub progress starts after setup and final publication follows the real 
     const finish = state.calls.findIndex((name) =>
       name.startsWith("github:finish:"),
     );
+    assert.equal(
+      state.calls.filter((name) => name.startsWith("github:start:")).length,
+      1,
+    );
+    const requestIds = state.calls
+      .filter((name) => name.startsWith("github:"))
+      .map((name) => {
+        const request = state.prompts
+          .get(name)
+          ?.match(/^GitHub request: (.+)$/m)?.[1];
+        assert.ok(request);
+        return GitHubRequestSchema.parse(JSON.parse(request)).id;
+      });
+    assert.equal(new Set(requestIds).size, requestIds.length);
     assert.ok(start > state.calls.indexOf("setup:1"));
     assert.ok(start < state.calls.indexOf("research:1"));
     assert.ok(finish > state.calls.indexOf("save-artefacts"));

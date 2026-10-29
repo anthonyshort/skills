@@ -34,8 +34,7 @@ import {
 } from "./contracts.js";
 import type {
   Bundle,
-  DeliveryState,
-  GitHubRequest,
+  NotificationState,
   ReviewAgentInput,
   ReviewEventInput,
   ReviewSnapshot,
@@ -55,7 +54,7 @@ import type {
   StageResult,
   StageResults,
 } from "./contracts.js";
-import { githubEnabled, sendGitHub, publishReview } from "./github.js";
+import { createGithubComment } from "./github.js";
 import {
   validateAnswer,
   validateSetup,
@@ -89,33 +88,40 @@ export const meta = {
  */
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
-  const delivery: DeliveryState = {
-    notifications: [],
-    hostNotifications: true,
-    githubSequence: 0,
-  };
+
+  // Keep channel bookkeeping separate from accepted review evidence.
+  const githubComment = createGithubComment({ input });
+  const notifications: NotificationState = { receipts: [], enabled: true };
   const onEvent = (event: ReviewEvent) =>
-    handleReviewEvent({ input, state: delivery, event });
+    handleReviewEvent({ input, githubComment, notifications, event });
+
+  // Review steps emit awaited events; the observer owns external updates.
   const review = await reviewWorkflow({ input, onEvent });
+
+  // Persist accepted answers and validate the files before GitHub can use them.
   let saved: SavedReview;
   try {
     saved = await saveReviewFiles({
       review,
-      notifications: delivery.notifications,
+      notifications: notifications.receipts,
     });
   } catch (error) {
     await onEvent({ type: "runFailed", review, reason: errorMessage(error) });
     throw error;
   }
-  const publication = await publishReview({ saved, state: delivery });
+
+  // Publish the validated files, then report the actual outcome through events.
+  const publication = await githubComment.publishToGithub({ saved });
   await onEvent({ type: "runFinished", saved, publication });
+
+  // Return file locations, the assessment and channel outcomes to the caller.
   return {
     ...saved.result,
     approval: review.stages.decision?.approval ?? null,
     publication,
     validationCommand: saved.validationCommand,
     failures: review.failures,
-    notifications: delivery.notifications,
+    notifications: notifications.receipts,
   };
 }
 
@@ -126,42 +132,44 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
  */
 async function handleReviewEvent({
   input,
-  state,
+  githubComment,
+  notifications,
   event,
 }: ReviewEventInput): Promise<void> {
   let snapshot: ReviewSnapshot;
   let stage: ProgressStep;
   let status: ProgressStatus;
   let reason = "";
-  let operation: GitHubRequest["operation"] | undefined;
+
+  // Render one progress view for both destinations from the event's evidence.
   switch (event.type) {
     case "stepStarted":
       phase(event.step);
       snapshot = event.snapshot;
       stage = event.step;
       status = "running";
-      operation = state.githubSequence === 0 ? "start" : "update";
       break;
     case "stepAccepted":
       snapshot = event.snapshot;
       stage = event.step;
       status = "complete";
-      operation = state.githubSequence === 0 ? "start" : "update";
       break;
     case "stepFailed":
       snapshot = event.snapshot;
       stage = event.step;
       status = "blocked";
       reason = event.reason;
-      operation = "interrupt";
       break;
+
+    // Saving failed before publication; retain the accepted partial review.
     case "runFailed":
       snapshot = event.review;
       stage = "review";
       status = "incomplete";
       reason = `Saving review files failed: ${event.reason}`;
-      operation = "interrupt";
       break;
+
+    // Include confirmed publication details in the terminal notification.
     case "runFinished": {
       const { bundle, result } = event.saved;
       const { publication } = event;
@@ -181,16 +189,16 @@ async function handleReviewEvent({
       ]
         .filter(Boolean)
         .join("\n");
-      // Close stale live progress after a refusal, without changing its outcome.
-      if (publication.status === "rejected" && bundle.status !== "incomplete") {
-        operation = "interrupt";
-      }
       break;
     }
   }
+
+  // Setup must establish the scope before any external message starts.
   if (!snapshot.stages.setup) {
     return;
   }
+
+  // Completed and blocked steps come from evidence, not a second status store.
   const statuses: ProgressStatuses = {
     ...reviewProgress({ ...snapshot, saved: event.type === "runFinished" }),
     [stage]: status,
@@ -201,17 +209,22 @@ async function handleReviewEvent({
   if (event.type === "runFailed") {
     statuses["save-artefacts"] = "blocked";
   }
-  // All progress delivery enters here; final report publication is separate.
-  if (operation && githubEnabled(input)) {
-    await sendGitHub({
-      input,
-      state,
-      operation,
-      checklist: progressChecklist(statuses),
-      reason: event.type === "runFinished" ? event.publication.reason : reason,
-    });
-  }
-  await sendHostNotification({ input, state, statuses, stage, status, reason });
+
+  // The comment owns GitHub operations; the host chooses notification channels.
+  // Await both channels before starting the next review step.
+  await githubComment.handleEvent({
+    event,
+    checklist: progressChecklist(statuses),
+    reason,
+  });
+  await sendHostNotification({
+    input,
+    state: notifications,
+    statuses,
+    stage,
+    status,
+    reason,
+  });
 }
 
 /**

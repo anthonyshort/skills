@@ -449,13 +449,12 @@ export type ReviewProgressInput = {
 };
 
 /**
- * Plain delivery bookkeeping for one review. Scheduling uses Pi's globals,
- * rather than methods attached to this data.
+ * Host notification receipts and the latch that stops sends after a missing
+ * tool or changed session scope. Review and GitHub state live elsewhere.
  */
-export type DeliveryState = {
-  notifications: Bundle["notifications"];
-  hostNotifications: boolean;
-  githubSequence: number;
+export type NotificationState = {
+  receipts: Bundle["notifications"];
+  enabled: boolean;
 };
 
 /**
@@ -522,27 +521,35 @@ export type ReviewStepTask<Result extends StageResult | void> = {
 };
 export type ReviewEventInput = {
   input: ReviewInput;
-  state: DeliveryState;
+  notifications: NotificationState;
+  githubComment: GithubComment;
   event: ReviewEvent;
 };
 
-export type ProgressUpdateInput = {
+export type NotificationUpdateInput = {
   input: ReviewInput;
-  state: DeliveryState;
+  state: NotificationState;
   statuses: ProgressStatuses;
   stage: ProgressStep;
   status: ProgressStatus;
   reason?: string;
 };
 
-export type ReviewPublicationInput = {
-  saved: SavedReview;
-  state: DeliveryState;
+/**
+ * One GitHub comment owns its request sequencing and event operations. The
+ * Python helper persists the actual comment identity and recovery state.
+ */
+export type GithubCommentEvent = {
+  event: ReviewEvent;
+  checklist: string;
+  reason: string;
+};
+export type GithubComment = {
+  handleEvent: (args: GithubCommentEvent) => Promise<void>;
+  publishToGithub: (args: { saved: SavedReview }) => Promise<PublicationResult>;
 };
 
 export type GitHubSendInput = {
-  input: ReviewInput;
-  state: DeliveryState;
   operation: GitHubRequest["operation"];
   checklist: string;
   reason?: string;
