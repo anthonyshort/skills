@@ -19,6 +19,8 @@ import type {
   ReviewEvent,
   ReviewEventEmitter,
   StageSchemas,
+  ProgressStatuses,
+  GithubFailureSchema,
 } from "./contracts.js";
 import {
   errorMessage,
@@ -64,23 +66,6 @@ export function githubReviewRequest({
 }
 
 /**
- * Distinguish disabled publication from a result that has not arrived yet.
- */
-function initialPublication(input: ReviewInput): PublicationResult {
-  const enabled = input.github && input.publication !== "local-only";
-  return {
-    status: enabled ? "pending" : "skipped",
-    reason: !input.github
-      ? "No pull request supplied"
-      : enabled
-        ? "Publication has not finished"
-        : "Local-only output requested",
-    url: null,
-    review: null,
-  };
-}
-
-/**
  * Subscribe to review events. Comment identity stays in memory; completion
  * submits the accepted report and findings together in one GitHub review.
  */
@@ -95,8 +80,17 @@ export function createGithubComment({
   const enabled = target && input.publication !== "local-only";
   let sequence = 0;
   let commentId: string | undefined;
-  let publication = initialPublication(input);
-  let creationFailure: PublicationResult | undefined;
+  let publication: PublicationResult = {
+    status: enabled ? "pending" : "skipped",
+    reason: !target
+      ? "No pull request supplied"
+      : enabled
+        ? "Publication has not finished"
+        : "Local-only output requested",
+    url: null,
+    review: null,
+  };
+  let creationFailure: z.infer<typeof GithubFailureSchema> | undefined;
 
   events.subscribe(async (event: ReviewEvent) => {
     switch (event.type) {
@@ -109,20 +103,20 @@ export function createGithubComment({
           event.review.status !== "incomplete" &&
           !creationFailure
         ) {
-          const progress = await sendComment({
-            body: progressBody(
-              progressChecklist({
-                ...reviewProgress(event.review),
-                publication:
-                  publication.status === "confirmed"
-                    ? "complete"
-                    : publication.status,
-              }),
-              [publication.reason, publication.url].filter(Boolean).join("\n"),
-            ),
+          const progress = await updateProgress({
+            statuses: {
+              ...reviewProgress(event.review),
+              publication:
+                publication.status === "confirmed"
+                  ? "complete"
+                  : publication.status,
+            },
+            reason: [publication.reason, publication.url]
+              .filter(Boolean)
+              .join("\n"),
           });
           if (progress.status !== "confirmed") {
-            publication.reason += ` Progress comment: ${progress.reason}`;
+            publication.reason += ` Progress comment: ${progress.status === "rejected" ? progress.reason : progress.message}`;
           }
         }
         await events.emit({
@@ -139,11 +133,9 @@ export function createGithubComment({
     // Setup establishes scope before any external progress is sent.
     const progress = reviewEventProgress(event);
     if (enabled && progress && !creationFailure) {
-      await sendComment({
-        body: progressBody(
-          progressChecklist(progress.statuses),
-          progress.reason,
-        ),
+      await updateProgress({
+        statuses: progress.statuses,
+        reason: progress.reason,
       });
     }
   });
@@ -158,27 +150,33 @@ export function createGithubComment({
     review: ReviewRun;
   }): Promise<PublicationResult> {
     if (!enabled || !target) {
-      return initialPublication(input);
+      return publication;
     }
     if (creationFailure) {
-      return creationFailure;
-    }
-    if (!review.stages.setup || review.status === "incomplete") {
       return {
-        ...initialPublication(input),
-        status: "rejected",
-        reason: "Final publication withheld because the review is incomplete",
+        status: creationFailure.status,
+        reason:
+          creationFailure.status === "rejected"
+            ? creationFailure.reason
+            : creationFailure.message,
         url: commentUrl(),
+        review: null,
       };
     }
     const decision = review.stages.decision;
     const report = review.stages.report ?? review.stages.splitPlan;
-    if (!decision || !report) {
+    if (
+      !review.stages.setup ||
+      review.status === "incomplete" ||
+      !decision ||
+      !report
+    ) {
       return {
-        ...initialPublication(input),
         status: "rejected",
-        reason: "Publication requires an accepted report and decision",
+        reason:
+          "Final publication requires a complete review, report and decision",
         url: commentUrl(),
+        review: null,
       };
     }
 
@@ -203,138 +201,93 @@ export function createGithubComment({
       });
     } catch (error) {
       return {
-        ...initialPublication(input),
         status: "rejected",
         reason: errorMessage(error),
         url: commentUrl(),
+        review: null,
       };
     }
-    try {
-      const receipt = await callGithubTool({
-        name: "github_review",
-        request,
-        schema: GithubReviewReceiptSchema,
-        instructions:
-          "Before submitting, use available read tools to confirm the current PR head still matches commitId. For approve, also refresh CI and discussion and confirm the accepted seven-check assessment below still holds. If this cannot be verified or new blockers exist, do not submit; return rejected with the reason. Do not change the requested action or content. Accepted assessment: " +
-          JSON.stringify(decision.approval),
-      });
-      switch (receipt.status) {
-        case "rejected":
-          return {
-            ...initialPublication(input),
-            status: "rejected",
-            reason: receipt.reason,
-            url: commentUrl(),
-          };
-        case "uncertain":
-          return {
-            ...initialPublication(input),
-            status: "uncertain",
-            reason: receipt.message,
-            url: commentUrl(),
-          };
-        case "confirmed":
-          if (
-            receipt.state !==
-            (request.action === "approve" ? "APPROVED" : "COMMENTED")
-          ) {
-            throw new Error(
-              "GitHub returned a different review state than requested",
-            );
-          }
-          return {
-            status: "confirmed",
-            reason: `GitHub confirmed ${receipt.state} for ${input.head.slice(0, 12)}`,
-            url: `https://github.com/${target.repository}/pull/${target.pr}#pullrequestreview-${receipt.reviewId}`,
-            review: receipt,
-          };
+    let receipt = await callGithubTool({
+      name: "github_review",
+      request,
+      schema: GithubReviewReceiptSchema,
+      instructions:
+        "Before submitting, use available read tools to confirm the current PR head still matches commitId. For approve, also refresh CI and discussion and confirm the accepted seven-check assessment below still holds. If this cannot be verified or new blockers exist, do not submit; return rejected with the reason. Do not change the requested action or content. Accepted assessment: " +
+        JSON.stringify(decision.approval),
+    });
+    if (receipt.status === "confirmed") {
+      if (
+        receipt.state ===
+        (request.action === "approve" ? "APPROVED" : "COMMENTED")
+      ) {
+        return {
+          status: "confirmed",
+          reason: `GitHub confirmed ${receipt.state} for ${input.head.slice(0, 12)}`,
+          url: `https://github.com/${target.repository}/pull/${target.pr}#pullrequestreview-${receipt.reviewId}`,
+          review: receipt,
+        };
       }
-    } catch (error) {
-      return {
-        ...initialPublication(input),
+      receipt = {
         status: "uncertain",
-        reason: `Review outcome unknown: ${errorMessage(error)}. Inspect GitHub before retrying.`,
-        url: commentUrl(),
+        message:
+          "GitHub returned a different review state than requested. Inspect GitHub before retrying.",
       };
     }
+    return {
+      status: receipt.status,
+      reason: receipt.status === "rejected" ? receipt.reason : receipt.message,
+      url: commentUrl(),
+      review: null,
+    };
   }
 
   /**
    * Keep updates on one comment. An unknown creation outcome disables later
    * writes so another progress event cannot create a duplicate comment.
    */
-  async function sendComment({
-    body,
+  async function updateProgress({
+    statuses,
+    reason = "",
   }: {
-    body: string;
-  }): Promise<PublicationResult> {
-    if (!target) {
-      return initialPublication(input);
-    }
-    let result: PublicationResult;
+    statuses: ProgressStatuses;
+    reason?: string;
+  }): Promise<z.infer<typeof GithubCommentReceiptSchema>> {
     const request = GithubCommentRequestSchema.safeParse({
-      repository: target.repository,
-      pullRequest: target.pr,
+      repository: target?.repository,
+      pullRequest: target?.pr,
       ...(commentId === undefined ? {} : { commentId }),
-      body,
+      body: [
+        `🤖 Review of [${input.head.slice(0, 12)}](https://github.com/${target?.repository}/commit/${input.head})`,
+        "### Review progress",
+        progressChecklist(statuses),
+        reason,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
     });
     if (!request.success) {
-      return {
-        ...initialPublication(input),
-        status: "rejected",
-        reason: request.error.message,
-        url: commentUrl(),
-      };
+      return { status: "rejected", reason: request.error.message };
     }
-    try {
-      const receipt = await callGithubTool({
-        name: "github_comment",
-        request: request.data,
-        schema: GithubCommentReceiptSchema,
-      });
-      switch (receipt.status) {
-        case "confirmed":
-          if (commentId && receipt.commentId !== commentId) {
-            throw new Error(
-              "GitHub returned a different comment ID for an update",
-            );
-          }
-          commentId = receipt.commentId;
-          return {
-            ...initialPublication(input),
-            status: "confirmed",
-            reason: "GitHub comment updated",
-            url: commentUrl(),
-          };
-        case "rejected":
-          result = {
-            ...initialPublication(input),
-            status: "rejected",
-            reason: receipt.reason,
-            url: commentUrl(),
-          };
-          break;
-        case "uncertain":
-          result = {
-            ...initialPublication(input),
-            status: "uncertain",
-            reason: receipt.message,
-            url: commentUrl(),
-          };
-          break;
+    let receipt = await callGithubTool({
+      name: "github_comment",
+      request: request.data,
+      schema: GithubCommentReceiptSchema,
+    });
+    if (receipt.status === "confirmed") {
+      if (!commentId || receipt.commentId === commentId) {
+        commentId = receipt.commentId;
+        return receipt;
       }
-    } catch (error) {
-      result = {
-        ...initialPublication(input),
+      receipt = {
         status: "uncertain",
-        reason: `Comment outcome unknown: ${errorMessage(error)}. Inspect GitHub before retrying.`,
-        url: commentUrl(),
+        message:
+          "GitHub returned a different comment ID for an update. Inspect GitHub before retrying.",
       };
     }
     if (commentId === undefined) {
-      creationFailure = result;
+      creationFailure = receipt;
     }
-    return result;
+    return receipt;
   }
 
   /**
@@ -351,25 +304,33 @@ export function createGithubComment({
     request: GithubCommentRequest | GithubReviewRequest;
     schema: z.ZodType<Result>;
     instructions?: string;
-  }): Promise<Result> {
-    const answer = await agent(
-      [
-        instructions,
-        `When the preconditions hold, call Picco's ${name} exactly once with the JSON below. Otherwise return {receipt:{status:'rejected',reason:REASON}} without writing. Keep its arguments unchanged.`,
-        "Parse the tool's JSON-string response and return {receipt: RECEIPT} through StructuredOutput with that exact receipt. If the tool is unavailable, return {receipt:{status:'rejected',reason:'Required Picco tool unavailable: TOOL_NAME'}} using the actual name. Do not emulate it through HTTP, shell or Python. Do not retry an uncertain write.",
-        JSON.stringify(request),
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      {
-        label: `github:${name}:${++sequence}`,
-        phase: "Publication",
-        schema: z.toJSONSchema(z.strictObject({ receipt: schema }), {
-          target: "draft-7",
-        }),
-      },
-    );
-    return z.strictObject({ receipt: schema }).parse(answer).receipt;
+  }): Promise<Result | z.infer<typeof GithubFailureSchema>> {
+    const outputSchema = z.strictObject({ receipt: schema });
+    try {
+      const answer = await agent(
+        [
+          instructions,
+          `When the preconditions hold, call Picco's ${name} exactly once with the JSON below. Otherwise return {receipt:{status:'rejected',reason:REASON}} without writing. Keep its arguments unchanged.`,
+          "Parse the tool's JSON-string response and return {receipt: RECEIPT} through StructuredOutput with that exact receipt. If the tool is unavailable, return {receipt:{status:'rejected',reason:'Required Picco tool unavailable: TOOL_NAME'}} using the actual name. Do not emulate it through HTTP, shell or Python. Do not retry an uncertain write.",
+          JSON.stringify(request),
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        {
+          label: `github:${name}:${++sequence}`,
+          phase: "Publication",
+          schema: z.toJSONSchema(outputSchema, {
+            target: "draft-7",
+          }),
+        },
+      );
+      return outputSchema.parse(answer).receipt;
+    } catch (error) {
+      return {
+        status: "uncertain",
+        message: `${name} outcome unknown: ${errorMessage(error)}. Inspect GitHub before retrying.`,
+      };
+    }
   }
 
   /**
@@ -379,20 +340,6 @@ export function createGithubComment({
     return target && commentId !== undefined
       ? `https://github.com/${target.repository}/pull/${target.pr}#issuecomment-${commentId}`
       : null;
-  }
-
-  /**
-   * Identify the inspected commit rather than claiming later commits were reviewed.
-   */
-  function progressBody(checklist: string, reason = ""): string {
-    return [
-      `🤖 Review of [${input.head.slice(0, 12)}](https://github.com/${target?.repository}/commit/${input.head})`,
-      "### Review progress",
-      checklist,
-      reason,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
   }
 
   return {

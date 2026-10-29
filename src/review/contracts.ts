@@ -339,7 +339,7 @@ const githubId = text
   .max(32)
   .regex(/^[1-9]\d*$/)
   .refine((value) => Number.isSafeInteger(Number(value)));
-const GithubFailureSchema = z.discriminatedUnion("status", [
+export const GithubFailureSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("rejected"), reason: text }),
   z.strictObject({ status: z.literal("uncertain"), message: text }),
 ]);
