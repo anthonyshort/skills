@@ -91,15 +91,16 @@ Start at `src/review/workflow.ts` to follow the sequence and its failure boundar
 
 | File | Responsibility |
 | --- | --- |
-| `workflow.ts` | Schedule required stages, bounded retries, the assessment barrier, saving and final delivery |
+| `workflow.ts` | Show the full/split sequence, bounded retry helper, saving and final delivery in execution order |
 | `stages.ts` | Assign sections of `criteria.md` and guard accepted worker results |
-| `contracts.ts` | Define Zod inputs, worker output and saved-result formats |
+| `contracts.ts` | Keep all review/delivery schemas and types together |
 | `approval.ts` | Guard outcome policy and accepted-finding/inline provenance |
-| `artifacts.ts` | Assign writing and require the saved-file gate |
 | `validate.ts` | Check disk files, revisions, rule indexes and canonical report against accepted data |
-| `progress.ts` | Schedule host notification and GitHub progress updates |
-| `publication.ts` | Schedule existing-helper operations and validate delivery receipts |
+| `delivery.ts` | Concrete progress, GitHub publication and final notification operations over plain state |
+| `pi-workflow.d.ts` | Type declarations for the official Pi script globals, without an implementation |
 | `text.ts` | Format coverage and compute the writer-integrity checksum |
+
+`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. Our local `reviewStage` helper adds two-attempt retries and semantic validation. Functions imported from `delivery.ts`, along with schemas and validators, are our review code. There is no custom host interface or reporter/publisher object. The coordinator explicitly saves, publishes and sends the final host notification in that order.
 
 The restricted workflow VM cannot access Node or the filesystem. `scripts/review/validate-bundle.ts` runs the saved-file gate; `scripts/review/github.ts` bridges helper operations. `scripts/build/workflow.ts` bundles authored TypeScript into `workflows/review.js`. Edit TypeScript and run `npm run build`; `build:check` rejects stale generated output.
 
@@ -117,4 +118,8 @@ Run `npm test` for deterministic checks. The test boundaries are:
 
 These checks do not prove model judgement or actual remote delivery. Fixture JSDoc explains what each substitute can establish.
 
-A local-only Pi run on 28 October 2026 completed all 14 review stages and the writer without retries. The known addition defect survived consolidation, editorial reduction and report acceptance; the decision was `changes_needed`, and the saved files passed the current Node gate. Its artefacts are at `/tmp/review-workflow-live-j7dsm3fi/review`, with transcripts and validation output in the sibling `evidence` directory. This exercises the copied criteria and local review graph; delivery paths are covered by deterministic checks. Real notification and GitHub delivery remain deliberately unverified, as agreed. The older live Pi run described in the handoff predates the reduced implementation and does not validate this version. Source restrictions remain prompt-enforced, and the checksum detects accidental writer changes rather than malicious edits.
+Before this orchestration refactor, a local-only Pi run on 28 October 2026 completed all 14 review stages and the writer without retries. The known addition defect survived consolidation, editorial reduction and report acceptance. Its decision was `changes_needed`, and its saved files passed the Node gate. Artefacts and transcripts remain under `/tmp/review-workflow-live-j7dsm3fi`.
+
+The generated-runtime and saved-file suites check the refactored orchestration; there has been no new model run of the flattened code. Real notification and GitHub delivery remain deliberately unverified, as agreed. The older live run described in the handoff predates the reduced implementation and does not validate this version.
+
+Source restrictions remain prompt-enforced, and the checksum detects accidental writer changes rather than malicious edits.

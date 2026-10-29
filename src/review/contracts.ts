@@ -365,14 +365,71 @@ export const ReviewResultSchema = z.strictObject({
 export type ReviewResult = z.infer<typeof ReviewResultSchema>;
 
 /**
- * Capabilities supplied by pi-subagents to the generated workflow entry point.
- * The VM can schedule workers but cannot import Node or access the filesystem.
+ * Review-specific response shapes for notification and saving workers.
+ * Pi supplies StructuredOutput; these response fields belong to our workflow.
  */
-export type WorkflowHost = {
-  agent(
-    prompt: string,
-    options: { label: string; phase: string; schema: unknown; gate?: string },
-  ): Promise<unknown>;
-  parallel<T>(tasks: (() => Promise<T>)[]): Promise<(T | null)[]>;
-  phase(name: string): void;
+export const NotificationAnswerSchema = z.strictObject({
+  broadcast: NotificationBroadcastSchema.nullable(),
+  reason: z.string().min(1),
+});
+export const SavedArtifactsSchema = z.strictObject({ saved: z.literal(true) });
+
+// Pi's restricted VM has no URL global for Zod's URL validator.
+const githubUrl = z
+  .string()
+  .max(4096)
+  .regex(/^https:\/\/github\.com\/[^\s]+$/);
+export const PublicationResultSchema = z.strictObject({
+  status: z.enum(["skipped", "pending", "confirmed", "uncertain", "rejected"]),
+  reason: z.string().min(1),
+  url: githubUrl.nullable(),
+  approval: z
+    .strictObject({
+      status: z.enum(["approved", "withheld"]),
+      reason: z.string(),
+      url: githubUrl.nullable(),
+    })
+    .nullable(),
+  statePath: z.string().nullable(),
+  newerCommits: z.boolean(),
+});
+export type PublicationResult = z.infer<typeof PublicationResultSchema>;
+
+export const GitHubRequestSchema = z.strictObject({
+  input: ReviewInputSchema,
+  operation: z.enum(["start", "update", "interrupt", "finish"]),
+  id: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+  checklist: z.string().min(1),
+  reason: z.string(),
+  fingerprint: z
+    .string()
+    .regex(/^[a-f0-9]{16}$/)
+    .nullable(),
+});
+export type GitHubRequest = z.infer<typeof GitHubRequestSchema>;
+
+/**
+ * Caller-visible review output, including delivery results collected after saving.
+ * result.json keeps the smaller ReviewResultSchema accepted by the file gate.
+ */
+export const ReviewOutputSchema = ReviewResultSchema.extend({
+  validationCommand: z.string(),
+  notifications: z.array(NotificationSchema).max(1000),
+  failures: z.array(FailureSchema).max(100),
+  approval: ApprovalSchema.nullable(),
+  publication: PublicationResultSchema,
+});
+export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
+
+/**
+ * Plain delivery bookkeeping for one review. Scheduling uses Pi's globals,
+ * rather than methods attached to this data.
+ */
+export type DeliveryState = {
+  statuses: Record<string, string>;
+  notifications: Bundle["notifications"];
+  started: boolean;
+  hostNotifications: boolean;
+  githubSequence: number;
+  publication: PublicationResult;
 };

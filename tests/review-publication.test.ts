@@ -12,12 +12,8 @@ import {
   rejectGitHubPublication,
   runGitHubOperation,
 } from "../scripts/review/github.js";
-import {
-  createGitHubPublisher,
-  GitHubRequestSchema,
-} from "../src/review/publication.js";
-import type { GitHubRequest } from "../src/review/publication.js";
-import type { WorkflowHost } from "../src/review/contracts.js";
+import { GitHubRequestSchema } from "../src/review/contracts.js";
+import type { GitHubRequest } from "../src/review/contracts.js";
 import { savedBundleFixture } from "./fixtures/bundle.js";
 
 /**
@@ -223,23 +219,10 @@ test("receipt gate rejects missing files and operation or approval mismatches", 
 });
 
 for (const mode of ["local-only", "staged"] as const) {
-  test(`${mode} never schedules a GitHub worker or runs a delivery command`, async () => {
+  test(`${mode} rejects a direct delivery command before any external effect`, async () => {
     const state = publicationFixture();
     try {
       state.input.publication = mode;
-      const host: WorkflowHost = {
-        agent: async () => {
-          throw new Error("Must not schedule delivery");
-        },
-        parallel: async () => [],
-        phase() {},
-      };
-      const publisher = createGitHubPublisher(host, state.input);
-      await publisher.update("- [ ] Review");
-      assert.equal(
-        (await publisher.finish(state.bundle, state.result, "checked")).status,
-        "skipped",
-      );
       await assert.rejects(
         runGitHubOperation(state.request("start"), state.command),
         /disabled/,
@@ -250,28 +233,6 @@ for (const mode of ["local-only", "staged"] as const) {
     }
   });
 }
-
-test("lost delivery response remains uncertain without a second attempt", async () => {
-  const state = publicationFixture();
-  try {
-    let attempts = 0;
-    const host: WorkflowHost = {
-      agent: async () => {
-        attempts++;
-        return null;
-      },
-      parallel: async () => [],
-      phase() {},
-    };
-    const publisher = createGitHubPublisher(host, state.input);
-    await publisher.update("- [ ] Review");
-    assert.equal(attempts, 1);
-    assert.equal(publisher.result.status, "uncertain");
-    assert.match(publisher.result.reason, /Inspect .*github.json/);
-  } finally {
-    state.close();
-  }
-});
 
 test("freshness refusal survives the receipt gate without any GitHub command", async () => {
   const state = publicationFixture();

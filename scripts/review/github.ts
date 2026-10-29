@@ -11,11 +11,11 @@ import { z } from "zod";
 import {
   GitHubRequestSchema,
   PublicationResultSchema,
-} from "../../src/review/publication.js";
+} from "../../src/review/contracts.js";
 import type {
   GitHubRequest,
   PublicationResult,
-} from "../../src/review/publication.js";
+} from "../../src/review/contracts.js";
 import { validateBundle } from "../../src/review/validate.js";
 import { errorMessage } from "../../src/review/text.js";
 

@@ -802,3 +802,37 @@ test("omitted notification settings still schedule host updates with a stable ru
       assert.equal(entry.receipt.broadcast?.messageKey, "review:fixture-run");
     }
   }));
+
+test("assessment outputs keep question order when correctness finishes before product", () => {
+  let releaseProduct = () => {};
+  const correctnessFinished = new Promise<void>((resolve) => {
+    releaseProduct = resolve;
+  });
+  return scenario(
+    {
+      hold: async (request) => {
+        if (request.label === "product:1") await correctnessFinished;
+      },
+    },
+    async (state) => {
+      const result = await state.run(
+        {},
+        {
+          journal: {
+            append: (entry) => {
+              if (entry.text?.includes('"stage":"correctness"'))
+                releaseProduct();
+            },
+          },
+        },
+      );
+      assert.equal(result.value.status, "complete");
+      assert.deepEqual(
+        Object.keys(state.bundle.stages).filter((name) =>
+          questions.some((question) => question === name),
+        ),
+        questions,
+      );
+    },
+  );
+});

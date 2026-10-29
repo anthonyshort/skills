@@ -19,7 +19,7 @@ import { z } from "zod";
 import { runWorkflow } from "../../node_modules/@tintinweb/pi-subagents/dist/workflow/runtime.js";
 import type {
   RunWorkflowOptions,
-  WorkflowHost,
+  WorkflowHost as PiRuntimeHost,
   WorkflowSpawnRequest,
 } from "../../node_modules/@tintinweb/pi-subagents/dist/workflow/runtime.js";
 import {
@@ -29,19 +29,14 @@ import {
   StageNameSchema,
   assessmentNames,
   parseReviewInput,
-  NotificationSchema,
-  FailureSchema,
-  ApprovalSchema,
   NotificationBroadcastSchema,
+  GitHubRequestSchema,
+  ReviewOutputSchema,
 } from "../../src/review/contracts.js";
 import {
   rejectGitHubPublication,
   runGitHubOperation,
 } from "../../scripts/review/github.js";
-import {
-  GitHubRequestSchema,
-  PublicationResultSchema,
-} from "../../src/review/publication.js";
 import type {
   Bundle,
   ReviewInput,
@@ -55,13 +50,6 @@ const script = readFileSync(
   path.join(packageRoot, "workflows/review.js"),
   "utf8",
 );
-const OutputSchema = ReviewResultSchema.extend({
-  validationCommand: z.string(),
-  notifications: z.array(NotificationSchema).max(1000),
-  failures: z.array(FailureSchema).max(100),
-  approval: ApprovalSchema.nullable(),
-  publication: PublicationResultSchema,
-});
 export type FixtureOptions = {
   addedLines?: number;
   notify?: boolean;
@@ -407,7 +395,7 @@ export function fixture(options: FixtureOptions = {}) {
   let notificationCount = 0;
   const instructions = new Map<string, string>();
   let bundle: Bundle | undefined;
-  const host: WorkflowHost = {
+  const host: PiRuntimeHost = {
     abortAgent() {},
     async spawnAgent(request) {
       calls.push(request.label);
@@ -485,7 +473,7 @@ export function fixture(options: FixtureOptions = {}) {
       return {
         ...result,
         get value() {
-          return OutputSchema.parse(result.value);
+          return ReviewOutputSchema.parse(result.value);
         },
       };
     },

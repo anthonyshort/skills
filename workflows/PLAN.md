@@ -106,7 +106,7 @@ Read from `workflows/README.md` through `src/review/workflow.ts` and the modules
 
 Retain TypeScript and derive wire types from Zod. Use useful multiline JSDoc to explain responsibilities, acceptance boundaries and unexpected failure behaviour. Keep prompts beside their stage definitions and guards beside the data they validate. Remove redundant flags or pass-through helpers only when their removal makes the actual flow easier to follow.
 
-Extend `progress.ts` for progress delivery and introduce at most a small, concrete publication module if it gives final publication a clear home. Keep contracts, stage guards and saved-file validation separate where their existing responsibilities help understanding. Do not split files to meet line-count targets or introduce generic lifecycle hooks.
+Keep concrete progress and publication operations together in `delivery.ts`, with final publication called explicitly by the coordinator. Keep contracts, stage guards and saved-file validation separate where their existing responsibilities help understanding. Do not split files to meet line-count targets or introduce generic lifecycle hooks.
 
 ## 7. Test the behaviour that can regress
 
@@ -131,6 +131,12 @@ Launch the named workflow from the experimental skill inside an existing configu
 Real delivery trials are optional follow-up work, not an implementation requirement. The user chose to rely on existing helper tests and workflow integration checks rather than add code or infrastructure for live delivery testing. If useful later, exercise delivery against a designated test PR and configured Telegram destination. Confirm updates edit the same message, GitHub final publication uses the accepted report, supported new bugs receive valid inline anchors, and the returned URLs and submission status match actual remote state. Start with a defect case that cannot approve; test approval only on a separate eligible case within the existing policy. Exercise one failed delivery path and confirm review stages do not repeat. Also exercise local-only and split-only behaviour.
 
 The plan itself authorises no test messages or PR reviews. Use explicitly designated destinations during implementation. Record exactly which current revision and paths were exercised, with links or artefact paths. Report unavailable integrations as outstanding checks. Keep the older live Pi run separate from this evidence.
+
+## Orchestration simplification
+
+Use Pi’s official `agent`, `parallel`, `phase` and `args` globals directly, with narrow TypeScript declarations in `pi-workflow.d.ts`. Keep the full/split sequence visible in `workflow.ts`, with one local retry-and-validation helper. Plain accepted results and delivery state replace the custom host interface and reporter/publisher factories.
+
+Keep all review and delivery schemas and types in `contracts.ts`. Combine concrete delivery operations in `delivery.ts`. Keep the writer as a separate function in `workflow.ts`, with saving status owned by the coordinator. Publication and final notification are explicit operations after validated saving. Preserve the Node bridges, substantive stage/approval guards and shared pure text functions. The generated-runtime suite checks this refactor; the earlier model run is evidence for the review criteria and graph, not a new live run of the flattened implementation.
 
 ## Implementation order and completion criteria
 
