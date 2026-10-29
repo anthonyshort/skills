@@ -42,6 +42,10 @@ Link the skill locally or update your managed skills installation. To make it a 
 
 [`handoff`](skills/handoff/SKILL.md) creates a Markdown document so a fresh agent can continue a conversation or task. It records goals, scope exclusions, decisions, progress, verification, relevant files, research from the session and related PRs. It defaults to `HANDOFF.md`.
 
+## PR architecture walkthroughs
+
+[`pr-architecture-walkthrough`](skills/pr-architecture-walkthrough/SKILL.md) prepares context before a review: how the relevant system works, how a PR or stack changes it, and where to start reading the source. It produces Markdown with Mermaid diagrams and supports unattended preparation. Assignment triggers and scheduling belong to a separate automation.
+
 ## Pull request descriptions
 
 [`writing-pull-request-description`](skills/writing-pull-request-description/SKILL.md) writes concise PR descriptions with a summary, usage example, short change bullets and the largest risks.
