@@ -91,18 +91,33 @@ Start at `src/review/workflow.ts` to follow the sequence and its failure boundar
 
 | File | Responsibility |
 | --- | --- |
-| `workflow.ts` | Metadata, explicit full/split sequence, named steps with direct prompt imports and schemas, the shared agent wrapper, saving and progress timing |
-| `contracts.ts` | Shared schemas and types for inputs, answers, saved data and delivery results |
+| `workflow.ts` | Metadata, outer event/delivery coordinator, explicit review sequence, named prompt functions, step lifecycle and agent wrappers |
+| `contracts.ts` | Shared schemas and types for inputs, answers, lifecycle events, saved data and delivery results |
 | `validation.ts` | Pure evidence, rule coverage, finding-accounting and approval-policy checks |
 | `github.ts` | GitHub publication through the existing helper and confirmation receipts |
 | `utils.ts` | Text formatting, checksums, quoting and host notification helpers |
 | `pi-workflow.d.ts` | Declarations for Pi’s official script globals, without an implementation |
 
-`agent()`, `parallel()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. The coordinator calls named functions such as `researchReview`, `assessReadability` and `acceptReport`. Each function shows its imported Markdown instructions, Pi display group and schema together. Stage names identify results and diagnostics; they do not select prompts or scheduling behaviour. Compound stage names use camelCase, including `researchCheck`, `systemFit` and `splitPlan`.
+`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. Other functions are our review code. Start with `runReviewWorkflow`, the outer coordinator, then `reviewWorkflow` to read the full/split sequence.
 
-Our `reviewAgent` wrapper prepends shared Markdown rules and explicit review context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not choose tasks, update progress or accept results. Step, wrapper and delivery calls use object parameters. A package-local `AGENTS.md` is authoring guidance, not an assumed automatic source of worker criteria.
+The review sequence calls a small helper with explicit named functions:
 
-There is one typed current review step for failure reporting. Progress is derived from accepted results and recorded failures, with the current update supplying running or blocked status. Successful saving comes from the returned validation command, and accepted setup determines when delivery may start. There is no stored progress map or delivery-started flag. The five parallel assessments share a progress entry; successful siblings are retained if another assessment fails, then downstream work stops. Other review steps report their own running, complete or blocked status. There is no separate milestone state or ambient `phase()` call. Workers’ `phase` options only group their cards in Pi’s UI, so several workers can appear under “Reporting” without adding another workflow state. Individual retry details appear in worker labels and the saved attempt records.
+```ts
+await runStep({ step: "consolidation", run: consolidateReview });
+await runStep({ step: "draft", run: draftReport });
+await runStep({ step: "editorial", run: editReport });
+await runStep({ step: "report", run: acceptReport });
+```
+
+`runStep` emits `stepStarted`, calls the supplied function, accepts its validated answer and emits `stepAccepted`. A task failure is recorded before `stepFailed` is emitted and dependent work stops. Events include a read-only snapshot of accepted stages and failures. Their callbacks are awaited outside agent retries, so the next review step starts only after its event handler finishes. The assessment barrier emits one lifecycle around all five workers, preserving successful siblings before reporting a missing assessment.
+
+`reviewWorkflow` owns accepted evidence, attempts and failures. It does not notify, save or publish, and the sequence does not manually assign results or update progress. The outer coordinator switches on events to choose Pi display groups and send notifications. After the review returns, it saves and validates files, then publishes accepted results. Delivery helpers record transport failures without retrying reviewer work. There is no event bus, queue, generator or state-machine library.
+
+Each named review function shows its direct Markdown imports, worker label and schema. `reviewAgent` prepends shared Markdown rules and explicit context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not receive a phase, choose tasks, update progress or accept evidence. Labels identify Pi workers and retry diagnostics. Step, wrapper and delivery calls use object parameters. A package-local `AGENTS.md` is authoring guidance, not an assumed automatic source of worker criteria.
+
+A review step is the domain concept. Pi’s `phase()` is only display grouping and is called by the coordinator on `stepStarted`. The five assessments share the `assessments` group. Notification and GitHub workers use their own explicit display groups without changing the ambient review group. Groups appear as steps start; metadata keeps no second list of future steps. There is no separate milestone state or phase passed through the review agent wrapper.
+
+Progress derives from each event’s accepted evidence and failures. Successful saving comes from the returned validation command, and accepted setup determines when delivery may start. The coordinator does not accumulate another accepted-results object, stored progress map or delivery-started flag. Compound stage identifiers remain camelCase, including `researchCheck`, `systemFit` and `splitPlan`.
 
 GitHub operations return their own receipts. The final publication outcome is a local return value passed explicitly to the caller and the final host notification; progress updates cannot replace it. Delivery state retains only notification receipts, host notification availability and the GitHub request sequence. Review completion and delivery success remain separate, so a validated saved review can report rejected or uncertain publication. If the final receipt is unknown, its URL may be absent even when an earlier progress comment exists; the returned reason points to the saved `github.json` state for inspection.
 

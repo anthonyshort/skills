@@ -367,6 +367,7 @@ export function fixture(options: FixtureOptions = {}) {
   const { root, input: args, rulePaths } = createSources(options);
   const calls: string[] = [];
   const prompts = new Map<string, string>();
+  const phases = new Map<string, string | undefined>();
   let notificationCount = 0;
   let bundle: Bundle | undefined;
   const host: PiRuntimeHost = {
@@ -374,6 +375,7 @@ export function fixture(options: FixtureOptions = {}) {
     async spawnAgent(request) {
       calls.push(request.label);
       prompts.set(request.label, request.prompt);
+      phases.set(request.label, request.phaseTitle);
       await options.hold?.(request);
       const ok = (value: unknown) => ({
         ok: true,
@@ -426,6 +428,7 @@ export function fixture(options: FixtureOptions = {}) {
     args,
     calls,
     prompts,
+    phases,
     rulePaths,
     get bundle() {
       assert.ok(bundle);

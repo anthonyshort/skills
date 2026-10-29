@@ -425,9 +425,9 @@ export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
  * Review stages share progress names with the assessment barrier, saving and
  * delivery. Statuses reuse the review and publication outcomes where applicable.
  */
+export type ReviewStep = StageName | "assessments";
 export type ProgressStep =
-  | StageName
-  | "assessments"
+  | ReviewStep
   | "save-artefacts"
   | "publication"
   | "review";
@@ -443,8 +443,8 @@ export type ProgressStatus =
  */
 export type ProgressStatuses = Partial<Record<ProgressStep, ProgressStatus>>;
 export type ReviewProgressInput = {
-  stages: StageResults;
-  failures: Bundle["failures"];
+  stages: Readonly<StageResults>;
+  failures: readonly Bundle["failures"][number][];
   saved: boolean;
 };
 
@@ -473,10 +473,43 @@ export type ReviewStepInput = {
  * wrapper adds common rules, revision pins, validation and bounded retries.
  */
 export type ReviewAgentInput<Result extends StageResult> = ReviewStepInput & {
-  stage: StageName;
-  phase: string;
+  label: StageName;
   schema: z.ZodType<Result>;
   prompt: string;
+};
+
+/**
+ * Events expose a stable view of accepted evidence. The workflow owns these
+ * results; observers use the view for display rather than accumulating copies.
+ */
+export type ReviewSnapshot = {
+  readonly stages: Readonly<StageResults>;
+  readonly failures: readonly Bundle["failures"][number][];
+};
+export type ReviewEvent = {
+  readonly step: ReviewStep;
+  readonly snapshot: ReviewSnapshot;
+} & (
+  | { readonly type: "stepStarted" }
+  | { readonly type: "stepAccepted" }
+  | { readonly type: "stepFailed"; readonly reason: string }
+);
+export type ReviewWorkflowInput = {
+  input: ReviewInput;
+  onEvent: (event: ReviewEvent) => Promise<void>;
+};
+export type ReviewRun = Pick<
+  Bundle,
+  "input" | "status" | "stages" | "attempts" | "failures"
+>;
+export type ReviewStepTask<Result extends StageResult | void> = {
+  step: ReviewStep;
+  run: (args: ReviewStepInput) => Promise<Result>;
+};
+export type ReviewEventInput = {
+  input: ReviewInput;
+  state: DeliveryState;
+  event: ReviewEvent;
 };
 
 export type ProgressUpdateInput = {

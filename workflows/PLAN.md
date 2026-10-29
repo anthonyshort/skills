@@ -240,3 +240,16 @@ GitHub operations return their own receipts. The final finish or interruption re
 Preserve stage order, the assessment barrier, accepted partial evidence, bounded retries and the saved-file gate. Check partial-assessment progress after saving, and final rejection reporting after both successful and failed interruption updates. Keep the original skills and pi-subagents unchanged; add no state-machine dependency or second lifecycle engine.
 
 The state-ownership change passed all 207 tests, including final refusal preservation after both successful and failed interruption updates. TypeScript, oxfmt, generated-output, braced-conditional and whitespace checks passed. Generated JavaScript was rebuilt. No new live model run or real delivery was performed.
+
+
+## Awaited review lifecycle callbacks
+
+This supersedes the earlier per-worker phase plumbing and manual progress calls. Keep the review’s execution sequence separate from external delivery. `reviewWorkflow({ input, onEvent })` owns accepted results, retry records and failures. A small `runStep({ step, run })` helper emits started/accepted/failed events around a direct named function call and records accepted evidence in one place. The full/split sequence contains those calls without manual progress updates or assignments into an accepted-results object.
+
+Each event carries a stable read-only snapshot of accepted stages and failures. Await the callback before continuing. The assessment barrier emits one lifecycle around all five workers, retaining successful siblings before failure. Keep callbacks outside agent retries. Replace the report object when appending coverage so earlier event snapshots remain stable.
+
+The outer `runReviewWorkflow` coordinator switches on those events, selects Pi’s ambient display group and sends progress notifications. Remove phase parameters from named review functions and the agent wrapper; retain worker labels for Pi and retry diagnostics. Pi creates display groups as steps start, without another metadata list of future steps. Explicit host/GitHub display groups do not change the ambient review group.
+
+After reviewer work returns, the outer coordinator saves and validates its bundle, then publishes and reports final delivery. Preserve incomplete output, the split route, two-attempt retries, restrictions and the saved-file gate. Do not add an event bus, queue, generator, state-machine dependency, new runner or changes to original skills or pi-subagents. Check awaited event ordering, phase grouping across notification workers and all existing failure/partial-output regressions before rebuilding and updating PR #4.
+
+The callback implementation passed all 208 tests. Added generated-runtime checks confirm that asynchronous completion notifications finish before the next review step and that review workers retain the correct ambient display group across delivery workers. TypeScript, oxfmt, generated-output, braced-conditional and whitespace checks passed. A source-only audit found no blocking issue in event ordering, snapshots, partial acceptance or the save/publication boundary. No new model run or real delivery was performed.

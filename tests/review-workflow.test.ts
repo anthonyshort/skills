@@ -68,6 +68,43 @@ test("assessment barrier waits for the slowest reviewer", () => {
   );
 });
 
+test("the next review step waits for asynchronous completion updates", () => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = () => {};
+  const waiting = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  return scenario(
+    {
+      notify: true,
+      hold: async (request) => {
+        if (request.label === "notify:research:complete") {
+          started();
+          await held;
+        }
+      },
+    },
+    async (state) => {
+      const running = state.run();
+      await Promise.race([waiting, running]);
+      try {
+        assert.ok(state.calls.includes("notify:research:complete"));
+        assert.equal(state.calls.includes("researchCheck:1"), false);
+      } finally {
+        release();
+      }
+      assert.equal((await running).value.status, "complete");
+      assert.ok(
+        state.calls.indexOf("notify:research:complete") <
+          state.calls.indexOf("researchCheck:1"),
+      );
+    },
+  );
+});
+
 test("a failed assessment gets one fresh retry and can recover", () =>
   scenario(
     { fail: (name, attempt) => name === "readability" && attempt === 1 },
@@ -674,6 +711,23 @@ test("GitHub progress starts after setup and final publication follows the real 
       state.calls.filter((name) => name.startsWith("github:finish:")).length,
       1,
     );
+    for (const stage of [
+      "setup",
+      "research",
+      "researchCheck",
+      "rules",
+      "consolidation",
+      "draft",
+      "editorial",
+      "report",
+      "decision",
+    ]) {
+      assert.equal(state.phases.get(`${stage}:1`), stage, `${stage} UI phase`);
+    }
+    for (const stage of questions) {
+      assert.equal(state.phases.get(`${stage}:1`), "assessments");
+    }
+    assert.equal(state.phases.get("save-artefacts"), "save-artefacts");
     const terminal = state.prompts.get("notify:review:complete");
     assert.ok(terminal);
     assert.match(

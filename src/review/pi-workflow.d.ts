@@ -13,3 +13,8 @@ declare function agent(
 declare function parallel<T>(
   tasks: (() => Promise<T>)[],
 ): Promise<(T | null)[]>;
+
+/**
+ * Set the ambient UI group for subsequent agents without explicit phases.
+ */
+declare function phase(title: string): void;

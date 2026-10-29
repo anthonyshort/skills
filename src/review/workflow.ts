@@ -1,6 +1,6 @@
 /**
- * Run the review in Pi's workflow VM. agent() and parallel() are official
- * pi-subagents globals, declared in pi-workflow.d.ts. The local
+ * Run the review in Pi's workflow VM. agent(), parallel() and phase() are
+ * official pi-subagents globals, declared in pi-workflow.d.ts. The local
  * reviewAgent wrapper adds common rules, validation and one fresh retry.
  */
 import * as z from "zod";
@@ -37,6 +37,11 @@ import type {
   DeliveryState,
   GitHubRequest,
   ReviewAgentInput,
+  ReviewEventInput,
+  ReviewSnapshot,
+  ReviewStepTask,
+  ReviewWorkflowInput,
+  ReviewRun,
   ReviewStepInput,
   ProgressUpdateInput,
   SaveArtifactsInput,
@@ -67,233 +72,77 @@ export const meta = {
   name: "review",
   description:
     "Experimental pinned review with required assessments and validated artefacts",
-  phases: [
-    { title: "Setup" },
-    { title: "Research" },
-    { title: "Assessments" },
-    { title: "Rules" },
-    { title: "Consolidation" },
-    { title: "Reporting" },
-    { title: "Decision" },
-    { title: "Save artefacts" },
-    { title: "Progress" },
-    { title: "Publication" },
-  ],
 };
 
 /**
- * Execute the required review steps explicitly. Each named step owns its prompt
- * import and schema; only the shared reviewAgent wrapper adds rules and retries.
+ * Coordinate review events and delivery. Review evidence belongs to
+ * reviewWorkflow; saving and publication happen only after it returns.
  */
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
-  let accepted: StageResults = {};
-  const attempts: Bundle["attempts"] = [];
-  const failures: Bundle["failures"] = [];
-  let currentStep: ProgressUpdateInput["stage"] = "setup";
-  let validationCommand: string | undefined;
   const delivery: DeliveryState = {
     notifications: [],
     hostNotifications: true,
     githubSequence: 0,
   };
+  const review = await reviewWorkflow({
+    input,
+    onEvent: (event) => handleReviewEvent({ input, state: delivery, event }),
+  });
+  let validationCommand: string | undefined;
+
   /**
-   * Completion comes from accepted evidence; the caller can mark work running
-   * or blocked. Only transport receipts and sequencing persist in delivery state.
+   * Saving and publication have their own progress after reviewer work ends.
+   * Failed setup still saves partial evidence without starting external delivery.
    */
-  async function reportProgress({
+  async function reportDelivery({
     stage,
     status,
     reason,
-  }: Pick<ProgressUpdateInput, "stage" | "reason"> & {
-    status?: "running" | "blocked";
-  }) {
-    currentStep = stage;
-    if (!accepted.setup) {
+  }: Pick<ProgressUpdateInput, "stage" | "status" | "reason">) {
+    if (!review.stages.setup) {
       return;
     }
-    const statuses = reviewProgress({
-      stages: accepted,
-      failures,
-      saved: validationCommand !== undefined,
-    });
-    const currentStatus = status ?? statuses[stage] ?? "running";
-    statuses[stage] = currentStatus;
     await updateProgress({
       input,
       state: delivery,
-      statuses,
+      statuses: {
+        ...reviewProgress({
+          ...review,
+          saved: validationCommand !== undefined,
+        }),
+        [stage]: status,
+      },
       stage,
-      status: currentStatus,
+      status,
       reason,
     });
   }
 
-  // Setup pins the comparison before any external progress starts.
-  try {
-    accepted.setup = await setupReview({ input, context: accepted, attempts });
-    await reportProgress({ stage: "setup" });
-
-    switch (accepted.setup.mode) {
-      case "split":
-        // Split-only reviews stop at a plan rather than a full assessment.
-        await reportProgress({ status: "running", stage: "splitPlan" });
-        accepted.splitPlan = await planSplit({
-          input,
-          context: accepted,
-          attempts,
-        });
-        await reportProgress({ stage: "splitPlan" });
-        break;
-      case "full": {
-        // Independently check the brief before any assessment uses its conclusions.
-        await reportProgress({ status: "running", stage: "research" });
-        accepted.research = await researchReview({
-          input,
-          context: accepted,
-          attempts,
-        });
-        await reportProgress({ stage: "research" });
-        await reportProgress({ status: "running", stage: "researchCheck" });
-        accepted.researchCheck = await checkResearch({
-          input,
-          context: accepted,
-          attempts,
-        });
-        await reportProgress({ stage: "researchCheck" });
-
-        // All five workers see the same research, never developing sibling answers.
-        await reportProgress({ status: "running", stage: "assessments" });
-        const researchContext = {
-          setup: accepted.setup,
-          research: accepted.research,
-          researchCheck: accepted.researchCheck,
-        };
-        const assessments = await parallel<StageResult>([
-          () => assessProduct({ input, context: researchContext, attempts }),
-          () => assessSystemFit({ input, context: researchContext, attempts }),
-          () => assessSimplicity({ input, context: researchContext, attempts }),
-          () =>
-            assessReadability({ input, context: researchContext, attempts }),
-          () =>
-            assessCorrectness({ input, context: researchContext, attempts }),
-        ]);
-        // Pi returns null for failed parallel tasks. Keep successful siblings before stopping.
-        for (const result of assessments) {
-          if (result) {
-            accepted = StageResultsSchema.parse({
-              ...accepted,
-              [result.stage]: result,
-            });
-          }
-        }
-        const missing = assessmentNames.filter((name) => !accepted[name]);
-        if (missing.length) {
-          throw new Error(`Missing assessments: ${missing.join(", ")}`);
-        }
-        await reportProgress({ stage: "assessments" });
-
-        await reportProgress({ status: "running", stage: "rules" });
-        accepted.rules = await checkRules({
-          input,
-          context: accepted,
-          attempts,
-        });
-        await reportProgress({ stage: "rules" });
-
-        // Reconcile findings before drafting, editing and accepting the final report.
-        await reportProgress({ status: "running", stage: "consolidation" });
-        accepted.consolidation = await consolidateReview({
-          input,
-          context: accepted,
-          attempts,
-        });
-
-        await reportProgress({ stage: "consolidation" });
-        await reportProgress({ status: "running", stage: "draft" });
-        accepted.draft = await draftReport({
-          input,
-          context: accepted,
-          attempts,
-        });
-        await reportProgress({ stage: "draft" });
-        await reportProgress({ status: "running", stage: "editorial" });
-        accepted.editorial = await editReport({
-          input,
-          context: accepted,
-          attempts,
-        });
-        await reportProgress({ stage: "editorial" });
-        await reportProgress({ status: "running", stage: "report" });
-        accepted.report = await acceptReport({
-          input,
-          context: accepted,
-          attempts,
-        });
-        await reportProgress({ stage: "report" });
-        break;
-      }
-    }
-
-    // The decision assesses the accepted report; it does not publish anything.
-    await reportProgress({ status: "running", stage: "decision" });
-    accepted.decision = await decideReview({
-      input,
-      context: accepted,
-      attempts,
-    });
-    await reportProgress({ stage: "decision" });
-  } catch (error) {
-    // Accepted partial evidence survives an exhausted required step.
-    failures.push({ stage: currentStep, reason: errorMessage(error) });
-    await reportProgress({
-      stage: currentStep,
-      status: "blocked",
-      reason: errorMessage(error),
-    });
-  }
-
-  const status = failures.length
-    ? "incomplete"
-    : accepted.setup?.mode === "split"
-      ? "split"
-      : "complete";
-  if (status === "complete" && accepted.report) {
-    accepted.report.markdown += coverageMarkdown(accepted);
-  }
-  await reportProgress({
-    stage: "save-artefacts",
-    status: "running",
-  });
-  // Snapshot receipts now; later notifications belong in the returned result.
+  // Capture pre-save receipts, then validate actual files before any publication.
+  await reportDelivery({ stage: "save-artefacts", status: "running" });
   const bundle: Bundle = {
     version: 1,
-    input,
-    status,
-    stages: accepted,
-    failures,
-    attempts,
+    ...review,
     notifications: [...delivery.notifications],
   };
   const result = createReviewResult(bundle);
+  phase("save-artefacts");
   try {
     validationCommand = await saveReviewFiles({ bundle, result });
   } catch (error) {
-    await reportProgress({
+    await reportDelivery({
       stage: "save-artefacts",
       status: "blocked",
       reason: errorMessage(error),
     });
     throw error;
   }
-  await reportProgress({ stage: "save-artefacts" });
+  await reportDelivery({ stage: "save-artefacts", status: "complete" });
 
-  // Publication and final host status stay outside the review retry loop.
-  if (accepted.setup && bundle.status !== "incomplete") {
-    await reportProgress({
-      stage: "publication",
-      status: "running",
-    });
+  // Delivery outcomes never change accepted review evidence or retry reviewers.
+  if (review.stages.setup && review.status !== "incomplete") {
+    await reportDelivery({ stage: "publication", status: "running" });
   }
   const publication = await publishAcceptedReview({
     input,
@@ -301,8 +150,8 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     bundle,
     result,
   });
-  if (publication.status === "rejected" && bundle.status !== "incomplete") {
-    await reportProgress({
+  if (publication.status === "rejected" && review.status !== "incomplete") {
+    await reportDelivery({
       stage: "publication",
       status: "blocked",
       reason: publication.reason,
@@ -317,12 +166,180 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   });
   return {
     ...result,
-    approval: accepted.decision?.approval ?? null,
+    approval: review.stages.decision?.approval ?? null,
     publication,
     validationCommand,
-    failures,
+    failures: review.failures,
     notifications: delivery.notifications,
   };
+}
+
+/**
+ * Translate awaited lifecycle events into Pi display groups and external
+ * progress. Transport helpers record delivery failures without throwing them
+ * back into reviewer execution.
+ */
+async function handleReviewEvent({
+  input,
+  state,
+  event,
+}: ReviewEventInput): Promise<void> {
+  let status: "running" | "complete" | "blocked";
+  let reason: string | undefined;
+  switch (event.type) {
+    case "stepStarted":
+      phase(event.step);
+      status = "running";
+      break;
+    case "stepAccepted":
+      status = "complete";
+      break;
+    case "stepFailed":
+      status = "blocked";
+      reason = event.reason;
+      break;
+  }
+  if (!event.snapshot.stages.setup) {
+    return;
+  }
+  await updateProgress({
+    input,
+    state,
+    statuses: {
+      ...reviewProgress({ ...event.snapshot, saved: false }),
+      [event.step]: status,
+    },
+    stage: event.step,
+    status,
+    reason,
+  });
+}
+
+/**
+ * Execute the review sequence and retain accepted evidence. Awaited callbacks
+ * report its lifecycle; this function does not notify, save or publish.
+ */
+async function reviewWorkflow({
+  input,
+  onEvent,
+}: ReviewWorkflowInput): Promise<ReviewRun> {
+  let accepted: StageResults = {};
+  const attempts: Bundle["attempts"] = [];
+  const failures: Bundle["failures"] = [];
+
+  /**
+   * Copy containers so later acceptances cannot change an earlier event's view.
+   */
+  function snapshot(): ReviewSnapshot {
+    return { stages: { ...accepted }, failures: [...failures] };
+  }
+
+  /**
+   * Accept a validated result in one place, preserving the per-stage wire shape.
+   */
+  function accept(result: StageResult): void {
+    accepted = StageResultsSchema.parse({
+      ...accepted,
+      [result.stage]: result,
+    });
+  }
+
+  /**
+   * Run a named task between awaited lifecycle events. Only task failures are
+   * recorded as review failures; callbacks are outside the worker retry loop.
+   */
+  async function runStep<Result extends StageResult | void>({
+    step,
+    run,
+  }: ReviewStepTask<Result>): Promise<Result> {
+    await onEvent({ type: "stepStarted", step, snapshot: snapshot() });
+    let result: Result;
+    try {
+      result = await run({ input, context: { ...accepted }, attempts });
+      if (result) {
+        accept(result);
+      }
+    } catch (error) {
+      const reason = errorMessage(error);
+      failures.push({ stage: step, reason });
+      await onEvent({ type: "stepFailed", step, reason, snapshot: snapshot() });
+      throw error;
+    }
+    await onEvent({ type: "stepAccepted", step, snapshot: snapshot() });
+    return result;
+  }
+
+  /**
+   * All five assessments see one research snapshot. Preserve successful siblings
+   * in question order before failing the barrier, which emits one lifecycle.
+   */
+  async function runAssessments({
+    input,
+    context,
+    attempts,
+  }: ReviewStepInput): Promise<void> {
+    const results = await parallel<StageResult>([
+      () => assessProduct({ input, context, attempts }),
+      () => assessSystemFit({ input, context, attempts }),
+      () => assessSimplicity({ input, context, attempts }),
+      () => assessReadability({ input, context, attempts }),
+      () => assessCorrectness({ input, context, attempts }),
+    ]);
+    // Pi returns null for failed parallel tasks instead of cancelling siblings.
+    for (const result of results) {
+      if (result) {
+        accept(result);
+      }
+    }
+    const missing = assessmentNames.filter((name) => !accepted[name]);
+    if (missing.length) {
+      throw new Error(`Missing assessments: ${missing.join(", ")}`);
+    }
+  }
+
+  try {
+    const setup = await runStep({ step: "setup", run: setupReview });
+    switch (setup.mode) {
+      case "split":
+        // Oversized reviews produce a split plan without full assessments.
+        await runStep({ step: "splitPlan", run: planSplit });
+        break;
+      case "full":
+        // Check research before the parallel barrier; reconcile before reporting.
+        await runStep({ step: "research", run: researchReview });
+        await runStep({ step: "researchCheck", run: checkResearch });
+        await runStep({ step: "assessments", run: runAssessments });
+        await runStep({ step: "rules", run: checkRules });
+        await runStep({ step: "consolidation", run: consolidateReview });
+        await runStep({ step: "draft", run: draftReport });
+        await runStep({ step: "editorial", run: editReport });
+        await runStep({ step: "report", run: acceptReport });
+        break;
+    }
+    await runStep({ step: "decision", run: decideReview });
+  } catch (error) {
+    // Recorded task failures stop dependent work and return partial evidence.
+    // Unexpected observer failures propagate instead of claiming completion.
+    if (failures.length === 0) {
+      throw error;
+    }
+  }
+
+  const status = failures.length
+    ? "incomplete"
+    : accepted.setup?.mode === "split"
+      ? "split"
+      : "complete";
+  if (status === "complete" && accepted.report) {
+    accepted = {
+      ...accepted,
+      report: {
+        ...accepted.report,
+        markdown: accepted.report.markdown + coverageMarkdown(accepted),
+      },
+    };
+  }
+  return { input, status, stages: accepted, failures, attempts };
 }
 
 /**
@@ -333,8 +350,7 @@ async function setupReview({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "setup",
-    phase: "Setup",
+    label: "setup",
     schema: StageSchemas.setup,
     prompt: setupPrompt,
   });
@@ -348,8 +364,7 @@ async function researchReview({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "research",
-    phase: "Research",
+    label: "research",
     schema: StageSchemas.research,
     prompt: researchPrompt,
   });
@@ -363,8 +378,7 @@ async function checkResearch({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "researchCheck",
-    phase: "Research",
+    label: "researchCheck",
     schema: StageSchemas.researchCheck,
     prompt: researchCheckPrompt,
   });
@@ -378,8 +392,7 @@ async function assessProduct({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "product",
-    phase: "Assessments",
+    label: "product",
     schema: StageSchemas.product,
     prompt: [assessmentRules, productPrompt].join("\n\n"),
   });
@@ -393,8 +406,7 @@ async function assessSystemFit({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "systemFit",
-    phase: "Assessments",
+    label: "systemFit",
     schema: StageSchemas.systemFit,
     prompt: [assessmentRules, systemFitPrompt].join("\n\n"),
   });
@@ -408,8 +420,7 @@ async function assessSimplicity({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "simplicity",
-    phase: "Assessments",
+    label: "simplicity",
     schema: StageSchemas.simplicity,
     prompt: [assessmentRules, simplicityPrompt].join("\n\n"),
   });
@@ -427,8 +438,7 @@ async function assessReadability({
     input,
     context,
     attempts,
-    stage: "readability",
-    phase: "Assessments",
+    label: "readability",
     schema: StageSchemas.readability,
     prompt: [assessmentRules, readabilityPrompt].join("\n\n"),
   });
@@ -446,8 +456,7 @@ async function assessCorrectness({
     input,
     context,
     attempts,
-    stage: "correctness",
-    phase: "Assessments",
+    label: "correctness",
     schema: StageSchemas.correctness,
     prompt: [assessmentRules, correctnessPrompt].join("\n\n"),
   });
@@ -461,8 +470,7 @@ async function checkRules({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "rules",
-    phase: "Rules",
+    label: "rules",
     schema: StageSchemas.rules,
     prompt: rulesPrompt,
   });
@@ -480,8 +488,7 @@ async function consolidateReview({
     input,
     context,
     attempts,
-    stage: "consolidation",
-    phase: "Consolidation",
+    label: "consolidation",
     schema: StageSchemas.consolidation,
     prompt: [reportingRules, consolidationPrompt].join("\n\n"),
   });
@@ -495,8 +502,7 @@ async function draftReport({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "draft",
-    phase: "Reporting",
+    label: "draft",
     schema: StageSchemas.draft,
     prompt: [reportingRules, draftPrompt, reportTemplate].join("\n\n"),
   });
@@ -510,8 +516,7 @@ async function editReport({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "editorial",
-    phase: "Reporting",
+    label: "editorial",
     schema: StageSchemas.editorial,
     prompt: [reportingRules, editorialPrompt, reportTemplate].join("\n\n"),
   });
@@ -525,8 +530,7 @@ async function acceptReport({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "report",
-    phase: "Reporting",
+    label: "report",
     schema: StageSchemas.report,
     prompt: [reportingRules, reportPrompt, reportTemplate].join("\n\n"),
   });
@@ -540,8 +544,7 @@ async function planSplit({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "splitPlan",
-    phase: "Reporting",
+    label: "splitPlan",
     schema: StageSchemas.splitPlan,
     prompt: splitPlanPrompt,
   });
@@ -555,8 +558,7 @@ async function decideReview({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "decision",
-    phase: "Decision",
+    label: "decision",
     schema: StageSchemas.decision,
     prompt: [decisionPrompt, githubProgressTemplate].join("\n\n"),
   });
@@ -564,17 +566,16 @@ async function decideReview({ input, context, attempts }: ReviewStepInput) {
 
 /**
  * Our small wrapper around Pi's agent API. The caller supplies the prompt,
- * phase and schema. Shared rules and revisions apply to every review worker;
+ * label and schema. Shared rules and revisions apply to every review worker;
  * invalid answers get one fresh retry. This function does not schedule steps,
- * update progress or accept results into the coordinator's state. Stage names
- * are used only for worker labels and attempt diagnostics.
+ * update progress or accept evidence. Labels identify Pi workers and retry
+ * diagnostics; the coordinator selects display groups from lifecycle events.
  */
 async function reviewAgent<Result extends StageResult>({
   input,
   context,
   attempts,
-  stage,
-  phase: workerPhase,
+  label,
   schema,
   prompt,
 }: ReviewAgentInput<Result>): Promise<Result> {
@@ -601,8 +602,7 @@ async function reviewAgent<Result extends StageResult>({
           .filter(Boolean)
           .join("\n"),
         {
-          label: `${stage}:${attempt}`,
-          phase: workerPhase,
+          label: `${label}:${attempt}`,
           schema: {
             ...outputSchema,
             properties: {
@@ -623,10 +623,10 @@ async function reviewAgent<Result extends StageResult>({
       return result;
     } catch (error) {
       feedback = errorMessage(error);
-      attempts.push({ stage, attempt, reason: feedback });
+      attempts.push({ stage: label, attempt, reason: feedback });
     }
   }
-  throw new Error(`${stage} failed after two attempts: ${feedback}`);
+  throw new Error(`${label} failed after two attempts: ${feedback}`);
 }
 
 /**
@@ -660,7 +660,6 @@ async function saveReviewFiles({
     ].join("\n"),
     {
       label: "save-artefacts",
-      phase: "Save artefacts",
       gate: validationCommand,
       schema: z.toJSONSchema(SavedArtifactsSchema, { target: "draft-7" }),
     },
