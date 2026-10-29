@@ -93,29 +93,29 @@ Start at `src/review/workflow.ts` to follow the sequence and its failure boundar
 
 | File | Responsibility |
 | --- | --- |
-| `workflow.ts` | Metadata, subscriber composition, explicit review sequence, named prompt functions, step lifecycle, saving and agent wrappers |
+| `workflow.ts` | Metadata, subscriber composition, explicit sequence, step coordinator, file owner, named prompts and agent wrapper |
 | `contracts.ts` | Shared schemas and types for inputs, answers, lifecycle events, saved data and delivery results |
 | `validation.ts` | Pure evidence, rule coverage, finding-accounting and approval-policy checks |
 | `github.ts` | Self-subscribing GitHub comment, live updates and private `publishToGithub` through the existing helper |
 | `utils.ts` | Typed awaited emitter, self-subscribing notifications, shared progress rendering, text and checksums |
 | `pi-workflow.d.ts` | Declarations for Pi’s official script globals, without an implementation |
 
-`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. Other functions are our review code. Start with `runReviewWorkflow`, the outer coordinator, then `reviewWorkflow` to read the full/split sequence.
+`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. Other functions are our review code. Start with `runReviewWorkflow`, the outer coordinator, then `executeWorkflow` to read the full/split sequence.
 
-The review sequence calls a small helper with explicit named functions:
+The review sequence passes explicit named functions to its step coordinator:
 
 ```ts
-await runStep({ step: "consolidation", run: consolidateReview });
-await runStep({ step: "draft", run: draftReport });
-await runStep({ step: "editorial", run: editReport });
-await runStep({ step: "report", run: acceptReport });
+await steps.runStep({ step: "consolidation", run: consolidateReview });
+await steps.runStep({ step: "draft", run: draftReport });
+await steps.runStep({ step: "editorial", run: editReport });
+await steps.runStep({ step: "report", run: acceptReport });
 ```
 
 `runStep` emits `stepStarted`, calls the supplied function, accepts its validated answer and emits `stepAccepted`. A task failure is recorded before `stepFailed` is emitted and dependent work stops. Events include a read-only snapshot of accepted stages and failures. Event emission awaits subscribers outside agent retries, so the next review step starts only after observers finish. The assessment barrier emits one lifecycle around all five workers, preserving successful siblings before reporting a missing assessment.
 
-`reviewWorkflow` owns accepted evidence, attempts and failures. It does not notify, save or publish, and the sequence does not manually assign results or update progress. The outer coordinator creates one `ReviewEvents` instance and passes it into the GitHub comment, notifications and review workflow. Each destination subscribes itself. There is no central routing function or public publication command.
+`executeWorkflow` shows the full/split sequence of named operations. Its `createStepCoordinator({ input, events })` object owns accepted evidence, attempts, failures and the assessment barrier. `runStep` wraps a supplied function in lifecycle events, `runAssessments` executes the fixed five-worker barrier and `finish` returns final or partial evidence. The sequence does not manually assign results or update progress. Unexpected observer errors propagate when no task failure was recorded. The outer coordinator creates one `ReviewEvents` instance and passes it into the GitHub comment, notifications and review workflow. Each destination subscribes itself. There is no central routing function or public publication command.
 
-After the review returns, the coordinator saves and validates it, then emits `reviewSaved`. The GitHub subscriber privately publishes and emits `publicationFinished` with the actual outcome. Notifications ignore `reviewSaved` and send their final message on `publicationFinished`, so they do not depend on being registered after GitHub. The coordinator deliberately registers notifications first to exercise that boundary. Saving errors emit `runFailed` before propagating.
+After execution returns, the outer coordinator calls the file object’s `save` method. `createReviewFiles({ events })` owns the write/gate operation and emits `reviewSaved` only after validated saving. The GitHub subscriber privately publishes and emits `publicationFinished` with the actual outcome. Notifications ignore `reviewSaved` and send their final message on `publicationFinished`, so they do not depend on being registered after GitHub. The coordinator deliberately registers notifications first to exercise that boundary. The file object emits `runFailed` for writer or gate errors before rethrowing them. Its success emission sits outside that catch, so a publication subscriber error cannot be mislabelled as a saving failure.
 
 `ReviewEvents` exposes only typed `subscribe` and awaited `emit`. Subscribers run sequentially; nested emissions finish before their parent continues. It has no queue, reducer, generator or external library. Delivery helpers record transport failures without retrying reviewer work. There are no intermediate saving/publication updates or parallel progress wrappers.
 
@@ -123,7 +123,7 @@ Each named review function shows its direct Markdown imports, worker label, sche
 
 A review step is the domain concept. Pi’s `phase()` is only display grouping, selected by a small UI subscriber on `stepStarted`. The five assessments share the `assessments` group. Notification and GitHub workers use their own explicit display groups without changing the ambient review group. Groups appear as steps start; metadata keeps no second list of future steps. There is no separate milestone state or phase passed through the review agent wrapper.
 
-Both destinations use the same pure progress renderer, derived from each event’s accepted evidence and failures. `saveReviewFiles` constructs the persisted bundle and file-location metadata internally, validates the actual files and returns `SavedReview` only on success. Accepted setup determines when external delivery may start. The coordinator does not accumulate another accepted-results object, stored progress map or delivery-started flag. Compound stage identifiers remain camelCase, including `researchCheck`, `systemFit` and `splitPlan`.
+Both destinations use the same pure progress renderer, derived from each event’s accepted evidence and failures. The file object constructs the persisted bundle and file-location metadata internally, validates the actual files and returns `SavedReview` after its awaited success event finishes. Accepted setup determines when external delivery may start. The coordinator does not accumulate another accepted-results object, stored progress map or delivery-started flag. Compound stage identifiers remain camelCase, including `researchCheck`, `systemFit` and `splitPlan`.
 
 `createGithubComment({ input, events })` subscribes internally and owns its request counter and final publication outcome. `publishToGithub` is private; callers can read only `githubComment.publication`. The original helper’s `github.json` holds actual comment identity and recovery data, so the object does not duplicate persisted state. A refused final report closes live progress before `publicationFinished`, without replacing the original refusal. Successful publication needs no later GitHub update. For an incomplete review, `stepFailed` already attempts interruption, so publication is withheld without repeating it; `rejected` describes withholding rather than confirmation of interruption delivery.
 
@@ -139,7 +139,7 @@ The build embeds these files using esbuild’s text loader. Run `npm run build` 
 
 Saved files are an inspectable review output and the handoff to the existing GitHub publisher, which reads the report, approval, summary and inline-comment files. In `local-only` mode, the saved report is the primary output. The bundle preserves accepted evidence and partial results; the gate checks that the files contain those exact accepted values. Saving is part of this workflow’s output contract, not a requirement imposed by Pi’s review execution.
 
-Pi’s workflow VM cannot call Node’s filesystem APIs or run shell commands directly. `saveReviewFiles` therefore prepares the bundle and result metadata, then asks a tool-equipped worker to copy those exact values to disk. It does not ask for another review. Its command gate checks the actual files before returning their locations or allowing publication. The workflow does not retry this worker because a failed response can follow completed filesystem work. A saving failure emits one final failure event, which attempts a GitHub interruption and host notification before the original error is rethrown.
+Pi’s workflow VM cannot call Node’s filesystem APIs or run shell commands directly. The file object’s private `writeReviewFiles` prepares the bundle and result metadata, then asks a tool-equipped worker to copy those exact values to disk. It does not ask for another review. Its command gate checks the actual files before returning their locations or allowing publication. The workflow does not retry this worker because a failed response can follow completed filesystem work. A saving failure emits one final failure event, which attempts a GitHub interruption and host notification before the original error is rethrown.
 
 The saved files are:
 

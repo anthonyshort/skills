@@ -525,6 +525,21 @@ export type ReviewStepTask<Result extends StageResult | void> = {
   run: (args: ReviewStepInput) => Promise<Result>;
 };
 /**
+ * Coordinate acceptance and lifecycle events without choosing the review order.
+ */
+export type StepCoordinator = {
+  runStep: <Result extends StageResult | void>(
+    args: ReviewStepTask<Result>,
+  ) => Promise<Result>;
+  runAssessments: () => Promise<void>;
+  readonly hasFailures: boolean;
+  finish: () => ReviewRun;
+};
+export type ReviewFiles = {
+  save: (args: SaveReviewInput) => Promise<SavedReview>;
+};
+
+/**
  * A per-run emitter awaits every observer, including nested emissions.
  */
 export type ReviewEventHandler = (event: ReviewEvent) => void | Promise<void>;

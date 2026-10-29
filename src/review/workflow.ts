@@ -39,6 +39,8 @@ import type {
   ReviewStepTask,
   ReviewWorkflowInput,
   ReviewRun,
+  StepCoordinator,
+  ReviewFiles,
   ReviewStepInput,
   SaveReviewInput,
   SavedReview,
@@ -76,8 +78,7 @@ export const meta = {
 };
 
 /**
- * Coordinate review events and delivery. Review evidence belongs to
- * reviewWorkflow; saving and publication happen only after it returns.
+ * Compose review execution, validated saving and channel subscribers for one run.
  */
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
@@ -93,28 +94,16 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   // Notifications can subscribe first: final publication has its own event.
   const notifications = createNotifications({ input, events });
   const githubComment = createGithubComment({ input, events });
+  const reviewFiles = createReviewFiles({ events });
 
   // The review knows only how to emit facts, not which objects observe them.
-  const review = await reviewWorkflow({ input, events });
+  const review = await executeWorkflow({ input, events });
 
-  // Persist accepted answers and validate the files before GitHub can use them.
-  let saved: SavedReview;
-  try {
-    saved = await saveReviewFiles({
-      review,
-      notifications: notifications.receipts,
-    });
-  } catch (error) {
-    await events.emit({
-      type: "runFailed",
-      review,
-      reason: errorMessage(error),
-    });
-    throw error;
-  }
-
-  // GitHub publishes in response, then emits the outcome for notifications.
-  await events.emit({ type: "reviewSaved", saved });
+  // Saving owns validation and events; its success triggers private publication.
+  const saved = await reviewFiles.save({
+    review,
+    notifications: notifications.receipts,
+  });
 
   // Return file locations, the assessment and channel outcomes to the caller.
   return {
@@ -128,13 +117,54 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
 }
 
 /**
- * Execute the review sequence and retain accepted evidence. Awaited callbacks
- * report its lifecycle; this function does not notify, save or publish.
+ * Declare the full or split-only review order using concrete named steps.
+ * The coordinator owns accepted evidence, attempts and lifecycle events.
  */
-async function reviewWorkflow({
+async function executeWorkflow({
   input,
   events,
 }: ReviewWorkflowInput): Promise<ReviewRun> {
+  const steps = createStepCoordinator({ input, events });
+
+  try {
+    const setup = await steps.runStep({ step: "setup", run: setupReview });
+    switch (setup.mode) {
+      case "split":
+        // Oversized reviews produce a split plan without full assessments.
+        await steps.runStep({ step: "splitPlan", run: planSplit });
+        break;
+      case "full":
+        // Check research before the parallel barrier; reconcile before reporting.
+        await steps.runStep({ step: "research", run: researchReview });
+        await steps.runStep({ step: "researchCheck", run: checkResearch });
+        await steps.runAssessments();
+        await steps.runStep({ step: "rules", run: checkRules });
+        await steps.runStep({ step: "consolidation", run: consolidateReview });
+        await steps.runStep({ step: "draft", run: draftReport });
+        await steps.runStep({ step: "editorial", run: editReport });
+        await steps.runStep({ step: "report", run: acceptReport });
+        break;
+    }
+    await steps.runStep({ step: "decision", run: decideReview });
+  } catch (error) {
+    // Recorded task failures stop dependent work and return partial evidence.
+    // Unexpected observer failures propagate instead of claiming completion.
+    if (!steps.hasFailures) {
+      throw error;
+    }
+  }
+
+  return steps.finish();
+}
+
+/**
+ * Own accepted evidence, attempts and lifecycle events. executeWorkflow supplies
+ * each concrete task in review order.
+ */
+function createStepCoordinator({
+  input,
+  events,
+}: ReviewWorkflowInput): StepCoordinator {
   let accepted: StageResults = {};
   const attempts: Bundle["attempts"] = [];
   const failures: Bundle["failures"] = [];
@@ -190,7 +220,7 @@ async function reviewWorkflow({
    * All five assessments see one research snapshot. Preserve successful siblings
    * in question order before failing the barrier, which emits one lifecycle.
    */
-  async function runAssessments({
+  async function assess({
     input,
     context,
     attempts,
@@ -214,49 +244,36 @@ async function reviewWorkflow({
     }
   }
 
-  try {
-    const setup = await runStep({ step: "setup", run: setupReview });
-    switch (setup.mode) {
-      case "split":
-        // Oversized reviews produce a split plan without full assessments.
-        await runStep({ step: "splitPlan", run: planSplit });
-        break;
-      case "full":
-        // Check research before the parallel barrier; reconcile before reporting.
-        await runStep({ step: "research", run: researchReview });
-        await runStep({ step: "researchCheck", run: checkResearch });
-        await runStep({ step: "assessments", run: runAssessments });
-        await runStep({ step: "rules", run: checkRules });
-        await runStep({ step: "consolidation", run: consolidateReview });
-        await runStep({ step: "draft", run: draftReport });
-        await runStep({ step: "editorial", run: editReport });
-        await runStep({ step: "report", run: acceptReport });
-        break;
+  /**
+   * Return final or partial evidence without changing earlier event snapshots.
+   */
+  function finish(): ReviewRun {
+    const status = failures.length
+      ? "incomplete"
+      : accepted.setup?.mode === "split"
+        ? "split"
+        : "complete";
+    let stages = accepted;
+    if (status === "complete" && accepted.report) {
+      stages = {
+        ...accepted,
+        report: {
+          ...accepted.report,
+          markdown: accepted.report.markdown + coverageMarkdown(accepted),
+        },
+      };
     }
-    await runStep({ step: "decision", run: decideReview });
-  } catch (error) {
-    // Recorded task failures stop dependent work and return partial evidence.
-    // Unexpected observer failures propagate instead of claiming completion.
-    if (failures.length === 0) {
-      throw error;
-    }
+    return { input, status, stages, failures, attempts };
   }
 
-  const status = failures.length
-    ? "incomplete"
-    : accepted.setup?.mode === "split"
-      ? "split"
-      : "complete";
-  if (status === "complete" && accepted.report) {
-    accepted = {
-      ...accepted,
-      report: {
-        ...accepted.report,
-        markdown: accepted.report.markdown + coverageMarkdown(accepted),
-      },
-    };
-  }
-  return { input, status, stages: accepted, failures, attempts };
+  return {
+    runStep,
+    runAssessments: () => runStep({ step: "assessments", run: assess }),
+    get hasFailures() {
+      return failures.length > 0;
+    },
+    finish,
+  };
 }
 
 /**
@@ -571,13 +588,41 @@ async function reviewAgent<Result extends StageResult>({
 }
 
 /**
+ * Own the file operation and its events. Publication observers run only after
+ * validated saving, outside the catch that reports writer or file-gate errors.
+ */
+function createReviewFiles({
+  events,
+}: Pick<ReviewWorkflowInput, "events">): ReviewFiles {
+  async function save(args: SaveReviewInput): Promise<SavedReview> {
+    let saved: SavedReview;
+    try {
+      saved = await writeReviewFiles(args);
+    } catch (error) {
+      await events.emit({
+        type: "runFailed",
+        review: args.review,
+        reason: errorMessage(error),
+      });
+      throw error;
+    }
+
+    // Subscriber errors here belong to publication, not to the completed save.
+    await events.emit({ type: "reviewSaved", saved });
+    return saved;
+  }
+
+  return { save };
+}
+
+/**
  * Save accepted review data (bundle.json), readable stage reports and the final
  * report, decision payloads and result index. The workflow VM has no filesystem
  * API, so a tool-equipped worker copies these values without reviewing them.
  * Its command gate checks the actual files before publication. Do not retry a
  * writer whose filesystem work may already have completed.
  */
-async function saveReviewFiles({
+async function writeReviewFiles({
   review,
   notifications,
 }: SaveReviewInput): Promise<SavedReview> {
