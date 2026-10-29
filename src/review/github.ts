@@ -2,7 +2,8 @@
  * Publish through the existing GitHub helper and retain its delivery receipts.
  * The coordinator owns progress timing and never retries a review for delivery.
  */
-import { z } from "zod";
+import * as z from "zod";
+import publicationInstructions from "../../skills/review-workflow/prompts/publication.md";
 import { PublicationResultSchema } from "./contracts.js";
 import type {
   GitHubRequest,
@@ -135,7 +136,7 @@ export async function sendGitHub({
   let instructions = "Do not review source or change the assessment.";
   switch (operation) {
     case "finish":
-      instructions = `Before publishing, refresh discussion and relevant CI as required by ${input.skillRoot}/criteria.md#step-6-publish-results. If new facts invalidate the accepted assessment, execute the command with --reject followed by one shell-quoted reason instead. This records refusal without publishing. Return its actual rejected result and request a refreshed assessment. Never change the saved decision to force publication.`;
+      instructions = publicationInstructions;
       break;
   }
   try {

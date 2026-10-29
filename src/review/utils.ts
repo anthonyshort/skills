@@ -2,7 +2,7 @@
  * Text, quoting and host notification helpers shared by the review. Tool calls
  * occur only inside functions so Node commands can import the text utilities.
  */
-import { z } from "zod";
+import * as z from "zod";
 import { NotificationAnswerSchema } from "./contracts.js";
 import type {
   DeliveryState,

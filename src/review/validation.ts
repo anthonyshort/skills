@@ -66,7 +66,7 @@ export function validateStage({
         "Supporting details",
       ];
       break;
-    case "split-plan":
+    case "splitPlan":
       headings = ["Assessment", "Risk and scope", "Split plan", "CI status"];
       break;
   }

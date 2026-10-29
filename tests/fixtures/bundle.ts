@@ -217,7 +217,7 @@ function createAcceptedBundle(
   settings: FixtureOptions,
 ): Bundle {
   const stages = createCannedStages(input, rulePaths, settings);
-  const report = stages.report ?? stages["split-plan"];
+  const report = stages.report ?? stages.splitPlan;
   if (!report) {
     throw new Error("Fixture has no report");
   }
@@ -242,8 +242,8 @@ function createCannedStages(
   settings: FixtureOptions,
 ): StageResults {
   const names: StageName[] = settings.split
-    ? ["setup", "split-plan", "decision"]
-    : stageNames.filter((name) => name !== "split-plan");
+    ? ["setup", "splitPlan", "decision"]
+    : stageNames.filter((name) => name !== "splitPlan");
   const stages: Record<string, unknown> = Object.fromEntries(
     names.map((name) => [name, stageEnvelope(name, input)]),
   );
@@ -348,7 +348,7 @@ function writeBundleArtifacts(
       JSON.stringify(bundle.failures),
     );
   }
-  const canonical = bundle.stages.report ?? bundle.stages["split-plan"];
+  const canonical = bundle.stages.report ?? bundle.stages.splitPlan;
   if (canonical) {
     writeFileSync(path.join(artifacts, "review-report.md"), canonical.markdown);
   }

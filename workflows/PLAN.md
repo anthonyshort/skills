@@ -134,7 +134,7 @@ The plan itself authorises no test messages or PR reviews. Use explicitly design
 
 ## Orchestration simplification
 
-Use Pi’s official `agent`, `parallel`, `phase` and `args` globals directly, with narrow TypeScript declarations in `pi-workflow.d.ts`. Keep the full/split sequence visible in `workflow.ts`. Give each step a named function containing its task prompt and explicit schema. Use one small `reviewAgent` wrapper only for common rules, revision pins, validation and two attempts; do not select prompts or scheduling behaviour from stage names. Use object parameters for step, wrapper and delivery operations. Plain accepted results and delivery state replace the custom host interface and reporter/publisher factories. Progress follows explicit entered milestones, with no duplicated list of future stages.
+Use Pi’s official `agent`, `parallel` and `args` globals directly, with narrow TypeScript declarations in `pi-workflow.d.ts`. Keep the full/split sequence visible in `workflow.ts`. Give each step a named function containing its direct Markdown prompt import and explicit schema. Use one small `reviewAgent` wrapper only for common rules, revision pins, validation and two attempts; do not select prompts or scheduling behaviour from stage names. Use object parameters for step, wrapper and delivery operations. Plain accepted results and delivery state replace the custom host interface and reporter/publisher factories. Progress follows the same typed steps used for failure reporting. The worker `phase` option is only a Pi display group; there is no separate milestone state or ambient phase tracking.
 
 Keep all review and delivery schemas and types in `contracts.ts`. Put metadata and prompts beside the coordinator in `workflow.ts`, pure policy checks in `validation.ts`, GitHub operations in `github.ts`, and text/host-notification helpers in `utils.ts`. Keep Node-only file and Git validation in `scripts/review/validate-bundle.ts`. Keep the writer as a separate function in `workflow.ts`, with saving status owned by the coordinator. Publication and final notification are explicit operations after validated saving. Preserve the Node bridges, substantive stage/approval guards and shared pure text functions. The generated-runtime suite checks this refactor; the earlier model run is evidence for the review criteria and graph, not a new live run of the flattened implementation.
 
@@ -152,3 +152,78 @@ Implement in reviewable steps:
 The experiment is ready to try when the user can select `review-workflow`, launch the packaged workflow and receive a validated report plus an accurate delivery outcome without manually invoking the original skill afterwards. Readiness also requires a current live run, distinct skill discovery, preserved restrictions and readable code whose required sequence can be understood from the coordinator and guide.
 
 Keep `HANDOFF.md` and `HANDOFF-PROMPT.md` as local transfer notes outside commits. Leave the original skills unchanged and do not modify pi-subagents. Preserve the PR’s baseline relationship; retargeting to `main` still requires the baseline work to be integrated.
+
+
+## PR feedback plan, 29 October 2026
+
+This section records the agreed changes from the nine comments on commit `67d477f`. It supersedes the earlier recommendations about linked prompt sections and grouped progress milestones. The implementation now uses one typed current step, direct embedded Markdown prompts and the clarified file-saving boundary.
+
+### 1. Type the workflow state and simplify its names
+
+Addresses [typed active state](https://github.com/anthonyshort/skills/pull/4#discussion_r4414980709), [typed progress stages](https://github.com/anthonyshort/skills/pull/4#discussion_r4415005183) and [splitPlan](https://github.com/anthonyshort/skills/pull/4#discussion_r4414987036).
+
+- Type the current review step using the schema-derived stage names, plus the coordinator’s assessment barrier. Give progress steps and statuses explicit unions rather than accepting arbitrary strings. Derive status subsets from existing schemas where their meanings match; do not create duplicate wire formats.
+- Use camelCase for compound stage identifiers: `splitPlan`, `researchCheck` and `systemFit`. Update schemas, accepted-result properties, diagnostics, saved-stage filenames, validation and fixtures together. This experimental format has no compatibility requirement, so avoid an alias or translation layer.
+- Keep all shared types and schemas in `contracts.ts`, object parameters at call sites and braces on every conditional body.
+
+### 2. Remove overlapping phase and progress tracking
+
+Addresses [phase/stage/milestone overlap](https://github.com/anthonyshort/skills/pull/4#discussion_r4414997892) and [repeated updates](https://github.com/anthonyshort/skills/pull/4#discussion_r4415003854).
+
+Pi’s ambient `phase()` sets a default group for later workers. Every current worker already supplies its own `phase` option, which overrides that default. Remove the redundant coordinator `phase()` calls and retain the explicit group beside each worker prompt and schema.
+
+Use progress entries for actual review steps, with one entry for the five-assessment barrier. Remove the separate grouped `activeMilestone` state and retain one typed current step. Research-check, drafting and editing then report their own status instead of sharing an outer research/report milestone. This produces more detailed external progress updates; no new delivery mechanism is needed.
+
+Use a small coordinator-local function to set the current step and mark it running together. Keep completion and acceptance visible in the coordinator. Do not add a stage registry, scheduling class or name-based prompt dispatch. A failed step marks that same progress entry blocked and retains its exact diagnostic.
+
+### 3. Keep assessment failure handling small
+
+Addresses [whether one failed assessment should fail the review](https://github.com/anthonyshort/skills/pull/4#discussion_r4415022504).
+
+It already does: any missing required assessment prevents rules, reporting and the decision from running. Pi’s `parallel()` waits for all workers and returns `null` for ordinary failed tasks. Preserve successful sibling answers, then check for missing assessments and stop downstream work. The writer can save those accepted partial results for inspection.
+
+Keep the existing bounded worker retries and this small barrier check. Add a short comment explaining Pi’s null results. Do not implement cancellation, retries of the whole assessment group or a custom parallel wrapper. Removing partial-result handling would discard useful work without simplifying Pi’s failure behaviour.
+
+### 4. Make Markdown files the source of worker instructions
+
+Addresses [editable stage Markdown](https://github.com/anthonyshort/skills/pull/4#discussion_r4415068056) and [embedded common rules](https://github.com/anthonyshort/skills/pull/4#discussion_r4415077369).
+
+Split the copied experimental criteria into files under `skills/review-workflow/prompts/`: shared rules and one file per named review step. Move task-specific prose out of TypeScript into those files, including the independent research check, consolidation, editorial pass and decision instructions currently supplied by the coordinator. Each file should contain the instructions needed for its task without depending on another stage’s Markdown heading.
+
+Import each Markdown file directly in its named step function’s module and pass its text to `reviewAgent`. Import shared rules once and prepend them in that wrapper. Use esbuild’s standard text loader and a narrow Markdown import declaration so the generated workflow embeds the text at build time. Do not add a runtime file loader, heading parser, template engine or prompt registry. Embed the fixed report template where reporting workers need it as well.
+
+Keep dynamic pinned inputs, accepted results and caller context in the wrapper. Repository rules, caller-supplied files and specialist guidance remain runtime evidence for workers to inspect; those cannot all be embedded at package build time. Preserve their explicit selection and coverage requirements.
+
+Replace the experimental `criteria.md` with an index if it still helps navigation, and update its entry skill to explain the new files. Avoid retaining a second editable copy of the same instructions. Leave the original review skill and pi-subagents unchanged. Editing Markdown requires rebuilding `workflows/review.js`; `build:check` must detect stale embedded text.
+
+### 5. Explain the saved files and the writer boundary
+
+Addresses [why an agent saves the bundle](https://github.com/anthonyshort/skills/pull/4#discussion_r4415088985).
+
+The current Pi workflow VM has no Node/filesystem API or shell execution global. Direct `writeFile` calls from `workflow.ts` therefore are not available. A host-side tool call is required, although serialising accepted JSON does not inherently require model judgement.
+
+Retain the existing writer worker for this iteration rather than introducing an extension, runner or new host API. Rename the operation to `saveReviewFiles` and explain its inputs and outputs in JSDoc, its prompt and the workflow guide:
+
+- The accepted review data, currently called a bundle, contains pinned inputs, successful stage answers, failures, retry records and notification receipts.
+- `bundle.json` saves that data; individual stage Markdown files make the evidence readable.
+- `review-report.md` is the accepted report or split plan; an incomplete run also saves an explanation.
+- `approval.json`, `summary.md` and `inline.json` are the accepted decision and publication payloads when available.
+- `result.json` contains the outcome, validated file locations and integrity fingerprint returned to the caller.
+
+The writer copies accepted values without performing another review. The existing command gate validates the actual saved files before publication. Keep that gate and avoid writer retries, because a failed response may follow completed filesystem work. Do not add a new persistence framework merely to remove this worker. A deterministic host-side writer is a separate option if Pi later exposes an appropriate tool boundary.
+
+### Implementation order and checks
+
+1. Type and rename state, then remove redundant ambient phases and grouped milestone tracking.
+2. Extract and embed Markdown prompts, preserving all required criteria and the explicit named-step sequence.
+3. Clarify the writer and saved-file contract without changing publication or delivery semantics.
+4. Update focused tests for typed names, exact blocked-step progress, assessment partial results and embedded prompt content. Keep test boundaries explained. Verify that the generated VM executes without runtime Markdown access and that stale embedded instructions fail the build check.
+5. Run oxfmt, the affected workflow/stage/saved-file suites, TypeScript checks, the full existing test command and the generated-output check. Rebuild the packaged JavaScript and inspect the final diff for accidental original-skill changes.
+6. Update draft PR #4 and its guide with the resulting design and actual checks. Do not send real notifications, claim a new live model run or include either local handoff file in a commit.
+
+
+### Implementation evidence
+
+Implemented the feedback with one typed current step, no ambient phase calls or milestone state, direct Markdown imports, camelCase stage identifiers and an explained `saveReviewFiles` boundary. The original review skill and pi-subagents remain unchanged. Direct Zod namespace imports let esbuild remove unused exports, keeping the embedded workflow below Pi’s script-size limit without new dependencies.
+
+`npm test` passed all 206 cases. After the final prompt and test refinements, the focused workflow/stage/publication suite passed all 75 cases again. TypeScript, oxfmt, generated-output, braced-conditional and whitespace checks passed. A temporary research Markdown edit correctly made `build:check` reject stale generated output, and restoring it restored a passing check. Both full and split-only prompt tests run without runtime prompt files. No new live model run or real delivery trial was performed.

@@ -154,7 +154,7 @@ async function validateScope(bundle: Bundle): Promise<void> {
  */
 function reportMarkdown(bundle: Bundle): string {
   const { stages, status } = bundle;
-  const report = status === "split" ? stages["split-plan"] : stages.report;
+  const report = status === "split" ? stages.splitPlan : stages.report;
   requireCondition(report, "Review has no canonical report");
   if (status === "split") {
     return report.markdown;
@@ -292,8 +292,8 @@ export async function validateBundle(
   } else {
     const expected =
       bundle.status === "split"
-        ? ["setup", "split-plan", "decision"]
-        : stageNames.filter((name) => name !== "split-plan");
+        ? ["setup", "splitPlan", "decision"]
+        : stageNames.filter((name) => name !== "splitPlan");
     const actual = Object.keys(bundle.stages);
     requireCondition(
       expected.length === actual.length &&

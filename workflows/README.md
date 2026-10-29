@@ -56,7 +56,7 @@ The full route is setup → research → research check → five assessments →
 | --- | --- | --- |
 | Full comparison, initial risks and size policy | Setup records scope, revisions, rule inventory and full/split route | Pinned revisions, size-exception requirement and route selection |
 | Fresh research or justified reuse | Research returns sourced context, checklist and gaps | Required structured result; source investigation remains instructed |
-| Validate research before assessments | `research-check` checks claims and returns the corrected brief | Acceptance before the five assessments; corrected brief supplied to workers |
+| Validate research before assessments | `researchCheck` checks claims and returns the corrected brief | Acceptance before the five assessments; corrected brief supplied to workers |
 | Product, system fit, simplicity, readability and correctness | Five separate assessments with concrete checks, evidence and exclusions | All five required; barrier prevents downstream work when one is missing |
 | One sequential pass over every indexed rule | Rules worker returns selected/skipped rows and evidence | Inventory coverage and distinct rule results; reading order remains instructed |
 | Independent claims, duplicates and disagreements | Consolidation returns accepted findings and unresolved gaps | Finding identity and accounting; independent source checking remains instructed |
@@ -91,18 +91,41 @@ Start at `src/review/workflow.ts` to follow the sequence and its failure boundar
 
 | File | Responsibility |
 | --- | --- |
-| `workflow.ts` | Metadata, explicit full/split sequence, named steps with their prompts and schemas, the shared agent wrapper, saving and progress timing |
+| `workflow.ts` | Metadata, explicit full/split sequence, named steps with direct prompt imports and schemas, the shared agent wrapper, saving and progress timing |
 | `contracts.ts` | Shared schemas and types for inputs, answers, saved data and delivery results |
 | `validation.ts` | Pure evidence, rule coverage, finding-accounting and approval-policy checks |
 | `github.ts` | GitHub publication through the existing helper and confirmation receipts |
 | `utils.ts` | Text formatting, checksums, quoting and host notification helpers |
 | `pi-workflow.d.ts` | Declarations for Pi’s official script globals, without an implementation |
 
-`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. The coordinator calls named functions such as `researchReview`, `assessReadability` and `acceptReport`. Each function shows its actual task, criteria section, phase and schema together. Stage strings identify results and diagnostics; they do not select prompts or scheduling behaviour.
+`agent()`, `parallel()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. The coordinator calls named functions such as `researchReview`, `assessReadability` and `acceptReport`. Each function shows its imported Markdown instructions, Pi display group and schema together. Stage names identify results and diagnostics; they do not select prompts or scheduling behaviour. Compound stage names use camelCase, including `researchCheck`, `systemFit` and `splitPlan`.
 
-Our `reviewAgent` wrapper prepends common rules and explicit review context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not choose tasks, update progress or accept results. Step, wrapper and delivery calls use object parameters. Review rules are supplied explicitly from `criteria.md`; a package-local `AGENTS.md` is authoring guidance, not an assumed automatic source of worker criteria.
+Our `reviewAgent` wrapper prepends shared Markdown rules and explicit review context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not choose tasks, update progress or accept results. Step, wrapper and delivery calls use object parameters. A package-local `AGENTS.md` is authoring guidance, not an assumed automatic source of worker criteria.
 
-The coordinator visibly owns sequential acceptance, the five-assessment barrier, saved-file validation, publication and the final host notification. Progress records entered milestones rather than maintaining a second list of future stages. Research and reporting complete only after their constituent steps succeed; failures retain the exact worker name in diagnostics. Individual retry details appear in worker labels and the saved attempt records.
+There is one typed current review step for both failure reporting and external progress. The five parallel assessments share a progress entry; successful siblings are retained if another assessment fails, then downstream work stops. Other review steps report their own running, complete or blocked status. There is no separate milestone state or ambient `phase()` call. Workers’ `phase` options only group their cards in Pi’s UI, so several workers can appear under “Reporting” without adding another workflow state. Individual retry details appear in worker labels and the saved attempt records.
+
+### Edit worker instructions
+
+Edit the named Markdown file under `skills/review-workflow/prompts/`, such as `research.md`. `common.md` contains shared rules, `assessment.md` contains shared assessment guidance and `reporting.md` contains shared report guidance. Each named function imports its task directly, adding the shared guidance and fixed templates it needs. The experimental skill’s `criteria.md` is an index rather than a second copy of those instructions. The original review skill stays unchanged.
+
+The build embeds these files using esbuild’s text loader. Run `npm run build` after editing prompts or templates; `npm run build:check` detects stale embedded text. Workers receive the instructions in their prompt and do not need to open Markdown heading links at runtime. Repository rules, specialist skills, wrapper guidance and caller-supplied context remain runtime evidence for workers to inspect.
+
+### Why a worker saves review files
+
+Pi’s workflow VM cannot call Node’s filesystem APIs or run shell commands directly. `saveReviewFiles` therefore asks a tool-equipped worker to copy the accepted data to disk. It does not ask for another review. Its command gate checks the actual files before publication, and the workflow does not retry this worker because a failed response can follow completed filesystem work.
+
+The saved files are:
+
+| File | Contents |
+| --- | --- |
+| `bundle.json` | Pinned inputs, accepted stage answers, failures, retry records and notification receipts collected before saving |
+| `<stage>.md` | Each accepted stage’s readable Markdown, such as `researchCheck.md` |
+| `review-report.md` | The accepted final report, or split plan for a split-only review |
+| `incomplete.md` | The explanation when required reviewer work could not finish |
+| `approval.json`, `summary.md`, `inline.json` | Accepted decision and publication payloads, when a decision exists |
+| `result.json` | Review outcome, validated file locations and integrity fingerprint |
+
+“Bundle” means the accepted review data, while “artefacts” means these saved files. The workflow returns the validated report path and decision, then separate publication and notification results. A deterministic writer would need a host tool or extension API; no new host integration is introduced here.
 
 ### What validation does
 
@@ -117,7 +140,7 @@ Pi supplies the structured-output and shell-gate mechanisms. The checks we put i
 
 The saved-file gate reuses the same review-policy functions rather than maintaining a second set of rules. Shape checks do not establish that evidence is true, and policy checks do not prove the model followed every instruction. These checks go beyond merely requiring stages to run; they preserve the agreed report, finding and approval guarantees.
 
-The restricted workflow VM cannot access Node or the filesystem. `scripts/review/validate-bundle.ts` owns the Node-only filesystem and Git checks; `scripts/review/github.ts` bridges helper operations. `workflow.ts` owns the literal `meta` declaration. `scripts/build/workflow.ts` copies it into the generated header and bundles authored TypeScript into `workflows/review.js`. Edit TypeScript and run `npm run format` (oxfmt), then `npm run build`. `format:check` and `build:check` reject stale formatting or generated output. Authored `if` statements always use braces; use `switch` for branches over stages or outcomes.
+The restricted workflow VM cannot access Node or the filesystem. `scripts/review/validate-bundle.ts` owns the Node-only filesystem and Git checks; `scripts/review/github.ts` bridges helper operations. `workflow.ts` owns the literal `meta` declaration. `scripts/build/workflow.ts` copies it into the generated header and bundles authored TypeScript into `workflows/review.js`. Edit TypeScript and run `npm run format` (oxfmt), then `npm run build`; prompt and template changes also require a rebuild. `format:check` and `build:check` reject stale formatting or generated output. Authored `if` statements always use braces; use `switch` for branches over stages or outcomes.
 
 ## Verification limits
 

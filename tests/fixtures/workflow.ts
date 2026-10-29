@@ -1,7 +1,8 @@
 /**
  * Host adapter for workflow integration tests: temporary sources and canned
- * worker answers, plus real artifact writing and command gates. Fault injection
- * belongs in the test case; the adapter never calls a model or live transport.
+ * worker answers, plus real artifact writing and command gates. Prompt Markdown
+ * is deliberately absent from the temporary skill root: the workflow embeds it.
+ * Fault injection belongs in the test case; no model or live transport is used.
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -75,10 +76,6 @@ function createSources(options: FixtureOptions) {
   const repository = path.join(root, "repository");
   const artifacts = path.join(root, "artifacts with 'quotes'");
   mkdirSync(path.join(skillRoot, "rules"), { recursive: true });
-  writeFileSync(
-    path.join(skillRoot, "criteria.md"),
-    readFileSync(path.join(packageRoot, "skills/review-workflow/criteria.md")),
-  );
   mkdirSync(repository);
   const git = (...args: string[]) =>
     execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...args], {
@@ -232,7 +229,7 @@ function defaultAssessment(
     common.markdown =
       "# Review: fixture/app#1\n\n## Assessment\nSource review completed.\n\n### Risk and scope\nLow production exposure in the inspected caller.\n\n## Findings\nNo supported findings.\n\n## Verification summary\nSource inspection only; fixture CI is unavailable.\n\n## References\nFixture requirements inspected.\n\n## Supporting details\nCaller traced at example.ts:4. 🐈\n";
   }
-  if (name === "split-plan") {
+  if (name === "splitPlan") {
     common.markdown =
       "# Review: fixture/app#1\n\n## Assessment\nSplit required.\n\n### Risk and scope\nOversized change; full review deferred.\n\n## Split plan\nSeparate preparation from behaviour.\n\n## CI status\nUnavailable in fixture.\n";
   }
@@ -255,7 +252,7 @@ function saveAcceptedArtifacts(prompt: string, root: string): Bundle {
   } else {
     writeFileSync(
       path.join(root, "review-report.md"),
-      (bundle.stages.report ?? bundle.stages["split-plan"])?.markdown ?? "",
+      (bundle.stages.report ?? bundle.stages.splitPlan)?.markdown ?? "",
     );
   }
   const result = lines.flatMap((line) => {
@@ -281,28 +278,6 @@ function saveAcceptedArtifacts(prompt: string, root: string): Bundle {
     );
   }
   return bundle;
-}
-
-function assertAssignedInstructions(request: WorkflowSpawnRequest): string {
-  const assigned = request.prompt.match(/^Assigned instructions: (.+)$/m)?.[1];
-  assert.ok(assigned, `Missing assigned instructions for ${request.label}`);
-  const [file, anchor] = assigned.split("#");
-  const content = readFileSync(file, "utf8");
-  assert.ok(content.trim(), "Assigned instructions must not be empty");
-  if (anchor) {
-    assert.ok(
-      [...content.matchAll(/^#{1,6} (.+)$/gm)]
-        .map((match) =>
-          match[1]
-            .toLowerCase()
-            .replace(/[^\w -]/g, "")
-            .replaceAll(" ", "-"),
-        )
-        .includes(anchor),
-      `Missing instruction section ${anchor}`,
-    );
-  }
-  return assigned;
 }
 
 /**
@@ -393,7 +368,6 @@ export function fixture(options: FixtureOptions = {}) {
   const calls: string[] = [];
   const prompts = new Map<string, string>();
   let notificationCount = 0;
-  const instructions = new Map<string, string>();
   let bundle: Bundle | undefined;
   const host: PiRuntimeHost = {
     abortAgent() {},
@@ -436,7 +410,6 @@ export function fixture(options: FixtureOptions = {}) {
       }
       const [label, count] = request.label.split(":");
       const name = StageNameSchema.parse(label);
-      instructions.set(name, assertAssignedInstructions(request));
       if (options.fail?.(name, Number(count))) {
         return { ok: false, error: "Fixture child failed" };
       }
@@ -454,7 +427,6 @@ export function fixture(options: FixtureOptions = {}) {
     calls,
     prompts,
     rulePaths,
-    instructions,
     get bundle() {
       assert.ok(bundle);
       return bundle;

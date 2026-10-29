@@ -1,9 +1,29 @@
 /**
- * Run the review in Pi's workflow VM. agent(), parallel() and phase() are
- * official pi-subagents globals, declared in pi-workflow.d.ts. The local
+ * Run the review in Pi's workflow VM. agent() and parallel() are official
+ * pi-subagents globals, declared in pi-workflow.d.ts. The local
  * reviewAgent wrapper adds common rules, validation and one fresh retry.
  */
-import { z } from "zod";
+import * as z from "zod";
+import setupPrompt from "../../skills/review-workflow/prompts/setup.md";
+import researchPrompt from "../../skills/review-workflow/prompts/research.md";
+import researchCheckPrompt from "../../skills/review-workflow/prompts/researchCheck.md";
+import productPrompt from "../../skills/review-workflow/prompts/product.md";
+import systemFitPrompt from "../../skills/review-workflow/prompts/systemFit.md";
+import simplicityPrompt from "../../skills/review-workflow/prompts/simplicity.md";
+import readabilityPrompt from "../../skills/review-workflow/prompts/readability.md";
+import correctnessPrompt from "../../skills/review-workflow/prompts/correctness.md";
+import rulesPrompt from "../../skills/review-workflow/prompts/rules.md";
+import consolidationPrompt from "../../skills/review-workflow/prompts/consolidation.md";
+import draftPrompt from "../../skills/review-workflow/prompts/draft.md";
+import editorialPrompt from "../../skills/review-workflow/prompts/editorial.md";
+import reportPrompt from "../../skills/review-workflow/prompts/report.md";
+import splitPlanPrompt from "../../skills/review-workflow/prompts/splitPlan.md";
+import decisionPrompt from "../../skills/review-workflow/prompts/decision.md";
+import sharedRules from "../../skills/review-workflow/prompts/common.md";
+import assessmentRules from "../../skills/review-workflow/prompts/assessment.md";
+import reportingRules from "../../skills/review-workflow/prompts/reporting.md";
+import reportTemplate from "../../skills/review-workflow/templates/review-report.md";
+import githubProgressTemplate from "../../skills/review-workflow/templates/github-progress.md";
 import {
   assessmentNames,
   parseReviewInput,
@@ -67,16 +87,14 @@ export const meta = {
 
 /**
  * Execute the required review steps explicitly. Each named step owns its prompt
- * and schema; only the shared reviewAgent wrapper adds rules and retries.
+ * import and schema; only the shared reviewAgent wrapper adds rules and retries.
  */
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
   let accepted: StageResults = {};
   const attempts: Bundle["attempts"] = [];
   const failures: Bundle["failures"] = [];
-  let activeStage = "setup";
-  // Diagnostics name the worker; progress marks its entire milestone blocked.
-  let activeMilestone = "setup";
+  let currentStep: StageName | "assessments" = "setup";
   const delivery: DeliveryState = {
     statuses: {},
     notifications: [],
@@ -87,9 +105,16 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   };
   const progress = { input, state: delivery };
 
+  /**
+   * Use the same current step for progress and failure diagnostics.
+   */
+  async function startStep({ stage }: { stage: StageName | "assessments" }) {
+    currentStep = stage;
+    await updateProgress({ ...progress, stage, status: "running" });
+  }
+
   // Setup pins the comparison before any external progress starts.
   try {
-    phase("Setup");
     accepted.setup = await setupReview({ input, context: accepted, attempts });
     delivery.started = true;
     await updateProgress({
@@ -101,42 +126,22 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     switch (accepted.setup.mode) {
       case "split":
         // Split-only reviews stop at a plan rather than a full assessment.
-        phase("Reporting");
-        activeStage = "split-plan";
-        activeMilestone = "split-plan";
-        await updateProgress({
-          ...progress,
-          stage: "split-plan",
-          status: "running",
-        });
-        accepted["split-plan"] = await planSplit({
+        await startStep({ stage: "splitPlan" });
+        accepted.splitPlan = await planSplit({
           input,
           context: accepted,
           attempts,
         });
         await updateProgress({
           ...progress,
-          stage: "split-plan",
+          stage: "splitPlan",
           status: "complete",
         });
         break;
       case "full": {
         // Independently check the brief before any assessment uses its conclusions.
-        phase("Research");
-        activeStage = "research";
-        activeMilestone = "research";
-        await updateProgress({
-          ...progress,
-          stage: "research",
-          status: "running",
-        });
+        await startStep({ stage: "research" });
         accepted.research = await researchReview({
-          input,
-          context: accepted,
-          attempts,
-        });
-        activeStage = "research-check";
-        accepted["research-check"] = await checkResearch({
           input,
           context: accepted,
           attempts,
@@ -146,20 +151,24 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
           stage: "research",
           status: "complete",
         });
-
-        // All five workers see the same research, never developing sibling answers.
-        phase("Assessments");
-        activeStage = "assessments";
-        activeMilestone = "assessments";
+        await startStep({ stage: "researchCheck" });
+        accepted.researchCheck = await checkResearch({
+          input,
+          context: accepted,
+          attempts,
+        });
         await updateProgress({
           ...progress,
-          stage: "assessments",
-          status: "running",
+          stage: "researchCheck",
+          status: "complete",
         });
+
+        // All five workers see the same research, never developing sibling answers.
+        await startStep({ stage: "assessments" });
         const researchContext = {
           setup: accepted.setup,
           research: accepted.research,
-          "research-check": accepted["research-check"],
+          researchCheck: accepted.researchCheck,
         };
         const assessments = await parallel<StageResult>([
           () => assessProduct({ input, context: researchContext, attempts }),
@@ -170,7 +179,7 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
           () =>
             assessCorrectness({ input, context: researchContext, attempts }),
         ]);
-        // Retain successful siblings in question order before rejecting missing work.
+        // Pi returns null for failed parallel tasks. Keep successful siblings before stopping.
         for (const result of assessments) {
           if (result) {
             accepted = StageResultsSchema.parse({
@@ -189,14 +198,7 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
           status: "complete",
         });
 
-        phase("Rules");
-        activeStage = "rules";
-        activeMilestone = "rules";
-        await updateProgress({
-          ...progress,
-          stage: "rules",
-          status: "running",
-        });
+        await startStep({ stage: "rules" });
         accepted.rules = await checkRules({
           input,
           context: accepted,
@@ -208,34 +210,42 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
           status: "complete",
         });
 
-        // Reconcile findings before drafting; complete reporting only after acceptance.
-        phase("Consolidation");
-        activeStage = "consolidation";
-        activeMilestone = "report";
-        await updateProgress({
-          ...progress,
-          stage: "report",
-          status: "running",
-        });
+        // Reconcile findings before drafting, editing and accepting the final report.
+        await startStep({ stage: "consolidation" });
         accepted.consolidation = await consolidateReview({
           input,
           context: accepted,
           attempts,
         });
-        phase("Reporting");
-        activeStage = "draft";
+
+        await updateProgress({
+          ...progress,
+          stage: "consolidation",
+          status: "complete",
+        });
+        await startStep({ stage: "draft" });
         accepted.draft = await draftReport({
           input,
           context: accepted,
           attempts,
         });
-        activeStage = "editorial";
+        await updateProgress({
+          ...progress,
+          stage: "draft",
+          status: "complete",
+        });
+        await startStep({ stage: "editorial" });
         accepted.editorial = await editReport({
           input,
           context: accepted,
           attempts,
         });
-        activeStage = "report";
+        await updateProgress({
+          ...progress,
+          stage: "editorial",
+          status: "complete",
+        });
+        await startStep({ stage: "report" });
         accepted.report = await acceptReport({
           input,
           context: accepted,
@@ -251,14 +261,7 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     }
 
     // The decision assesses the accepted report; it does not publish anything.
-    phase("Decision");
-    activeStage = "decision";
-    activeMilestone = "decision";
-    await updateProgress({
-      ...progress,
-      stage: "decision",
-      status: "running",
-    });
+    await startStep({ stage: "decision" });
     accepted.decision = await decideReview({
       input,
       context: accepted,
@@ -271,12 +274,12 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     });
   } catch (error) {
     // Accepted partial evidence survives an exhausted required step.
-    failures.push({ stage: activeStage, reason: errorMessage(error) });
+    failures.push({ stage: currentStep, reason: errorMessage(error) });
     await updateProgress({
       ...progress,
-      stage: activeMilestone,
+      stage: currentStep,
       status: "blocked",
-      reason: `${activeStage}: ${errorMessage(error)}`,
+      reason: errorMessage(error),
     });
   }
 
@@ -306,8 +309,7 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const result = createReviewResult(bundle);
   let validationCommand: string;
   try {
-    phase("Save artefacts");
-    validationCommand = await saveArtifacts({ bundle, result });
+    validationCommand = await saveReviewFiles({ bundle, result });
   } catch (error) {
     await updateProgress({
       ...progress,
@@ -370,10 +372,7 @@ async function setupReview({ input, context, attempts }: ReviewStepInput) {
     stage: "setup",
     phase: "Setup",
     schema: StageSchemas.setup,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-1-setup`,
-      "Read the full diff, count additions/deletions, apply the over-2,000-added-lines split policy, and enumerate every rule path from the main and wrapper rules/README.md indexes. Use absolute canonical paths. Record any permitted size exception.",
-    ].join("\n"),
+    prompt: setupPrompt,
   });
 }
 
@@ -388,10 +387,7 @@ async function researchReview({ input, context, attempts }: ReviewStepInput) {
     stage: "research",
     phase: "Research",
     schema: StageSchemas.research,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-2-research`,
-      "Complete fresh research or validate prior complete review evidence using the re-review gate. Missing external sources must be recorded, not invented.",
-    ].join("\n"),
+    prompt: researchPrompt,
   });
 }
 
@@ -403,13 +399,10 @@ async function checkResearch({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "research-check",
+    stage: "researchCheck",
     phase: "Research",
-    schema: StageSchemas["research-check"],
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-2-research`,
-      "Act as the parent accepting the research brief. Independently check its important claims against the cited sources, scope and current CI. Validate any reused prior research. Return a corrected self-contained brief with supported conclusions and remaining gaps for the assessments. Reading the brief alone does not complete this check. Do not repeat broad searches without a specific missing or stale source.",
-    ].join("\n"),
+    schema: StageSchemas.researchCheck,
+    prompt: researchCheckPrompt,
   });
 }
 
@@ -424,11 +417,7 @@ async function assessProduct({ input, context, attempts }: ReviewStepInput) {
     stage: "product",
     phase: "Assessments",
     schema: StageSchemas.product,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#q-should-we-build-this`,
-      "Assess whether the change solves the right problem, using the accepted research.",
-      "Read the Review best practices and Build and verify the checklist sections in criteria.md, as well as your assigned question. Return only your own assessment.",
-    ].join("\n"),
+    prompt: [assessmentRules, productPrompt].join("\n\n"),
   });
 }
 
@@ -440,14 +429,10 @@ async function assessSystemFit({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "system-fit",
+    stage: "systemFit",
     phase: "Assessments",
-    schema: StageSchemas["system-fit"],
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#q-does-this-code-fit-into-the-existing-system`,
-      "Assess ownership, dependencies and fit with the established system and documented direction.",
-      "Read the Review best practices and Build and verify the checklist sections in criteria.md, as well as your assigned question. Return only your own assessment.",
-    ].join("\n"),
+    schema: StageSchemas.systemFit,
+    prompt: [assessmentRules, systemFitPrompt].join("\n\n"),
   });
 }
 
@@ -462,11 +447,7 @@ async function assessSimplicity({ input, context, attempts }: ReviewStepInput) {
     stage: "simplicity",
     phase: "Assessments",
     schema: StageSchemas.simplicity,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#q-is-this-the-simplest-solution`,
-      "Assess whether this is the simplest supported implementation and scope. Propose concrete simplifications that preserve required behaviour.",
-      "Read the Review best practices and Build and verify the checklist sections in criteria.md, as well as your assigned question. Return only your own assessment.",
-    ].join("\n"),
+    prompt: [assessmentRules, simplicityPrompt].join("\n\n"),
   });
 }
 
@@ -485,11 +466,7 @@ async function assessReadability({
     stage: "readability",
     phase: "Assessments",
     schema: StageSchemas.readability,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#q-is-this-code-clear-and-easy-to-maintain`,
-      "Perform the dedicated readability pass over changed bodies and tests. Keep correctness and architectural redesign with their own assessments.",
-      "Read the Review best practices and Build and verify the checklist sections in criteria.md, as well as your assigned question. Return only your own assessment.",
-    ].join("\n"),
+    prompt: [assessmentRules, readabilityPrompt].join("\n\n"),
   });
 }
 
@@ -508,11 +485,7 @@ async function assessCorrectness({
     stage: "correctness",
     phase: "Assessments",
     schema: StageSchemas.correctness,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#q-is-this-implementation-correct`,
-      "Trace behaviour through real callers and tests. Report supported defects, current CI evidence and coverage limits.",
-      "Read the Review best practices and Build and verify the checklist sections in criteria.md, as well as your assigned question. Return only your own assessment.",
-    ].join("\n"),
+    prompt: [assessmentRules, correctnessPrompt].join("\n\n"),
   });
 }
 
@@ -527,10 +500,7 @@ async function checkRules({ input, context, attempts }: ReviewStepInput) {
     stage: "rules",
     phase: "Rules",
     schema: StageSchemas.rules,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-4-check-review-rules`,
-      "One sequential pass must return exactly one row per setup.rulePaths entry, including skipped rules with reasons. Read each selected rule fully.",
-    ].join("\n"),
+    prompt: rulesPrompt,
   });
 }
 
@@ -549,10 +519,7 @@ async function consolidateReview({
     stage: "consolidation",
     phase: "Consolidation",
     schema: StageSchemas.consolidation,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-5-create-the-final-review-report`,
-      "Perform only the evidence-consolidation items 1\u20135 in Step 5. Independently check important worker claims against code, requirements and current CI. Verify checklist guidance coverage, resolve contradictions and merge duplicate findings. Record unresolved claims as gaps. Do not draft or edit the report in this stage.",
-    ].join("\n"),
+    prompt: [reportingRules, consolidationPrompt].join("\n\n"),
   });
 }
 
@@ -567,11 +534,7 @@ async function draftReport({ input, context, attempts }: ReviewStepInput) {
     stage: "draft",
     phase: "Reporting",
     schema: StageSchemas.draft,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-5-create-the-final-review-report`,
-      "Perform only Step 5 item 6: write the complete report using the accepted consolidation. Editorial reduction and final acceptance are later workflow stages.",
-      `Use ${input.skillRoot}/templates/review-report.md. Return the complete self-contained report. Preserve coverage, research context and every evidence gap.`,
-    ].join("\n"),
+    prompt: [reportingRules, draftPrompt, reportTemplate].join("\n\n"),
   });
 }
 
@@ -586,11 +549,7 @@ async function editReport({ input, context, attempts }: ReviewStepInput) {
     stage: "editorial",
     phase: "Reporting",
     schema: StageSchemas.editorial,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-5-create-the-final-review-report`,
-      "Shorten the complete draft without changing priorities, findings, evidence, tables, check outcomes or uncertainty. Return the edited full report as markdown.",
-      `Use ${input.skillRoot}/templates/review-report.md. Return the complete self-contained report. Preserve coverage, research context and every evidence gap.`,
-    ].join("\n"),
+    prompt: [reportingRules, editorialPrompt, reportTemplate].join("\n\n"),
   });
 }
 
@@ -605,11 +564,7 @@ async function acceptReport({ input, context, attempts }: ReviewStepInput) {
     stage: "report",
     phase: "Reporting",
     schema: StageSchemas.report,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-5-create-the-final-review-report`,
-      "Compare the completed draft and editorial versions. Restore lost detail and accept the final canonical report. Account for every worker finding with decisions.sourceId = '<stage>:<finding id>'. Explain retained, merged, excluded or open findings. Keep retained report IDs visible in markdown. The decision stage assesses this accepted report.",
-      `Use ${input.skillRoot}/templates/review-report.md. Return the complete self-contained report. Preserve coverage, research context and every evidence gap.`,
-    ].join("\n"),
+    prompt: [reportingRules, reportPrompt, reportTemplate].join("\n\n"),
   });
 }
 
@@ -621,13 +576,10 @@ async function planSplit({ input, context, attempts }: ReviewStepInput) {
     input,
     context,
     attempts,
-    stage: "split-plan",
+    stage: "splitPlan",
     phase: "Reporting",
-    schema: StageSchemas["split-plan"],
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-1-setup`,
-      "Return a split-only report with Assessment, Risk and scope, Split plan and CI status headings. Read the sibling split-pr skill when available. State what was inspected and that full review was deferred.",
-    ].join("\n"),
+    schema: StageSchemas.splitPlan,
+    prompt: splitPlanPrompt,
   });
 }
 
@@ -642,10 +594,7 @@ async function decideReview({ input, context, attempts }: ReviewStepInput) {
     stage: "decision",
     phase: "Decision",
     schema: StageSchemas.decision,
-    prompt: [
-      `Assigned instructions: ${input.skillRoot}/criteria.md#step-6-publish-results`,
-      "Perform the final approval assessment from Step 6 without publishing. Return approval in the documented seven-check schema, summaryMarkdown following templates/github-progress.md, and inlineComments for verified new bugs with valid diff anchors only. Each inline ID must exactly match a retained reportId whose source is a new bug. Required retained findings and unresolved findings cannot pass clean_review. Do not introduce new findings. For split-only output use outcome split, checks null and no inline comments. Count additions plus deletions across the whole diff. This stage returns an assessment only. A later workflow delivery worker owns publication and approval submission. Honour input.publication: local-only, staged and comment-only never allow automatic approval; if all checks pass use not_submitted with the restriction as its reason and next step.",
-    ].join("\n"),
+    prompt: [decisionPrompt, githubProgressTemplate].join("\n\n"),
   });
 }
 
@@ -667,15 +616,7 @@ async function reviewAgent<Result extends StageResult>({
 }: ReviewAgentInput<Result>): Promise<Result> {
   // Every review worker gets these rules before its task-specific prompt.
   const commonRules = [
-    `Read shared review constraints in ${input.skillRoot}/criteria.md#rules. Read the assigned section and perform only its task.`,
-    "Do not launch the review skill, run another workflow, delegate agents, publish or notify. The coordinator owns later stages and delivery.",
-    "Use source inspection and existing CI. Do not modify source or artefacts, install anything, run local project checks, start services or trigger CI.",
-    "Before inspecting source, confirm checkout HEAD matches the pinned head and the checkout is clean. Read other revisions through pinned Git objects. Record a mismatch as blocked.",
-    "Findings need locations, triggers, effects and evidence. Missing evidence is a gap, not a passed check. An empty findings array is valid.",
-    "Read relevant best-practice skill descriptions and select guidance for this task. Cite the sections used.",
-    "The corrected research-check brief takes precedence over the initial research. Preserve remaining evidence gaps.",
-    "Prior reports are supplied below and saved later by the writer. Do not treat unsaved intermediate files or future stages as missing evidence.",
-    "Finish by calling StructuredOutput. Text outside that tool call is discarded.",
+    sharedRules,
     `Wrapper guidance: ${JSON.stringify(input.wrapperSkillRoots.map((root) => `${root}/SKILL.md`))}.`,
     `Read supplied scope and requirements files: ${JSON.stringify(input.contextFiles)}. Record unavailable external context rather than inventing sources.`,
     `Pinned inputs: ${JSON.stringify(input)}`,
@@ -725,10 +666,13 @@ async function reviewAgent<Result extends StageResult>({
 }
 
 /**
- * The official agent gate checks actual files before the writer is accepted.
- * Do not retry a writer whose filesystem work may already have completed.
+ * Save accepted review data (bundle.json), readable stage reports and the final
+ * report, decision payloads and result index. The workflow VM has no filesystem
+ * API, so a tool-equipped worker copies these values without reviewing them.
+ * Its command gate checks the actual files before publication. Do not retry a
+ * writer whose filesystem work may already have completed.
  */
-async function saveArtifacts({
+async function saveReviewFiles({
   bundle,
   result,
 }: SaveArtifactsInput): Promise<string> {
@@ -738,10 +682,11 @@ async function saveArtifacts({
   // This worker writes accepted values; the command gate checks the actual files.
   const saved = await agent(
     [
-      "You are the artefact writer. Do not review code, publish, notify, or call github_review_complete.",
+      "You save accepted review files using host filesystem tools, which the workflow VM cannot access directly. Do not review code, publish, notify, or call github_review_complete.",
+      "The bundle contains pinned inputs, accepted stage answers, failures, retry records and notification receipts. Copy its values exactly; do not infer or revise evidence.",
       `Write the exact JSON bundle below to ${input.artifacts}/bundle.json.`,
       "For each stages entry, write its markdown unchanged to <stage>.md in that directory.",
-      "Write review-report.md from stages.report.markdown, or stages['split-plan'].markdown for split output.",
+      "Write review-report.md from stages.report.markdown, or stages.splitPlan.markdown for split output.",
       "For incomplete output write incomplete.md explaining failures. Do not fabricate missing assessments.",
       "If decision exists, write approval.json from decision.approval, summary.md from decision.summaryMarkdown and inline.json from decision.inlineComments. Preserve those values exactly.",
       `Write the exact result JSON below to ${input.artifacts}/result.json.`,
@@ -774,8 +719,8 @@ function createReviewResult(bundle: Bundle): ReviewResult {
   // Missing-stage diagnostics follow the route selected during setup.
   const required: readonly StageName[] =
     stages.setup?.mode === "split"
-      ? ["setup", "split-plan", "decision"]
-      : stageNames.filter((name) => name !== "split-plan");
+      ? ["setup", "splitPlan", "decision"]
+      : stageNames.filter((name) => name !== "splitPlan");
   return {
     status,
     runId: input.runId,
@@ -794,7 +739,7 @@ function createReviewResult(bundle: Bundle): ReviewResult {
 }
 
 /**
- * Record milestones explicitly entered by the coordinator. There is no second
+ * Record review steps explicitly entered by the coordinator. There is no second
  * list of future steps to maintain. Delivery failures do not repeat review work.
  */
 async function updateProgress({

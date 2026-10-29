@@ -19,11 +19,10 @@ test("complete review uses all required stages and validates real saved files", 
     assert.equal(state.calls[0], "setup:1");
     assert.ok(
       state.calls.indexOf("research:1") <
-        state.calls.indexOf("research-check:1"),
+        state.calls.indexOf("researchCheck:1"),
     );
     assert.ok(
-      state.calls.indexOf("research-check:1") <
-        state.calls.indexOf("product:1"),
+      state.calls.indexOf("researchCheck:1") < state.calls.indexOf("product:1"),
     );
     for (const name of questions) {
       assert.ok(
@@ -204,7 +203,7 @@ test("split output omits research, assessments and full report coverage", () =>
     assert.equal(result.value.status, "split");
     assert.deepEqual(state.calls, [
       "setup:1",
-      "split-plan:1",
+      "splitPlan:1",
       "decision:1",
       "save-artefacts",
     ]);
@@ -500,25 +499,38 @@ test("wrong complete-diff counts cannot pass the saved-bundle gate", () =>
     },
   ));
 
-test("workers load their assigned sections from the packaged review skill", () =>
-  scenario({}, async (state) => {
-    const result = await state.run();
-    assert.equal(result.value.status, "complete");
-    assert.equal(
-      state.instructions.get("research"),
-      path.join(state.args.skillRoot, "criteria.md") + "#step-2-research",
-    );
-    assert.equal(
-      state.instructions.get("correctness"),
-      path.join(state.args.skillRoot, "criteria.md") +
-        "#q-is-this-implementation-correct",
-    );
-    assert.equal(
-      state.instructions.get("rules"),
-      path.join(state.args.skillRoot, "criteria.md") +
-        "#step-4-check-review-rules",
-    );
-  }));
+for (const split of [false, true]) {
+  test(`${split ? "split" : "full"} review receives embedded instructions without runtime prompt files`, () =>
+    scenario({ split }, async (state) => {
+      const result = await state.run();
+      assert.equal(result.value.status, split ? "split" : "complete");
+      const sharedRules = readFileSync(
+        new URL("../skills/review-workflow/prompts/common.md", import.meta.url),
+        "utf8",
+      );
+      for (const stage of Object.keys(state.bundle.stages)) {
+        const instructions = readFileSync(
+          new URL(
+            `../skills/review-workflow/prompts/${stage}.md`,
+            import.meta.url,
+          ),
+          "utf8",
+        );
+        const prompt = state.prompts.get(`${stage}:1`);
+        assert.ok(prompt);
+        assert.ok(instructions.trim());
+        assert.ok(
+          prompt.startsWith(sharedRules),
+          `${stage} needs shared rules first`,
+        );
+        assert.ok(
+          prompt.includes(instructions),
+          `${stage} instructions must be embedded`,
+        );
+        assert.doesNotMatch(prompt, /^Assigned instructions:/m);
+      }
+    }));
+}
 
 test("large generated coverage stays in bounded detail sections", () =>
   scenario(
@@ -593,13 +605,13 @@ test("template source evidence survives stage validation and persistence", () =>
   ));
 
 test("research acceptance failure stops assessments and preserves the initial brief", () =>
-  scenario({ fail: (name) => name === "research-check" }, async (state) => {
+  scenario({ fail: (name) => name === "researchCheck" }, async (state) => {
     const result = await state.run();
     assert.equal(result.value.status, "incomplete");
     assert.ok(state.bundle.stages.research);
     assert.equal(state.calls.includes("product:1"), false);
     assert.equal(
-      state.calls.filter((name) => name.startsWith("research-check:")).length,
+      state.calls.filter((name) => name.startsWith("researchCheck:")).length,
       2,
     );
   }));
@@ -840,18 +852,6 @@ test("assessment outputs keep question order when correctness finishes before pr
   );
 });
 
-test("common review rules precede each named step's task", () =>
-  scenario({}, async (state) => {
-    assert.equal((await state.run()).value.status, "complete");
-    const rules = `${state.args.skillRoot}/criteria.md#rules`;
-    for (const [stage, assignedSection] of state.instructions) {
-      const prompt = state.prompts.get(`${stage}:1`);
-      assert.ok(prompt);
-      assert.ok(prompt.indexOf(rules) >= 0, `${stage} needs common rules`);
-      assert.ok(prompt.indexOf(rules) < prompt.indexOf(assignedSection));
-    }
-  }));
-
 test("all named assessments receive only the accepted research context", () =>
   scenario({}, async (state) => {
     assert.equal((await state.run()).value.status, "complete");
@@ -865,17 +865,13 @@ test("all named assessments receive only the accepted research context", () =>
       assert.deepEqual(Object.keys(context), [
         "setup",
         "research",
-        "research-check",
+        "researchCheck",
       ]);
     }
   }));
 
-for (const [failedStep, milestone] of [
-  ["research-check", "research"],
-  ["draft", "report"],
-  ["editorial", "report"],
-] as const) {
-  test(`${failedStep} failure blocks its milestone and retains the precise failure`, () =>
+for (const failedStep of ["researchCheck", "draft", "editorial"] as const) {
+  test(`${failedStep} failure blocks that step and retains the precise failure`, () =>
     scenario(
       { notify: true, fail: (name) => name === failedStep },
       async (state) => {
@@ -884,8 +880,8 @@ for (const [failedStep, milestone] of [
         assert.equal(result.value.failures[0].stage, failedStep);
         const terminal = state.prompts.get("notify:review:incomplete");
         assert.ok(terminal);
-        assert.match(terminal, new RegExp(`${milestone}: blocked`));
-        assert.doesNotMatch(terminal, new RegExp(`${milestone}: running`));
+        assert.match(terminal, new RegExp(`${failedStep}: blocked`));
+        assert.doesNotMatch(terminal, new RegExp(`${failedStep}: running`));
         assert.match(
           terminal,
           new RegExp(`${failedStep} failed after two attempts`),

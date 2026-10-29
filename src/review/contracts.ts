@@ -2,7 +2,7 @@
  * Shared wire formats for review inputs, worker answers and saved results.
  * The Pi workflow and the filesystem validator parse the same Zod contracts.
  */
-import { z } from "zod";
+import * as z from "zod";
 
 const text = z
   .string()
@@ -192,7 +192,7 @@ export const InlineCommentSchema = z.strictObject({
 });
 export const assessmentNames = [
   "product",
-  "system-fit",
+  "systemFit",
   "simplicity",
   "readability",
   "correctness",
@@ -200,14 +200,14 @@ export const assessmentNames = [
 export const stageNames = [
   "setup",
   "research",
-  "research-check",
+  "researchCheck",
   ...assessmentNames,
   "rules",
   "consolidation",
   "draft",
   "editorial",
   "report",
-  "split-plan",
+  "splitPlan",
   "decision",
 ] as const;
 export const StageNameSchema = z.enum(stageNames);
@@ -231,12 +231,12 @@ export const StageSchemas = {
     rulePaths: z.array(text).max(1000),
   }),
   research: z.strictObject({ ...envelope, stage: z.literal("research") }),
-  "research-check": z.strictObject({
+  researchCheck: z.strictObject({
     ...envelope,
-    stage: z.literal("research-check"),
+    stage: z.literal("researchCheck"),
   }),
   product: z.strictObject({ ...envelope, stage: z.literal("product") }),
-  "system-fit": z.strictObject({ ...envelope, stage: z.literal("system-fit") }),
+  systemFit: z.strictObject({ ...envelope, stage: z.literal("systemFit") }),
   simplicity: z.strictObject({ ...envelope, stage: z.literal("simplicity") }),
   readability: z.strictObject({ ...envelope, stage: z.literal("readability") }),
   correctness: z.strictObject({ ...envelope, stage: z.literal("correctness") }),
@@ -256,7 +256,7 @@ export const StageSchemas = {
     stage: z.literal("report"),
     decisions: z.array(FindingDecisionSchema).max(10_000),
   }),
-  "split-plan": z.strictObject({ ...envelope, stage: z.literal("split-plan") }),
+  splitPlan: z.strictObject({ ...envelope, stage: z.literal("splitPlan") }),
   decision: z.strictObject({
     ...envelope,
     stage: z.literal("decision"),
@@ -269,9 +269,9 @@ export const StageSchemas = {
 export const StageSchema = z.discriminatedUnion("stage", [
   StageSchemas.setup,
   StageSchemas.research,
-  StageSchemas["research-check"],
+  StageSchemas.researchCheck,
   StageSchemas.product,
-  StageSchemas["system-fit"],
+  StageSchemas.systemFit,
   StageSchemas.simplicity,
   StageSchemas.readability,
   StageSchemas.correctness,
@@ -280,7 +280,7 @@ export const StageSchema = z.discriminatedUnion("stage", [
   StageSchemas.draft,
   StageSchemas.editorial,
   StageSchemas.report,
-  StageSchemas["split-plan"],
+  StageSchemas.splitPlan,
   StageSchemas.decision,
 ]);
 export type StageResult = z.infer<typeof StageSchema>;
@@ -290,9 +290,9 @@ export type StageResults = {
 export const StageResultsSchema = z.strictObject({
   setup: StageSchemas.setup.optional(),
   research: StageSchemas.research.optional(),
-  "research-check": StageSchemas["research-check"].optional(),
+  researchCheck: StageSchemas.researchCheck.optional(),
   product: StageSchemas.product.optional(),
-  "system-fit": StageSchemas["system-fit"].optional(),
+  systemFit: StageSchemas.systemFit.optional(),
   simplicity: StageSchemas.simplicity.optional(),
   readability: StageSchemas.readability.optional(),
   correctness: StageSchemas.correctness.optional(),
@@ -301,7 +301,7 @@ export const StageResultsSchema = z.strictObject({
   draft: StageSchemas.draft.optional(),
   editorial: StageSchemas.editorial.optional(),
   report: StageSchemas.report.optional(),
-  "split-plan": StageSchemas["split-plan"].optional(),
+  splitPlan: StageSchemas.splitPlan.optional(),
   decision: StageSchemas.decision.optional(),
 });
 export const FailureSchema = z.strictObject({ stage: text, reason: text });
@@ -422,11 +422,27 @@ export const ReviewOutputSchema = ReviewResultSchema.extend({
 export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
 
 /**
+ * Review stages share progress names with the assessment barrier, saving and
+ * delivery. Statuses reuse the review and publication outcomes where applicable.
+ */
+export type ProgressStep =
+  | StageName
+  | "assessments"
+  | "save-artefacts"
+  | "publication"
+  | "review";
+export type ProgressStatus =
+  | z.infer<typeof ReviewStatusSchema>
+  | PublicationResult["status"]
+  | "running"
+  | "blocked";
+
+/**
  * Plain delivery bookkeeping for one review. Scheduling uses Pi's globals,
  * rather than methods attached to this data.
  */
 export type DeliveryState = {
-  statuses: Record<string, string>;
+  statuses: Partial<Record<ProgressStep, ProgressStatus>>;
   notifications: Bundle["notifications"];
   started: boolean;
   hostNotifications: boolean;
@@ -458,8 +474,8 @@ export type ReviewAgentInput<Result extends StageResult> = ReviewStepInput & {
 export type ProgressUpdateInput = {
   input: ReviewInput;
   state: DeliveryState;
-  stage: string;
-  status: string;
+  stage: ProgressStep;
+  status: ProgressStatus;
   reason?: string;
 };
 

@@ -50,6 +50,6 @@ Set `github` to `null` for a branch or diff review without a PR. Host notificati
 
 ## Worker criteria and results
 
-Workers read [criteria.md](criteria.md), using its shared Rules section and only the sections assigned by the workflow. Detailed review criteria, the rule index, templates and publication helpers are copied into this skill so experiments leave the original review skill unchanged. Workers do not recursively launch this skill or coordinate other workers.
+Workers receive embedded Markdown instructions from the [prompt files](criteria.md): shared review rules followed by the named step’s instructions. Edit those files and run `npm run build` to update the generated workflow. The report and summary templates are embedded where needed. Workers still read selected rules, specialist guidance and caller context at runtime. These resources and the publication helpers belong to this experimental copy, so the original review skill stays unchanged. Workers do not recursively launch this skill or coordinate other workers.
 
 Return the validated report path, review outcome, confirmed GitHub URLs and publication or notification gaps from the workflow result. Distinguish a proposed approval from confirmed submission. A complete saved review can have incomplete publication. Do not retry the entire review to repair notification delivery or resubmit an uncertain publication.

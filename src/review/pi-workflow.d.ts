@@ -13,5 +13,3 @@ declare function agent(
 declare function parallel<T>(
   tasks: (() => Promise<T>)[],
 ): Promise<(T | null)[]>;
-
-declare function phase(title: string): void;
