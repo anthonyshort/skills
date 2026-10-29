@@ -8,8 +8,7 @@ import type {
   ApprovalSchema,
   StageSchemas,
   StageResults,
-  StageResult,
-  ReviewInput,
+  StageValidationInput,
 } from "./contracts.js";
 type Approval = z.infer<typeof ApprovalSchema>;
 type Decision = z.infer<typeof StageSchemas.decision>;
@@ -18,11 +17,11 @@ type Decision = z.infer<typeof StageSchemas.decision>;
  * Throws when an answer loses evidence, coverage or finding provenance.
  * The caller owns retrying the stage and recording a final failure.
  */
-export function validateStage(
-  result: StageResult,
-  prior: StageResults,
-  input: ReviewInput,
-): void {
+export function validateStage({
+  result,
+  prior,
+  input,
+}: StageValidationInput): void {
   if (result.base !== input.base || result.head !== input.head) {
     throw new Error("Assessment revisions differ from pinned inputs");
   }

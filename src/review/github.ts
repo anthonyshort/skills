@@ -5,12 +5,11 @@
 import { z } from "zod";
 import { PublicationResultSchema } from "./contracts.js";
 import type {
-  Bundle,
-  DeliveryState,
   GitHubRequest,
+  GitHubSendInput,
   PublicationResult,
   ReviewInput,
-  ReviewResult,
+  ReviewPublicationInput,
 } from "./contracts.js";
 import { errorMessage, progressChecklist, quote } from "./utils.js";
 
@@ -52,12 +51,12 @@ export function githubEnabled(input: ReviewInput): boolean {
  * Publish accepted saved files, or interrupt an incomplete review. The Node
  * bridge independently validates files before publishing the final result.
  */
-export async function publishAcceptedReview(
-  input: ReviewInput,
-  state: DeliveryState,
-  bundle: Bundle,
-  result: ReviewResult,
-): Promise<PublicationResult> {
+export async function publishAcceptedReview({
+  input,
+  state,
+  bundle,
+  result,
+}: ReviewPublicationInput): Promise<PublicationResult> {
   if (!state.started) {
     state.publication = {
       ...state.publication,
@@ -74,13 +73,13 @@ export async function publishAcceptedReview(
       const reason = bundle.failures
         .map((failure) => `${failure.stage}: ${failure.reason}`)
         .join("; ");
-      await sendGitHub(
+      await sendGitHub({
         input,
         state,
-        "interrupt",
-        progressChecklist(state),
+        operation: "interrupt",
+        checklist: progressChecklist(state),
         reason,
-      );
+      });
       break;
     }
     case "complete":
@@ -93,14 +92,13 @@ export async function publishAcceptedReview(
         /^- \[[ x]\] publication: .+$/m,
         "- [x] publication: complete",
       );
-      await sendGitHub(
+      await sendGitHub({
         input,
         state,
-        "finish",
+        operation: "finish",
         checklist,
-        "",
-        result.fingerprint,
-      );
+        fingerprint: result.fingerprint,
+      });
       break;
     }
   }
@@ -111,14 +109,14 @@ export async function publishAcceptedReview(
  * Keep one helper state file and one receipt per scheduled worker. Unknown
  * delivery is recorded once and recovered later through the existing helper.
  */
-export async function sendGitHub(
-  input: ReviewInput,
-  state: DeliveryState,
-  operation: GitHubRequest["operation"],
-  checklist: string,
+export async function sendGitHub({
+  input,
+  state,
+  operation,
+  checklist,
   reason = "",
-  fingerprint: string | null = null,
-): Promise<void> {
+  fingerprint = null,
+}: GitHubSendInput): Promise<void> {
   const request: GitHubRequest = {
     input,
     operation,

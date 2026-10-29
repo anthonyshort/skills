@@ -119,13 +119,15 @@ for (const disposition of ["retained", "merged", "open"] as const) {
       reason: "Verified caller trace",
     });
     assert.throws(
-      () => validateStage(decision, prior, input),
+      () => validateStage({ result: decision, prior, input }),
       /retained required or unresolved/,
     );
     decision.approval.outcome = "changes_needed";
     decision.approval.next_steps = ["Author: fix F1"];
     decision.approval.checks!.clean_review.result = "Fail";
-    assert.doesNotThrow(() => validateStage(decision, prior, input));
+    assert.doesNotThrow(() =>
+      validateStage({ result: decision, prior, input }),
+    );
   });
 }
 
@@ -142,7 +144,7 @@ test("inline comments must reference an accepted new bug by exact report ID", ()
     body: "Unreviewed claim",
   });
   assert.throws(
-    () => validateStage(decision, prior, input),
+    () => validateStage({ result: decision, prior, input }),
     /accepted new bug/,
   );
   prior.correctness = StageSchemas.correctness.parse({
@@ -157,17 +159,17 @@ test("inline comments must reference an accepted new bug by exact report ID", ()
     reason: "Caller trace verified",
   });
   decision.inlineComments[0].id = "F1";
-  assert.doesNotThrow(() => validateStage(decision, prior, input));
+  assert.doesNotThrow(() => validateStage({ result: decision, prior, input }));
   prior.correctness.findings[0].existingThread =
     "https://github.com/example/app/pull/1#discussion_r1";
   assert.throws(
-    () => validateStage(decision, prior, input),
+    () => validateStage({ result: decision, prior, input }),
     /accepted new bug/,
   );
   prior.correctness.findings[0].existingThread = null;
   prior.correctness.findings[0].kind = "readability";
   assert.throws(
-    () => validateStage(decision, prior, input),
+    () => validateStage({ result: decision, prior, input }),
     /accepted new bug/,
   );
 });
@@ -179,14 +181,14 @@ test("legitimate template source excerpts are accepted as review evidence", () =
     markdown:
       "The template renders `{{ user.name }}`.\n```handlebars\n{{ target }}\n```",
   });
-  assert.doesNotThrow(() => validateStage(result, {}, input));
+  assert.doesNotThrow(() => validateStage({ result, prior: {}, input }));
 });
 
 test("invalid approval semantics fail before the writer gate", () => {
   const { prior, decision } = assessment();
   decision.approval.checks!.verification.result = "Fail";
   assert.throws(
-    () => validateStage(decision, prior, input),
+    () => validateStage({ result: decision, prior, input }),
     /every checklist item/,
   );
 });
@@ -204,7 +206,10 @@ test("an open optional concern cannot be hidden behind a passing approval", () =
     reportId: null,
     reason: "Not yet resolved",
   });
-  assert.throws(() => validateStage(decision, prior, input), /unresolved/);
+  assert.throws(
+    () => validateStage({ result: decision, prior, input }),
+    /unresolved/,
+  );
 });
 
 test("the unfilled report target scaffold is rejected outside quoted source", () => {
@@ -213,5 +218,8 @@ test("the unfilled report target scaffold is rejected outside quoted source", ()
     stage: "correctness",
     markdown: "# Review: {{ target }}",
   });
-  assert.throws(() => validateStage(result, {}, input), /target scaffold/);
+  assert.throws(
+    () => validateStage({ result, prior: {}, input }),
+    /target scaffold/,
+  );
 });

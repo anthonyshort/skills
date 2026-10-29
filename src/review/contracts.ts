@@ -433,3 +433,65 @@ export type DeliveryState = {
   githubSequence: number;
   publication: PublicationResult;
 };
+
+/**
+ * Explicit inputs shared by the named review steps. No scheduling methods or
+ * prompt selection are attached to this data.
+ */
+export type ReviewStepInput = {
+  input: ReviewInput;
+  context: StageResults;
+  attempts: Bundle["attempts"];
+};
+
+/**
+ * Inputs to our agent wrapper. The caller supplies the task and schema; the
+ * wrapper adds common rules, revision pins, validation and bounded retries.
+ */
+export type ReviewAgentInput<Result extends StageResult> = ReviewStepInput & {
+  stage: StageName;
+  phase: string;
+  schema: z.ZodType<Result>;
+  prompt: string;
+};
+
+export type ProgressUpdateInput = {
+  input: ReviewInput;
+  state: DeliveryState;
+  stage: string;
+  status: string;
+  reason?: string;
+};
+
+export type ReviewPublicationInput = {
+  input: ReviewInput;
+  state: DeliveryState;
+  bundle: Bundle;
+  result: ReviewResult;
+};
+
+export type GitHubSendInput = {
+  input: ReviewInput;
+  state: DeliveryState;
+  operation: GitHubRequest["operation"];
+  checklist: string;
+  reason?: string;
+  fingerprint?: string | null;
+};
+
+export type RequestHostNotificationInput = {
+  input: ReviewInput;
+  label: string;
+  text: string;
+};
+
+export type SaveArtifactsInput = {
+  bundle: Bundle;
+  result: ReviewResult;
+};
+
+export type StageValidationInput = {
+  result: StageResult;
+  prior: StageResults;
+  input: ReviewInput;
+};

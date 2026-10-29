@@ -839,3 +839,57 @@ test("assessment outputs keep question order when correctness finishes before pr
     },
   );
 });
+
+test("common review rules precede each named step's task", () =>
+  scenario({}, async (state) => {
+    assert.equal((await state.run()).value.status, "complete");
+    const rules = `${state.args.skillRoot}/criteria.md#rules`;
+    for (const [stage, assignedSection] of state.instructions) {
+      const prompt = state.prompts.get(`${stage}:1`);
+      assert.ok(prompt);
+      assert.ok(prompt.indexOf(rules) >= 0, `${stage} needs common rules`);
+      assert.ok(prompt.indexOf(rules) < prompt.indexOf(assignedSection));
+    }
+  }));
+
+test("all named assessments receive only the accepted research context", () =>
+  scenario({}, async (state) => {
+    assert.equal((await state.run()).value.status, "complete");
+    for (const question of questions) {
+      const serialized = state.prompts
+        .get(`${question}:1`)
+        ?.match(/^Prior accepted results: (.+)$/m)?.[1];
+      assert.ok(serialized);
+      const context: unknown = JSON.parse(serialized);
+      assert.ok(context && typeof context === "object");
+      assert.deepEqual(Object.keys(context), [
+        "setup",
+        "research",
+        "research-check",
+      ]);
+    }
+  }));
+
+for (const [failedStep, milestone] of [
+  ["research-check", "research"],
+  ["draft", "report"],
+  ["editorial", "report"],
+] as const) {
+  test(`${failedStep} failure blocks its milestone and retains the precise failure`, () =>
+    scenario(
+      { notify: true, fail: (name) => name === failedStep },
+      async (state) => {
+        const result = await state.run();
+        assert.equal(result.value.status, "incomplete");
+        assert.equal(result.value.failures[0].stage, failedStep);
+        const terminal = state.prompts.get("notify:review:incomplete");
+        assert.ok(terminal);
+        assert.match(terminal, new RegExp(`${milestone}: blocked`));
+        assert.doesNotMatch(terminal, new RegExp(`${milestone}: running`));
+        assert.match(
+          terminal,
+          new RegExp(`${failedStep} failed after two attempts`),
+        );
+      },
+    ));
+}

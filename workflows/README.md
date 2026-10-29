@@ -91,14 +91,18 @@ Start at `src/review/workflow.ts` to follow the sequence and its failure boundar
 
 | File | Responsibility |
 | --- | --- |
-| `workflow.ts` | Metadata, explicit full/split sequence, worker prompts, retries, saving and progress timing |
+| `workflow.ts` | Metadata, explicit full/split sequence, named steps with their prompts and schemas, the shared agent wrapper, saving and progress timing |
 | `contracts.ts` | Shared schemas and types for inputs, answers, saved data and delivery results |
 | `validation.ts` | Pure evidence, rule coverage, finding-accounting and approval-policy checks |
 | `github.ts` | GitHub publication through the existing helper and confirmation receipts |
 | `utils.ts` | Text formatting, checksums, quoting and host notification helpers |
 | `pi-workflow.d.ts` | Declarations for Pi’s official script globals, without an implementation |
 
-`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. The local `reviewStage` helper adds two-attempt retries and semantic validation. Other imported functions are our review code. The coordinator explicitly saves, publishes and sends the final host notification in that order.
+`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. The coordinator calls named functions such as `researchReview`, `assessReadability` and `acceptReport`. Each function shows its actual task, criteria section, phase and schema together. Stage strings identify results and diagnostics; they do not select prompts or scheduling behaviour.
+
+Our `reviewAgent` wrapper prepends common rules and explicit review context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not choose tasks, update progress or accept results. Step, wrapper and delivery calls use object parameters. Review rules are supplied explicitly from `criteria.md`; a package-local `AGENTS.md` is authoring guidance, not an assumed automatic source of worker criteria.
+
+The coordinator visibly owns sequential acceptance, the five-assessment barrier, saved-file validation, publication and the final host notification. Progress records entered milestones rather than maintaining a second list of future stages. Research and reporting complete only after their constituent steps succeed; failures retain the exact worker name in diagnostics. Individual retry details appear in worker labels and the saved attempt records.
 
 ### What validation does
 

@@ -273,7 +273,11 @@ export async function validateBundle(
   );
   for (const [name, result] of Object.entries(bundle.stages)) {
     requireCondition(result.stage === name, `Stage identity mismatch: ${name}`);
-    validateStage(result, bundle.stages, bundle.input);
+    validateStage({
+      result,
+      prior: bundle.stages,
+      input: bundle.input,
+    });
     requireCondition(
       (await readArtifact(root, `${name}.md`)) === result.markdown,
       `Saved assessment differs: ${name}`,

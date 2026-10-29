@@ -5,10 +5,10 @@
 import { z } from "zod";
 import { NotificationAnswerSchema } from "./contracts.js";
 import type {
-  Bundle,
   DeliveryState,
-  ReviewInput,
-  ReviewResult,
+  ProgressUpdateInput,
+  RequestHostNotificationInput,
+  ReviewPublicationInput,
   StageResults,
 } from "./contracts.js";
 
@@ -93,23 +93,24 @@ export function fingerprint(text: string): string {
 /**
  * Finish the host message with actual publication and approval confirmation.
  */
-export async function sendFinalNotification(
-  input: ReviewInput,
-  state: DeliveryState,
-  bundle: Bundle,
-  result: ReviewResult,
-): Promise<void> {
+export async function sendFinalNotification({
+  input,
+  state,
+  bundle,
+  result,
+}: ReviewPublicationInput): Promise<void> {
   if (!state.started) {
     return;
   }
   const publication = state.publication;
-  await sendHostNotification(
+  await sendHostNotification({
     input,
     state,
-    "review",
-    bundle.status,
-    [
+    stage: "review",
+    status: bundle.status,
+    reason: [
       `Assessment: ${bundle.stages.decision?.approval.outcome ?? "incomplete"}`,
+      ...bundle.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
       `Report: ${result.reportPath ?? `${input.artifacts}/incomplete.md`}`,
       `GitHub: ${publication.status}. ${publication.reason}`,
       publication.url ?? "",
@@ -120,20 +121,20 @@ export async function sendFinalNotification(
     ]
       .filter(Boolean)
       .join("\n"),
-  );
+  });
 }
 
 /**
  * Stop host sends after a missing tool or scope change rather than creating
  * more messages. A rejected transport delivery alone can recover next stage.
  */
-export async function sendHostNotification(
-  input: ReviewInput,
-  state: DeliveryState,
-  stage: string,
-  status: string,
-  detail = "",
-): Promise<void> {
+export async function sendHostNotification({
+  input,
+  state,
+  stage,
+  status,
+  reason = "",
+}: ProgressUpdateInput): Promise<void> {
   if (
     !state.hostNotifications ||
     !input.notification ||
@@ -147,15 +148,15 @@ export async function sendHostNotification(
     ...Object.entries(state.statuses).map(
       ([name, value]) => `${name}: ${value}`,
     ),
-    detail,
+    reason,
   ]
     .filter(Boolean)
     .join("\n");
-  const receipt = await requestHostNotification(
+  const receipt = await requestHostNotification({
     input,
-    `${stage}:${status}`,
+    label: `${stage}:${status}`,
     text,
-  );
+  });
   const prior = state.notifications.find((entry) => entry.receipt.broadcast)
     ?.receipt.broadcast;
   if (prior && receipt.broadcast && receipt.broadcast.scope !== prior.scope) {
@@ -174,11 +175,11 @@ export async function sendHostNotification(
  * Use the host broadcast API, whose authenticated scope selects destinations.
  * Return actual tool receipts; no HTTP or shell fallback invents delivery.
  */
-async function requestHostNotification(
-  input: ReviewInput,
-  label: string,
-  text: string,
-) {
+async function requestHostNotification({
+  input,
+  label,
+  text,
+}: RequestHostNotificationInput) {
   try {
     const output = await agent(
       [
