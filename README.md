@@ -29,9 +29,28 @@ The `pi` manifest exports the skills and an opt-in review workflow. The ordinary
 
 ## Review workflow for Pi
 
-The [workflow guide](workflows/README.md) explains installation and invocation of the named `review` workflow in an existing Pi session, its source files and test boundaries. The workflow owns required assessments, host notification updates and GitHub publication, and returns a validated report and decision. The original review skill remains unchanged.
+The experimental named `review` workflow runs the required assessments in an existing Pi session and returns the report, approval assessment and accepted evidence in memory. GitHub comments use the separate Picco plugin’s `github_comment` tool; inline comments and review submission await its tool contracts. The original review skill remains unchanged.
 
-Workflow source is TypeScript under `src/review/`. Run `npm install`, then `npm run build` to rebuild the JavaScript required by pi-subagents; `npm test` checks types, formatting, generated output and the small set of colocated unit tests.
+Install this package and `@tintinweb/pi-subagents@0.22.0` in Pi, enable package workflow discovery and reload. Invoke `SubagentWorkflow` with:
+
+```json
+{
+  "name": "review",
+  "args": {
+    "packageRoot": "/home/me/dev/skills",
+    "repository": "/home/me/dev/app",
+    "target": "owner/app PR #42",
+    "base": "FULL_BASE_COMMIT_SHA",
+    "head": "FULL_HEAD_COMMIT_SHA",
+    "runId": "app-pr42-review",
+    "publication": "local-only"
+  }
+}
+```
+
+Use a clean checkout at the pinned head. `local-only` suppresses external updates. To enable them, use `publication: "publish"` and supply `github: { "repository": "owner/app", "pr": 42 }`. Host notifications use the configured host tools and default to the key `review:RUN_ID`; pass `notification: null` to disable them. An approval assessment does not confirm approval submission.
+
+Start at `src/review/workflow.ts` for the sequence and named steps. Prompts sit beside the source under `src/review/prompts/`. Run `npm install`, then `npm run build` to rebuild the JavaScript Pi loads. `npm test` checks types, oxfmt, generated-output freshness and three colocated unit tests. These checks do not validate live model behaviour or real delivery.
 
 ## Communication style
 
