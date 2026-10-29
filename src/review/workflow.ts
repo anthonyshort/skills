@@ -69,6 +69,8 @@ export const meta = {
  */
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
+
+  // Keep accepted evidence separate from failed attempts and delivery state.
   let accepted: StageResults = {};
   const attempts: Bundle["attempts"] = [];
   const failures: Bundle["failures"] = [];
@@ -82,14 +84,17 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     publication: initialPublication(input),
   };
 
+  // Setup chooses the route before any external progress starts.
   try {
     await reviewStage("setup");
     await startProgress(input, delivery, accepted.setup?.mode ?? "full");
     switch (accepted.setup?.mode) {
       case "split":
+        // Oversized changes get a split plan instead of implementation review.
         await reviewStage("split-plan");
         break;
       default: {
+        // Independently check the research before passing it to the assessments.
         await reviewStage("research");
         await reviewStage("research-check");
 
@@ -120,29 +125,39 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
         }
         await updateProgress(input, delivery, "assessments", "complete");
 
+        // Account for every rule, then reconcile claims and duplicate findings.
         await reviewStage("rules");
         await reviewStage("consolidation");
+
+        // Shorten the draft, then restore any detail lost before accepting it.
         await reviewStage("draft");
         await reviewStage("editorial");
         await reviewStage("report");
         break;
       }
     }
+
+    // Assess approval against the accepted report or split plan.
     await reviewStage("decision");
   } catch (error) {
+    // Retain accepted partial work when a required stage exhausts its attempts.
     failures.push({ stage: activeStage, reason: errorMessage(error) });
     await updateProgress(input, delivery, activeStage, "blocked");
   }
 
+  // Describe completion separately from whether the review found required fixes.
   const status = failures.length
     ? "incomplete"
     : accepted.setup?.mode === "split"
       ? "split"
       : "complete";
   if (status === "complete" && accepted.report) {
+    // Include every recorded check and evidence gap in the canonical report.
     accepted.report.markdown += coverageMarkdown(accepted);
   }
   await updateProgress(input, delivery, "save-artefacts", "running");
+
+  // Snapshot receipts now; later notifications belong in the returned result.
   const bundle: Bundle = {
     version: 1,
     input,
@@ -154,6 +169,8 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   };
   const result = createReviewResult(bundle);
   let validationCommand: string;
+
+  // A failed file gate stops publication without retrying the writer.
   try {
     phase("Save artefacts");
     validationCommand = await saveArtifacts(bundle, result);
@@ -168,6 +185,8 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     throw error;
   }
   await updateProgress(input, delivery, "save-artefacts", "complete");
+
+  // Publish only after the saved files have passed their gate.
   if (delivery.started && bundle.status !== "incomplete") {
     await updateProgress(input, delivery, "publication", "running");
   }
@@ -185,10 +204,13 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
       "blocked",
       publication.reason,
     );
+    // Keep the refusal result when progress records another delivery receipt.
     delivery.publication = publication;
   }
   delivery.statuses.publication = publication.status;
   delivery.statuses.review = bundle.status;
+
+  // Finish the host message with actual publication and approval confirmation.
   await sendFinalNotification(input, delivery, bundle, result);
   return {
     ...result,
@@ -216,6 +238,8 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     }
     let feedback = "";
     let result: StageResult | undefined;
+
+    // Retry an invalid answer once, using a fresh worker and the rejection reason.
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const output = await agent(
@@ -231,6 +255,8 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
             "Agent failed, was skipped, or returned invalid structured output",
           );
         }
+
+        // Check the answer's shape and its consistency with earlier stages.
         result = StageSchemas[name].parse(output);
         validateStage(result, context, input);
         break;
@@ -246,6 +272,8 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     if (!result) {
       throw new Error(`${name} failed after two attempts: ${feedback}`);
     }
+
+    // Sequential stages feed the next worker; parallel answers join at the barrier.
     if (!assessment) {
       accepted = StageResultsSchema.parse({ ...accepted, [name]: result });
       await updateProgress(input, delivery, name, "complete");
@@ -264,6 +292,8 @@ async function saveArtifacts(
 ): Promise<string> {
   const { input } = bundle;
   const validationCommand = `node --import ${quote(input.tsxLoader)} ${quote(`${input.supportRoot}/validate-bundle.ts`)} ${quote(`${input.artifacts}/bundle.json`)} --fingerprint ${quote(result.fingerprint)}`;
+
+  // This worker writes accepted values; the command gate checks the actual files.
   const saved = await agent(
     [
       "You are the artefact writer. Do not review code, publish, notify, or call github_review_complete.",
@@ -298,6 +328,8 @@ async function saveArtifacts(
  */
 function createReviewResult(bundle: Bundle): ReviewResult {
   const { input, status, stages } = bundle;
+
+  // Missing-stage diagnostics follow the route selected during setup.
   const required: readonly StageName[] =
     stages.setup?.mode === "split"
       ? ["setup", "split-plan", "decision"]
@@ -447,6 +479,7 @@ function stagePrompt(
     ["draft", "editorial", "report"].includes(name)
       ? `Use ${input.skillRoot}/templates/review-report.md. Return the complete self-contained report. Preserve coverage, research context and every evidence gap.`
       : "",
+    // Workers have separate conversations, so pass accepted evidence explicitly.
     `Pinned inputs: ${JSON.stringify(input)}`,
     `Prior accepted results: ${JSON.stringify(context)}`,
     feedback
@@ -478,6 +511,7 @@ async function startProgress(
   state: DeliveryState,
   mode: "full" | "split",
 ): Promise<void> {
+  // Seed only the chosen route so progress does not imply skipped stages ran.
   let stages: string[];
   switch (mode) {
     case "split":
@@ -521,6 +555,8 @@ async function updateProgress(
   if (!state.started) {
     return;
   }
+
+  // GitHub failures are recorded without preventing the host notification below.
   if (githubEnabled(input)) {
     const blocked = Object.entries(state.statuses).find(
       ([, value]) => value === "blocked",
