@@ -8,7 +8,7 @@
     "build:check": "node --import tsx scripts/build/workflow.ts --check",
     "typecheck": "tsc --noEmit",
     "format:check": "oxfmt --check \"src/**/*.ts\" \"scripts/**/*.ts\"",
-    "test:unit": "node --import tsx --test src/review/*.test.ts",
+    "test:unit": "node --import tsx --test src/review/*.test.ts src/workflow/*.test.ts",
     "test": "npm run typecheck && npm run format:check && npm run build:check && npm run test:unit",
     "format": "oxfmt --write \"src/**/*.ts\" \"scripts/**/*.ts\""
   },

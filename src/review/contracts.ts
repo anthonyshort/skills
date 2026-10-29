@@ -1,8 +1,11 @@
 /**
- * Shared wire formats for review inputs, worker answers and in-memory results.
- * Schemas define the data returned by workers and the workflow.
+ * Review inputs, worker evidence and the in-memory result. Transport schemas
+ * and execution mechanics belong to their respective consumers.
  */
 import * as z from "zod";
+import type { WorkflowEvent, WorkflowEvents } from "../workflow/run.js";
+import type { PublicationResult } from "./github.js";
+import type { Notification } from "./notifications.js";
 
 const text = z
   .string()
@@ -181,8 +184,7 @@ export const stageNames = [
   "splitPlan",
   "decision",
 ] as const;
-export const StageNameSchema = z.enum(stageNames);
-export type StageName = z.infer<typeof StageNameSchema>;
+export type StageName = (typeof stageNames)[number];
 const envelope = {
   base: revision,
   head: revision,
@@ -237,289 +239,39 @@ export const StageSchemas = {
     inlineComments: z.array(InlineCommentSchema).max(100),
   }),
 };
-export const StageSchema = z.discriminatedUnion("stage", [
-  StageSchemas.setup,
-  StageSchemas.research,
-  StageSchemas.researchCheck,
-  StageSchemas.product,
-  StageSchemas.systemFit,
-  StageSchemas.simplicity,
-  StageSchemas.readability,
-  StageSchemas.correctness,
-  StageSchemas.rules,
-  StageSchemas.consolidation,
-  StageSchemas.draft,
-  StageSchemas.editorial,
-  StageSchemas.report,
-  StageSchemas.splitPlan,
-  StageSchemas.decision,
-]);
-export type StageResult = z.infer<typeof StageSchema>;
-export type StageResults = {
-  [Name in StageName]?: z.infer<(typeof StageSchemas)[Name]>;
+export type ReviewResults = {
+  [Name in StageName]: z.infer<(typeof StageSchemas)[Name]>;
 };
-export const StageResultsSchema = z.strictObject({
-  setup: StageSchemas.setup.optional(),
-  research: StageSchemas.research.optional(),
-  researchCheck: StageSchemas.researchCheck.optional(),
-  product: StageSchemas.product.optional(),
-  systemFit: StageSchemas.systemFit.optional(),
-  simplicity: StageSchemas.simplicity.optional(),
-  readability: StageSchemas.readability.optional(),
-  correctness: StageSchemas.correctness.optional(),
-  rules: StageSchemas.rules.optional(),
-  consolidation: StageSchemas.consolidation.optional(),
-  draft: StageSchemas.draft.optional(),
-  editorial: StageSchemas.editorial.optional(),
-  report: StageSchemas.report.optional(),
-  splitPlan: StageSchemas.splitPlan.optional(),
-  decision: StageSchemas.decision.optional(),
-});
-export const FailureSchema = z.strictObject({ stage: text, reason: text });
-export const AttemptSchema = z.strictObject({
-  stage: StageNameSchema,
-  attempt: z.number().int().positive(),
-  reason: text,
-});
-/**
- * Receipt returned by the host's keyed notification broadcast. The host chooses
- * destinations from the authenticated session; callers supply no recipient.
- */
-export const NotificationBroadcastSchema = z.object({
-  scope: text,
-  messageKey: text.optional(),
-  deliveries: z
-    .array(
-      z.object({
-        deliveryId: text,
-        destination: text,
-        status: z.enum(["in-flight", "confirmed", "rejected", "uncertain"]),
-        externalId: z.string().nullable(),
-        duplicate: z.boolean(),
-      }),
-    )
-    .max(100),
-});
-export const NotificationReceiptSchema = z.strictObject({
-  status: z.enum(["confirmed", "rejected", "uncertain"]),
-  reason: text,
-  broadcast: NotificationBroadcastSchema.nullable().default(null),
-});
-export const NotificationSchema = z.strictObject({
-  stage: text,
-  status: text,
-  receipt: NotificationReceiptSchema,
-});
-export const ReviewStatusSchema = z.enum(["complete", "split", "incomplete"]);
-export const ReviewRunSchema = z.strictObject({
-  input: ReviewInputSchema,
-  status: ReviewStatusSchema,
-  stages: StageResultsSchema,
-  failures: z.array(FailureSchema).max(100),
-  attempts: z.array(AttemptSchema).max(100),
-});
-export type ReviewRun = z.infer<typeof ReviewRunSchema>;
+export type StageResults = Partial<ReviewResults>;
+export type StageResult = ReviewResults[StageName];
 
 /**
- * Review-specific response shape for notification workers.
- * Pi supplies StructuredOutput; these response fields belong to our workflow.
+ * Computed review output. Worker and transport responses are parsed at their
+ * boundaries; this object contains the values already accepted by the workflow.
  */
-export const NotificationAnswerSchema = z.strictObject({
-  broadcast: NotificationBroadcastSchema.nullable(),
-  reason: z.string().min(1),
-});
-
-// Pi's restricted VM has no URL global for Zod's URL validator.
-const githubUrl = z
-  .string()
-  .max(4096)
-  .regex(/^https:\/\/github\.com\/[^\s]+$/);
-// Picco plugin-github receipts. Keep its rejected and uncertain outcomes distinct.
-const githubId = text
-  .max(32)
-  .regex(/^[1-9]\d*$/)
-  .refine((value) => Number.isSafeInteger(Number(value)));
-export const GithubFailureSchema = z.discriminatedUnion("status", [
-  z.strictObject({ status: z.literal("rejected"), reason: text }),
-  z.strictObject({ status: z.literal("uncertain"), message: text }),
-]);
-export const GithubCommentReceiptSchema = z.union([
-  z.strictObject({ status: z.literal("confirmed"), commentId: githubId }),
-  GithubFailureSchema,
-]);
-const GithubReviewSuccessSchema = z.strictObject({
-  status: z.literal("confirmed"),
-  reviewId: githubId,
-  state: z.enum(["COMMENTED", "APPROVED", "CHANGES_REQUESTED"]),
-});
-export const GithubReviewReceiptSchema = z.union([
-  GithubReviewSuccessSchema,
-  GithubFailureSchema,
-]);
-export const PublicationResultSchema = z.strictObject({
-  status: z.enum(["skipped", "pending", "confirmed", "uncertain", "rejected"]),
-  reason: text,
-  url: githubUrl.nullable(),
-  review: GithubReviewSuccessSchema.nullable(),
-});
-export type PublicationResult = z.infer<typeof PublicationResultSchema>;
-
-export const GithubCommentRequestSchema = z.strictObject({
-  repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
-  pullRequest: z.number().int().positive(),
-  commentId: githubId.optional(),
-  body: text.max(65_536),
-});
-export type GithubCommentRequest = z.infer<typeof GithubCommentRequestSchema>;
-export const GithubReviewRequestSchema = GithubCommentRequestSchema.omit({
-  commentId: true,
-}).extend({
-  action: z.enum(["comment", "approve"]),
-  commitId: z.string().regex(/^[a-f0-9]{40}$/i),
-  comments: z
-    .array(
-      InlineCommentSchema.omit({ id: true }).extend({
-        path: text.max(1000),
-        body: text.max(65_536),
-      }),
-    )
-    .max(100),
-});
-export type GithubReviewRequest = z.infer<typeof GithubReviewRequestSchema>;
-
-/**
- * Return accepted evidence and the final report directly to the caller.
- * Delivery outcomes are separate from the review's approval assessment.
- */
-export const ReviewOutputSchema = ReviewRunSchema.extend({
-  report: z.string().nullable(),
-  notifications: z.array(NotificationSchema).max(1000),
-  approval: ApprovalSchema.nullable(),
-  publication: PublicationResultSchema,
-});
-export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
-
-/**
- * Review stages share progress names with delivery. Statuses reuse the review
- * and publication outcomes where applicable.
- */
-export type ProgressStep = StageName | "publication" | "review";
-export type ProgressStatus =
-  | z.infer<typeof ReviewStatusSchema>
-  | PublicationResult["status"]
-  | "running"
-  | "blocked";
-
-/**
- * A rendered progress snapshot, derived from accepted work and recorded failures.
- * It is sent to delivery workers without being retained as review state.
- */
-export type ProgressStatuses = Partial<Record<ProgressStep, ProgressStatus>>;
-export type ReviewProgressInput = {
-  stages: Readonly<StageResults>;
-  failures: readonly ReviewRun["failures"][number][];
-};
-
-/**
- * Host notification receipts and the latch that stops sends after a missing
- * tool or changed session scope. Review and GitHub state live elsewhere.
- */
-export type NotificationState = {
-  receipts: z.infer<typeof NotificationSchema>[];
-  enabled: boolean;
-};
-
-/**
- * Explicit inputs shared by the named review steps. No scheduling methods or
- * prompt selection are attached to this data.
- */
-export type ReviewStepInput = {
+export type ReviewRun = {
   input: ReviewInput;
-  context: StageResults;
-  attempts: ReviewRun["attempts"];
+  status: "complete" | "split" | "incomplete";
+  stages: StageResults;
+  failures: { stage: StageName; reason: string }[];
+  attempts: { stage: StageName; attempt: number; reason: string }[];
+};
+export type ReviewOutput = ReviewRun & {
+  report: string | null;
+  notifications: Notification[];
+  approval: z.infer<typeof ApprovalSchema> | null;
+  publication: PublicationResult;
 };
 
-/**
- * Inputs to our agent wrapper. The caller supplies the task and schema; the
- * wrapper adds common rules, revision pins, validation and bounded retries.
- */
-export type ReviewAgentInput<Result extends StageResult> = ReviewStepInput & {
-  label: StageName;
-  schema: z.ZodType<Result>;
-  prompt: string;
-  validate?: (result: Result) => void;
-};
-
-/**
- * Events expose a stable view of accepted evidence. The workflow owns these
- * results; observers use the view for display rather than accumulating copies.
- */
-export type ReviewSnapshot = {
-  readonly stages: Readonly<StageResults>;
-  readonly failures: readonly ReviewRun["failures"][number][];
-};
-export type ReviewStepEvent = {
-  readonly steps: readonly StageName[];
-  readonly snapshot: ReviewSnapshot;
-} & (
-  | { readonly type: "stepStarted" }
-  | { readonly type: "stepAccepted" }
-  | { readonly type: "stepFailed"; readonly reason: string }
-);
 export type ReviewEvent =
-  | ReviewStepEvent
+  | WorkflowEvent<ReviewResults>
   | { type: "reviewCompleted"; review: ReviewRun }
   | {
       type: "publicationFinished";
       review: ReviewRun;
       publication: PublicationResult;
     };
-
-export type ReviewWorkflowInput = {
-  input: ReviewInput;
-  events: Pick<ReviewEventEmitter, "emit">;
-};
-export type ReviewStepTask<Result extends StageResult> = {
-  name: StageName;
-  execute: (args: ReviewStepInput) => Promise<Result>;
-};
-/**
- * A per-run emitter awaits every observer, including nested emissions.
- */
-export type ReviewEventHandler = (event: ReviewEvent) => void | Promise<void>;
-export type ReviewEventEmitter = {
-  subscribe: (handler: ReviewEventHandler) => void;
-  emit: (event: ReviewEvent) => Promise<void>;
-};
-export type ReviewEventProgress = {
-  statuses: ProgressStatuses;
-  stage: string;
-  status: ProgressStatus;
-  reason: string;
-};
-export type ReviewNotifications = {
-  readonly receipts: z.infer<typeof NotificationSchema>[];
-};
-
-export type NotificationUpdateInput = {
-  input: ReviewInput;
-  state: NotificationState;
-  statuses: ProgressStatuses;
-  stage: string;
-  status: ProgressStatus;
-  reason?: string;
-};
-
-/**
- * One GitHub comment owns its request sequencing and event operations. The
- * workflow keeps its comment identity in memory for this run.
- */
-export type GithubComment = {
-  readonly publication: PublicationResult;
-};
-
-export type RequestHostNotificationInput = {
-  input: ReviewInput;
-  label: string;
-  text: string;
-};
+export type ReviewEventEmitter = Pick<
+  WorkflowEvents<ReviewEvent>,
+  "subscribe" | "emit"
+>;

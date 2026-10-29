@@ -10,6 +10,10 @@ declare function agent(
   options?: { label?: string; phase?: string; schema?: unknown },
 ): Promise<unknown>;
 
-declare function parallel<T>(
-  tasks: (() => Promise<T>)[],
-): Promise<(T | null)[]>;
+/**
+ * esbuild embeds imported Markdown as text in the generated workflow.
+ */
+declare module "*.md" {
+  const text: string;
+  export default text;
+}

@@ -3,31 +3,80 @@
  * github_review host tools. The plugin owns authentication and HTTP.
  */
 import * as z from "zod";
-import {
-  GithubCommentRequestSchema,
-  GithubCommentReceiptSchema,
-  GithubReviewRequestSchema,
-  GithubReviewReceiptSchema,
-} from "./contracts.js";
+import { errorMessage } from "../workflow/run.js";
+import type { ProgressStatuses } from "./utils.js";
+import { InlineCommentSchema } from "./contracts.js";
 import type {
-  GithubCommentRequest,
-  GithubReviewRequest,
-  PublicationResult,
   ReviewInput,
   ReviewRun,
-  GithubComment,
   ReviewEvent,
   ReviewEventEmitter,
   StageSchemas,
-  ProgressStatuses,
-  GithubFailureSchema,
 } from "./contracts.js";
 import {
-  errorMessage,
   progressChecklist,
   reviewProgress,
   reviewEventProgress,
 } from "./utils.js";
+
+const text = z
+  .string()
+  .min(1)
+  .refine((value) => Boolean(value.trim()), "Expected non-empty text");
+// Picco plugin-github receipts. Keep its rejected and uncertain outcomes distinct.
+const githubId = text
+  .max(32)
+  .regex(/^[1-9]\d*$/)
+  .refine((value) => Number.isSafeInteger(Number(value)));
+const GithubFailureSchema = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("rejected"), reason: text }),
+  z.strictObject({ status: z.literal("uncertain"), message: text }),
+]);
+const GithubCommentReceiptSchema = z.union([
+  z.strictObject({ status: z.literal("confirmed"), commentId: githubId }),
+  GithubFailureSchema,
+]);
+const GithubReviewSuccessSchema = z.strictObject({
+  status: z.literal("confirmed"),
+  reviewId: githubId,
+  state: z.enum(["COMMENTED", "APPROVED", "CHANGES_REQUESTED"]),
+});
+const GithubReviewReceiptSchema = z.union([
+  GithubReviewSuccessSchema,
+  GithubFailureSchema,
+]);
+export type PublicationResult = {
+  status:
+    | "skipped"
+    | "pending"
+    | z.infer<typeof GithubReviewReceiptSchema>["status"];
+  reason: string;
+  url: string | null;
+  review: z.infer<typeof GithubReviewSuccessSchema> | null;
+};
+
+const GithubCommentRequestSchema = z.strictObject({
+  repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
+  pullRequest: z.number().int().positive(),
+  commentId: githubId.optional(),
+  body: text.max(65_536),
+});
+type GithubCommentRequest = z.infer<typeof GithubCommentRequestSchema>;
+const GithubReviewRequestSchema = GithubCommentRequestSchema.omit({
+  commentId: true,
+}).extend({
+  action: z.enum(["comment", "approve"]),
+  commitId: z.string().regex(/^[a-f0-9]{40}$/i),
+  comments: z
+    .array(
+      InlineCommentSchema.omit({ id: true }).extend({
+        path: text.max(1000),
+        body: text.max(65_536),
+      }),
+    )
+    .max(100),
+});
+type GithubReviewRequest = z.infer<typeof GithubReviewRequestSchema>;
 
 /**
  * Pin accepted findings to the inspected commit. Comment-only output cannot
@@ -75,7 +124,7 @@ export function createGithubComment({
 }: {
   input: ReviewInput;
   events: ReviewEventEmitter;
-}): GithubComment {
+}) {
   const target = input.github;
   const enabled = target && input.publication !== "local-only";
   let sequence = 0;

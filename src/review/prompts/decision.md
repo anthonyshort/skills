@@ -1,8 +1,24 @@
 # Assess the decision
 
-Perform the final approval assessment without publishing. Return `approval` in the seven-check schema below, `summaryMarkdown` following the embedded GitHub progress template, and `inlineComments` for verified new bugs with valid diff anchors only.
+Perform the final approval assessment without publishing. Return `approval` in the seven-check schema below, `summaryMarkdown` following the summary requirements below, and `inlineComments` for verified new bugs with valid diff anchors only.
 
-Read the sibling `writing-voice/SKILL.md` under the parent of `input.skillRoot` when preparing `summaryMarkdown`. Use that guidance with the embedded GitHub summary template.
+Read the sibling `writing-voice/SKILL.md` under the parent of `input.skillRoot` when preparing `summaryMarkdown`.
+
+## Summary requirements
+
+Derive the summary from accepted evidence and the canonical report. Start with three compact bullets:
+
+- **Overall:** Explain problem fit and approach, including material uncertainty, the number of new bugs and unresolved existing concerns.
+- **Risk:** State low, medium or high production risk with its exposure, consequences and important verification gaps. Say when evidence is insufficient to assess it.
+- **Rules:** Count satisfied rules, concerns, unverified rules, skipped rules and selected rules found not applicable. Name rules with concerns. Skipped and unverified rules do not pass.
+
+Include two collapsed Markdown details sections: **Research sources**, linking inspected sources and distinguishing reused evidence from unavailable sources; and **Approach and alternatives**, explaining architectural fit, simplicity and worthwhile alternatives with trade-offs.
+
+Follow with supported defects grouped under `#### Findings` and `##### P0`, `##### P1` or `##### P2`, omitting empty groups. Preserve report IDs and link existing threads. Keep useful readability suggestions, optional opportunities and open questions separate from prioritised bugs. Explicitly say when no supported bugs were found. For split-only output, summarise scope and split rationale without inventing rule counts or implementation findings.
+
+For `summaryMarkdown`, return only the summary content. The workflow adds the full report, approval assessment and next steps during delivery.
+
+## Approval assessment
 
 Each inline ID must exactly match a retained report ID whose source is a new bug. Required retained findings and unresolved findings cannot pass `clean_review`. Do not introduce new findings. For split-only output use outcome `split`, `checks: null` and no inline comments. Count additions plus deletions across the whole diff.
 
