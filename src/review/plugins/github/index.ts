@@ -3,21 +3,17 @@
  * github_review host tools. The plugin owns authentication and HTTP.
  */
 import * as z from "zod";
-import type { WorkflowPlugin } from "../workflow/create.js";
-import { errorMessage } from "../workflow/run.js";
-import type { ProgressStatuses } from "./utils.js";
-import { InlineCommentSchema } from "./schemas.js";
+import type { WorkflowPlugin } from "../../../workflow/create.js";
+import { errorMessage } from "../../../workflow/run.js";
+import type { ProgressStatuses } from "../progress.js";
+import { InlineCommentSchema } from "../../schemas.js";
 import type {
   ReviewInput,
   ReviewRun,
   ReviewEvent,
   ReviewResults,
-} from "./schemas.js";
-import {
-  progressChecklist,
-  reviewProgress,
-  reviewEventProgress,
-} from "./utils.js";
+} from "../../schemas.js";
+import { reviewProgress, reviewEventProgress } from "../progress.js";
 
 const text = z
   .string()
@@ -395,3 +391,15 @@ export const createGithubComment: WorkflowPlugin<
     },
   };
 };
+
+/**
+ * Describe actual work status without treating completed review work as passing.
+ */
+function progressChecklist(statuses: ProgressStatuses): string {
+  return Object.entries(statuses)
+    .map(
+      ([name, value]) =>
+        `- [${value === "complete" ? "x" : " "}] ${name}: ${value}`,
+    )
+    .join("\n");
+}

@@ -2,10 +2,10 @@
  * Own keyed host notifications and their delivery receipts for one review.
  */
 import * as z from "zod";
-import type { WorkflowPlugin } from "../workflow/create.js";
-import type { ReviewInput, ReviewEvent } from "./schemas.js";
-import { errorMessage } from "../workflow/run.js";
-import { reviewEventProgress } from "./utils.js";
+import type { WorkflowPlugin } from "../../../workflow/create.js";
+import type { ReviewInput, ReviewEvent } from "../../schemas.js";
+import { errorMessage } from "../../../workflow/run.js";
+import { reviewEventProgress } from "../progress.js";
 
 const text = z
   .string()

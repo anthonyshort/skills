@@ -1,14 +1,9 @@
 /**
- * Derive review progress and render accepted evidence without retained UI state.
+ * Derive the shared progress view consumed by GitHub and host notifications.
  */
-import { stageNames } from "./schemas.js";
-import type {
-  ReviewEvent,
-  ReviewRun,
-  StageName,
-  StageResults,
-} from "./schemas.js";
-import type { PublicationResult } from "./github.js";
+import { stageNames } from "../schemas.js";
+import type { ReviewEvent, ReviewRun, StageName } from "../schemas.js";
+import type { PublicationResult } from "./github/index.js";
 
 type ProgressStep = StageName | "publication" | "review";
 type ProgressStatus =
@@ -95,46 +90,6 @@ export function reviewEventProgress(event: ReviewEvent):
 }
 
 /**
- * Preserve checks and gaps in the report as expandable sections.
- */
-export function coverageMarkdown(stages: StageResults): string {
-  const lines = ["", "## Workflow assessment and rule coverage", ""];
-  function fold(title: string, blocks: string[]): void {
-    if (!blocks.length) {
-      return;
-    }
-    lines.push(
-      "<details>",
-      `<summary>${title}</summary>`,
-      "",
-      blocks.join("\n\n"),
-      "</details>",
-      "",
-    );
-  }
-  for (const [name, result] of Object.entries(stages)) {
-    const blocks = result.checks.map((item) =>
-      [
-        `- ${item.item} — ${item.result}. Method: ${item.method}. Guidance: ${item.guidance}. ${item.reason}`,
-        ...item.evidence.map((evidence) => `  - ${evidence}`),
-      ].join("\n"),
-    );
-    blocks.push(...result.gaps.map((gap) => `- Coverage gap: ${gap}`));
-    fold(name, blocks);
-  }
-  fold(
-    "Rules",
-    (stages.rules?.rules ?? []).map((item) =>
-      [
-        `- Rule ${item.path}: ${item.selection}, ${item.result}. ${item.reason}`,
-        ...item.evidence.map((evidence) => `  - ${evidence}`),
-      ].join("\n"),
-    ),
-  );
-  return lines.join("\n");
-}
-
-/**
  * Accepted answers establish completed review steps; failures establish blocked
  * steps, including each parallel assessment.
  */
@@ -152,16 +107,4 @@ export function reviewProgress({
     }
   }
   return statuses;
-}
-
-/**
- * Describe actual work status without treating completed review work as passing.
- */
-export function progressChecklist(statuses: ProgressStatuses): string {
-  return Object.entries(statuses)
-    .map(
-      ([name, value]) =>
-        `- [${value === "complete" ? "x" : " "}] ${name}: ${value}`,
-    )
-    .join("\n");
 }

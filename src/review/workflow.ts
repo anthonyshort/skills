@@ -9,10 +9,10 @@ import type {
   ReviewEvent,
   ReviewOutput,
   ReviewResult,
+  StageResults,
 } from "./schemas.js";
-import { createGithubComment } from "./github.js";
-import { createNotifications } from "./notifications.js";
-import { coverageMarkdown } from "./utils.js";
+import { createGithubComment } from "./plugins/github/index.js";
+import { createNotifications } from "./plugins/notifications/index.js";
 import {
   setupReview,
   researchReview,
@@ -153,4 +153,44 @@ function finalizeReview({
     })),
     attempts: input.attempts,
   };
+}
+
+/**
+ * Preserve checks and gaps in the report as expandable sections.
+ */
+function coverageMarkdown(stages: StageResults): string {
+  const lines = ["", "## Workflow assessment and rule coverage", ""];
+  function fold(title: string, blocks: string[]): void {
+    if (!blocks.length) {
+      return;
+    }
+    lines.push(
+      "<details>",
+      `<summary>${title}</summary>`,
+      "",
+      blocks.join("\n\n"),
+      "</details>",
+      "",
+    );
+  }
+  for (const [name, result] of Object.entries(stages)) {
+    const blocks = result.checks.map((item) =>
+      [
+        `- ${item.item} — ${item.result}. Method: ${item.method}. Guidance: ${item.guidance}. ${item.reason}`,
+        ...item.evidence.map((evidence) => `  - ${evidence}`),
+      ].join("\n"),
+    );
+    blocks.push(...result.gaps.map((gap) => `- Coverage gap: ${gap}`));
+    fold(name, blocks);
+  }
+  fold(
+    "Rules",
+    (stages.rules?.rules ?? []).map((item) =>
+      [
+        `- Rule ${item.path}: ${item.selection}, ${item.result}. ${item.reason}`,
+        ...item.evidence.map((evidence) => `  - ${evidence}`),
+      ].join("\n"),
+    ),
+  );
+  return lines.join("\n");
 }

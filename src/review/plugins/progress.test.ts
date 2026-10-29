@@ -3,8 +3,8 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { StageResults } from "./schemas.js";
-import { reviewEventProgress } from "./utils.js";
+import type { StageResults } from "../schemas.js";
+import { reviewEventProgress } from "./progress.js";
 
 const evidence = {
   base: "a".repeat(40),

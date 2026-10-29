@@ -5,8 +5,8 @@
 import * as z from "zod";
 import type { WorkflowEvent } from "../workflow/run.js";
 import type { WorkflowCompleted } from "../workflow/create.js";
-import type { PublicationResult } from "./github.js";
-import type { Notification } from "./notifications.js";
+import type { PublicationResult } from "./plugins/github/index.js";
+import type { Notification } from "./plugins/notifications/index.js";
 
 /**
  * Non-blank model text, retaining the worker’s original whitespace.

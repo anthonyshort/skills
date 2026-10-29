@@ -3,7 +3,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { githubReviewRequest } from "./github.js";
+import { githubReviewRequest } from "./index.js";
 
 const input = {
   github: { repository: "owner/app", pr: 42 },
