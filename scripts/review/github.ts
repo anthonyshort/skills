@@ -16,8 +16,8 @@ import type {
   GitHubRequest,
   PublicationResult,
 } from "../../src/review/contracts.js";
-import { validateBundle } from "../../src/review/validate.js";
-import { errorMessage } from "../../src/review/text.js";
+import { validateBundle } from "./validate-bundle.js";
+import { errorMessage } from "../../src/review/utils.js";
 
 const execute = promisify(execFile);
 type Command = (file: string, args: string[]) => Promise<string>;
@@ -54,15 +54,17 @@ export async function checkGitHubReceipt(
 ): Promise<PublicationResult> {
   const file = `${request.input.artifacts}/github-${request.id}.json`;
   const receipt = receiptSchema.parse(JSON.parse(await readFile(file, "utf8")));
-  if (!isDeepStrictEqual(receipt.request, request))
+  if (!isDeepStrictEqual(receipt.request, request)) {
     throw new Error("GitHub receipt belongs to another operation");
+  }
   if (request.operation === "finish" && receipt.result.status === "rejected") {
     if (
       receipt.result.url ||
       receipt.result.approval ||
       receipt.result.statePath !== `${request.input.artifacts}/github.json`
-    )
+    ) {
       throw new Error("Rejected publication cannot claim remote confirmation");
+    }
     await acceptedFinishDecision(request);
     return receipt.result;
   }
@@ -78,20 +80,26 @@ export async function checkGitHubReceipt(
     state.base !== input.base ||
     state.head !== input.head ||
     state.comments.main.html_url !== receipt.result.url
-  )
+  ) {
     throw new Error("GitHub state differs from requested review");
-  const expectedState =
-    request.operation === "finish"
-      ? "complete"
-      : request.operation === "interrupt"
-        ? "interrupted"
-        : "reviewing";
-  const expectedResult =
-    request.operation === "finish"
-      ? "confirmed"
-      : request.operation === "interrupt"
-        ? "rejected"
-        : "pending";
+  }
+  let expectedState: string;
+  let expectedResult: PublicationResult["status"];
+  switch (request.operation) {
+    case "start":
+    case "update":
+      expectedState = "reviewing";
+      expectedResult = "pending";
+      break;
+    case "interrupt":
+      expectedState = "interrupted";
+      expectedResult = "rejected";
+      break;
+    case "finish":
+      expectedState = "complete";
+      expectedResult = "confirmed";
+      break;
+  }
   if (
     state.status !== expectedState ||
     receipt.result.status !== expectedResult ||
@@ -101,11 +109,13 @@ export async function checkGitHubReceipt(
   }
   if (
     !isDeepStrictEqual(receipt.result.approval, approvalResult(state.approval))
-  )
+  ) {
     throw new Error("GitHub approval receipt differs from helper state");
+  }
   if (request.operation === "finish") {
-    if (!request.fingerprint)
+    if (!request.fingerprint) {
       throw new Error("Finish receipt has no accepted fingerprint");
+    }
     await validateBundle(`${input.artifacts}/bundle.json`, request.fingerprint);
   }
   return receipt.result;
@@ -127,13 +137,16 @@ export async function runGitHubOperation(
   },
 ): Promise<PublicationResult> {
   const { input, operation } = request;
-  if (!input.github || ["local-only", "staged"].includes(input.publication))
+  if (!input.github || ["local-only", "staged"].includes(input.publication)) {
     throw new Error("GitHub delivery is disabled for this review");
+  }
   const statePath = `${input.artifacts}/github.json`;
   const checklistPath = `${input.artifacts}/github-checklist.md`;
   const helper = `${input.skillRoot}/scripts/github_progress.py`;
-  const finishArgs =
-    operation === "finish" ? await validatedFinishArguments(request) : [];
+  let finishArgs: string[] = [];
+  if (operation === "finish") {
+    finishArgs = await validatedFinishArguments(request);
+  }
   await mkdir(input.artifacts, { recursive: true });
   await writeFile(checklistPath, request.checklist);
   const startArgs = [
@@ -151,25 +164,33 @@ export async function runGitHubOperation(
   ];
   const invoke = (args: string[]) =>
     command("python3", [helper, "--state", statePath, ...args]);
-  // Start recovers this run's comment if an earlier response was lost.
-  if (operation === "finish") await invoke(startArgs);
-  if (operation === "interrupt")
-    await invoke(["update", "--checklist", checklistPath]);
-  const args =
-    operation === "start"
-      ? startArgs
-      : operation === "interrupt"
-        ? [operation, "--reason", request.reason]
-        : [operation, "--checklist", checklistPath, ...finishArgs];
-  const output = helperOutput.parse(JSON.parse(await invoke(args)));
-  const expected =
-    operation === "finish"
-      ? "complete"
-      : operation === "interrupt"
-        ? "interrupted"
-        : "reviewing";
-  if (output.status !== expected)
+  let helperArgs: string[];
+  let expected: string;
+  switch (operation) {
+    case "start":
+      helperArgs = startArgs;
+      expected = "reviewing";
+      break;
+    case "update":
+      helperArgs = ["update", "--checklist", checklistPath];
+      expected = "reviewing";
+      break;
+    case "interrupt":
+      await invoke(["update", "--checklist", checklistPath]);
+      helperArgs = ["interrupt", "--reason", request.reason];
+      expected = "interrupted";
+      break;
+    case "finish":
+      // Start recovers this run's comment if an earlier response was lost.
+      await invoke(startArgs);
+      helperArgs = ["finish", "--checklist", checklistPath, ...finishArgs];
+      expected = "complete";
+      break;
+  }
+  const output = helperOutput.parse(JSON.parse(await invoke(helperArgs)));
+  if (output.status !== expected) {
     throw new Error(`Expected GitHub ${expected}, received ${output.status}`);
+  }
   let newerCommits = false;
   if (operation === "finish") {
     const pull = z
@@ -187,21 +208,28 @@ export async function runGitHubOperation(
       );
     newerCommits = pull.head.sha !== input.head || pull.base.sha !== input.base;
   }
+  let status: PublicationResult["status"];
+  let reason: string;
+  switch (operation) {
+    case "start":
+    case "update":
+      status = "pending";
+      reason = "GitHub progress updated";
+      break;
+    case "interrupt":
+      status = "rejected";
+      reason = `Review interrupted: ${request.reason}`;
+      break;
+    case "finish":
+      status = "confirmed";
+      reason = newerCommits
+        ? "Published the pinned review; newer revisions remain unreviewed"
+        : "GitHub confirmed publication";
+      break;
+  }
   const result: PublicationResult = {
-    status:
-      operation === "finish"
-        ? "confirmed"
-        : operation === "interrupt"
-          ? "rejected"
-          : "pending",
-    reason:
-      operation === "finish"
-        ? newerCommits
-          ? "Published the pinned review; newer revisions remain unreviewed"
-          : "GitHub confirmed publication"
-        : operation === "interrupt"
-          ? `Review interrupted: ${request.reason}`
-          : "GitHub progress updated",
+    status,
+    reason,
     url: output.url,
     approval: approvalResult(output.approval),
     statePath,
@@ -249,8 +277,9 @@ async function validatedFinishArguments(
  * Establish the accepted review identity before either publishing or refusing it.
  */
 async function acceptedFinishDecision(request: GitHubRequest) {
-  if (!request.fingerprint)
+  if (!request.fingerprint) {
     throw new Error("Finish requires an accepted fingerprint");
+  }
   const bundle = await validateBundle(
     `${request.input.artifacts}/bundle.json`,
     request.fingerprint,
@@ -259,8 +288,9 @@ async function acceptedFinishDecision(request: GitHubRequest) {
     !isDeepStrictEqual(bundle.input, request.input) ||
     bundle.status === "incomplete" ||
     !bundle.stages.decision
-  )
+  ) {
     throw new Error("Finish requires this run's complete accepted output");
+  }
   return bundle.stages.decision;
 }
 
@@ -271,8 +301,9 @@ export async function rejectGitHubPublication(
   request: GitHubRequest,
   reason: string,
 ): Promise<PublicationResult> {
-  if (request.operation !== "finish")
+  if (request.operation !== "finish") {
     throw new Error("Only final publication can record a freshness refusal");
+  }
   await acceptedFinishDecision(request);
   const result: PublicationResult = {
     status: "rejected",
@@ -316,17 +347,24 @@ async function main(): Promise<void> {
       (args.length === 2 && args[1] === "--check") ||
       (args.length === 3 && args[1] === "--reject")
     )
-  )
+  ) {
     throw new Error(
       "Usage: github.ts REQUEST_JSON [--check | --reject REASON]",
     );
+  }
   const request = GitHubRequestSchema.parse(JSON.parse(args[0]));
-  const result =
-    args[1] === "--check"
-      ? await checkGitHubReceipt(request)
-      : args[1] === "--reject"
-        ? await rejectGitHubPublication(request, args[2])
-        : await runGitHubOperation(request);
+  let result: PublicationResult;
+  switch (args[1]) {
+    case "--check":
+      result = await checkGitHubReceipt(request);
+      break;
+    case "--reject":
+      result = await rejectGitHubPublication(request, args[2]);
+      break;
+    default:
+      result = await runGitHubOperation(request);
+      break;
+  }
   process.stdout.write(JSON.stringify(result) + "\n");
 }
 

@@ -106,7 +106,7 @@ Read from `workflows/README.md` through `src/review/workflow.ts` and the modules
 
 Retain TypeScript and derive wire types from Zod. Use useful multiline JSDoc to explain responsibilities, acceptance boundaries and unexpected failure behaviour. Keep prompts beside their stage definitions and guards beside the data they validate. Remove redundant flags or pass-through helpers only when their removal makes the actual flow easier to follow.
 
-Keep concrete progress and publication operations together in `delivery.ts`, with final publication called explicitly by the coordinator. Keep contracts, stage guards and saved-file validation separate where their existing responsibilities help understanding. Do not split files to meet line-count targets or introduce generic lifecycle hooks.
+Keep concrete GitHub operations in `github.ts` and progress timing in `workflow.ts`, with final publication called explicitly by the coordinator. Keep contracts, stage guards and saved-file validation separate where their existing responsibilities help understanding. Do not split files to meet line-count targets or introduce generic lifecycle hooks.
 
 ## 7. Test the behaviour that can regress
 
@@ -122,7 +122,7 @@ Use the existing generated-runtime and real-filesystem suites. Add focused cases
 
 Run copied helper tests as well as the original helper compatibility suite. Use a small regression only if helper behaviour must change in the experimental copy. Canned delivery answers establish orchestration, not successful GitHub or Telegram delivery.
 
-After source changes, rebuild generated JavaScript and run `npm run typecheck`, the focused workflow and saved-file suites, relevant helper tests, `npm run build:check`, `npm run format:check` and `git diff --check`. Run the full existing test command before updating the PR. Inspect the resulting diff for accidental original-skill changes and readability regressions.
+After source changes, rebuild generated JavaScript and run `npm run typecheck`, the focused workflow and saved-file suites, relevant helper tests, `npm run build:check`, `npm run format:check` (oxfmt) and `git diff --check`. Run the full existing test command before updating the PR. Inspect the resulting diff for accidental original-skill changes and readability regressions.
 
 ## 8. Try it in a real Pi session
 
@@ -136,7 +136,7 @@ The plan itself authorises no test messages or PR reviews. Use explicitly design
 
 Use Pi’s official `agent`, `parallel`, `phase` and `args` globals directly, with narrow TypeScript declarations in `pi-workflow.d.ts`. Keep the full/split sequence visible in `workflow.ts`, with one local retry-and-validation helper. Plain accepted results and delivery state replace the custom host interface and reporter/publisher factories.
 
-Keep all review and delivery schemas and types in `contracts.ts`. Combine concrete delivery operations in `delivery.ts`. Keep the writer as a separate function in `workflow.ts`, with saving status owned by the coordinator. Publication and final notification are explicit operations after validated saving. Preserve the Node bridges, substantive stage/approval guards and shared pure text functions. The generated-runtime suite checks this refactor; the earlier model run is evidence for the review criteria and graph, not a new live run of the flattened implementation.
+Keep all review and delivery schemas and types in `contracts.ts`. Put metadata and prompts beside the coordinator in `workflow.ts`, pure policy checks in `validation.ts`, GitHub operations in `github.ts`, and text/host-notification helpers in `utils.ts`. Keep Node-only file and Git validation in `scripts/review/validate-bundle.ts`. Keep the writer as a separate function in `workflow.ts`, with saving status owned by the coordinator. Publication and final notification are explicit operations after validated saving. Preserve the Node bridges, substantive stage/approval guards and shared pure text functions. The generated-runtime suite checks this refactor; the earlier model run is evidence for the review criteria and graph, not a new live run of the flattened implementation.
 
 ## Implementation order and completion criteria
 

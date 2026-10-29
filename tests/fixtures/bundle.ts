@@ -31,7 +31,7 @@ import type {
   StageName,
   StageResults,
 } from "../../src/review/contracts.js";
-import { coverageMarkdown, fingerprint } from "../../src/review/text.js";
+import { coverageMarkdown, fingerprint } from "../../src/review/utils.js";
 
 const OptionsSchema = z.object({
   split: z.boolean().default(false),

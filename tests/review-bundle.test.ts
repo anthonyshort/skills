@@ -8,8 +8,8 @@ import { writeFileSync, rmSync, symlinkSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { FindingSchema } from "../src/review/contracts.js";
-import { validateBundle } from "../src/review/validate.js";
-import { fingerprint } from "../src/review/text.js";
+import { validateBundle } from "../scripts/review/validate-bundle.js";
+import { fingerprint } from "../src/review/utils.js";
 import { savedBundleFixture } from "./fixtures/bundle.js";
 import type { SavedBundleFixture } from "./fixtures/bundle.js";
 

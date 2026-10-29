@@ -811,7 +811,9 @@ test("assessment outputs keep question order when correctness finishes before pr
   return scenario(
     {
       hold: async (request) => {
-        if (request.label === "product:1") await correctnessFinished;
+        if (request.label === "product:1") {
+          await correctnessFinished;
+        }
       },
     },
     async (state) => {
@@ -820,8 +822,9 @@ test("assessment outputs keep question order when correctness finishes before pr
         {
           journal: {
             append: (entry) => {
-              if (entry.text?.includes('"stage":"correctness"'))
+              if (entry.text?.includes('"stage":"correctness"')) {
                 releaseProduct();
+              }
             },
           },
         },

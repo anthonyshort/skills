@@ -3,19 +3,11 @@
  * The literal metadata header is read by pi-subagents before it starts the VM.
  */
 import { build } from "esbuild";
+import { meta } from "../../src/review/workflow.js";
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const metadata = `export const meta = {
-  name: "review",
-  description: "Experimental pinned review with required assessments and validated artefacts",
-  phases: [
-    { title: "Setup" }, { title: "Research" }, { title: "Assessments" },
-    { title: "Rules" }, { title: "Consolidation" }, { title: "Reporting" },
-    { title: "Decision" }, { title: "Save artefacts" },
-    { title: "Progress" }, { title: "Publication" },
-  ],
-}`;
+const metadata = `export const meta = ${JSON.stringify(meta, null, 2)};`;
 const output = await build({
   entryPoints: [`${root}/src/review/workflow.ts`],
   bundle: true,

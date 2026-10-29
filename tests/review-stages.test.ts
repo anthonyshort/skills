@@ -12,7 +12,7 @@ import {
   FindingSchema,
 } from "../src/review/contracts.js";
 import type { StageResults } from "../src/review/contracts.js";
-import { validateStage } from "../src/review/stages.js";
+import { validateStage } from "../src/review/validation.js";
 
 const input = parseReviewInput({
   packageRoot: "/package",

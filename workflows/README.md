@@ -91,18 +91,29 @@ Start at `src/review/workflow.ts` to follow the sequence and its failure boundar
 
 | File | Responsibility |
 | --- | --- |
-| `workflow.ts` | Show the full/split sequence, bounded retry helper, saving and final delivery in execution order |
-| `stages.ts` | Assign sections of `criteria.md` and guard accepted worker results |
-| `contracts.ts` | Keep all review/delivery schemas and types together |
-| `approval.ts` | Guard outcome policy and accepted-finding/inline provenance |
-| `validate.ts` | Check disk files, revisions, rule indexes and canonical report against accepted data |
-| `delivery.ts` | Concrete progress, GitHub publication and final notification operations over plain state |
-| `pi-workflow.d.ts` | Type declarations for the official Pi script globals, without an implementation |
-| `text.ts` | Format coverage and compute the writer-integrity checksum |
+| `workflow.ts` | Metadata, explicit full/split sequence, worker prompts, retries, saving and progress timing |
+| `contracts.ts` | Shared schemas and types for inputs, answers, saved data and delivery results |
+| `validation.ts` | Pure evidence, rule coverage, finding-accounting and approval-policy checks |
+| `github.ts` | GitHub publication through the existing helper and confirmation receipts |
+| `utils.ts` | Text formatting, checksums, quoting and host notification helpers |
+| `pi-workflow.d.ts` | Declarations for Pi’s official script globals, without an implementation |
 
-`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. Our local `reviewStage` helper adds two-attempt retries and semantic validation. Functions imported from `delivery.ts`, along with schemas and validators, are our review code. There is no custom host interface or reporter/publisher object. The coordinator explicitly saves, publishes and sends the final host notification in that order.
+`agent()`, `parallel()`, `phase()` and the launch `args` are supplied by pi-subagents. Their used signatures are declared in `pi-workflow.d.ts`. The local `reviewStage` helper adds two-attempt retries and semantic validation. Other imported functions are our review code. The coordinator explicitly saves, publishes and sends the final host notification in that order.
 
-The restricted workflow VM cannot access Node or the filesystem. `scripts/review/validate-bundle.ts` runs the saved-file gate; `scripts/review/github.ts` bridges helper operations. `scripts/build/workflow.ts` bundles authored TypeScript into `workflows/review.js`. Edit TypeScript and run `npm run build`; `build:check` rejects stale generated output.
+### What validation does
+
+Pi supplies the structured-output and shell-gate mechanisms. The checks we put inside them are review-specific:
+
+| Checks | Why they exist | Where they run |
+| --- | --- | --- |
+| Schemas | Require fields, known outcomes and bounded collections | Pi’s structured-output contract and `contracts.ts` parsing |
+| Review policy | Reject missing rule coverage, lost findings or approval that contradicts required fixes | `validation.ts` before accepting a stage |
+| Saved files | Confirm files match accepted answers, pinned Git state and actual rule indexes | `scripts/review/validate-bundle.ts`, after saving and before publication |
+| Publication receipts | Confirm the helper’s state matches the operation and approval being reported | `scripts/review/github.ts` |
+
+The saved-file gate reuses the same review-policy functions rather than maintaining a second set of rules. Shape checks do not establish that evidence is true, and policy checks do not prove the model followed every instruction. These checks go beyond merely requiring stages to run; they preserve the agreed report, finding and approval guarantees.
+
+The restricted workflow VM cannot access Node or the filesystem. `scripts/review/validate-bundle.ts` owns the Node-only filesystem and Git checks; `scripts/review/github.ts` bridges helper operations. `workflow.ts` owns the literal `meta` declaration. `scripts/build/workflow.ts` copies it into the generated header and bundles authored TypeScript into `workflows/review.js`. Edit TypeScript and run `npm run format` (oxfmt), then `npm run build`. `format:check` and `build:check` reject stale formatting or generated output. Authored `if` statements always use braces; use `switch` for branches over stages or outcomes.
 
 ## Verification limits
 

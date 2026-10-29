@@ -7,10 +7,11 @@
     "build": "node --import tsx scripts/build/workflow.ts",
     "build:check": "node --import tsx scripts/build/workflow.ts --check",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "oxfmt --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\"",
     "test:workflow": "node --import tsx --test tests/review-workflow.test.ts tests/review-stages.test.ts tests/review-publication.test.ts",
     "test:unit": "node --import tsx --test tests/review-bundle.test.ts",
-    "test": "npm run typecheck && npm run build:check && npm run test:workflow && npm run test:unit && python3 -m unittest discover -s skills/review/scripts -p test_*.py && python3 -m unittest discover -s skills/review-workflow/scripts -p test_*.py"
+    "test": "npm run typecheck && npm run format:check && npm run build:check && npm run test:workflow && npm run test:unit && python3 -m unittest discover -s skills/review/scripts -p test_*.py && python3 -m unittest discover -s skills/review-workflow/scripts -p test_*.py",
+    "format": "oxfmt --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\""
   },
   "keywords": [
     "pi-package"
@@ -30,7 +31,7 @@
     "@tintinweb/pi-subagents": "0.22.0",
     "@types/node": "22.19.0",
     "esbuild": "0.28.2",
-    "prettier": "3.9.10",
+    "oxfmt": "0.75.0",
     "typescript": "7.0.2"
   },
   "overrides": {

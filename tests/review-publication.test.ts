@@ -32,8 +32,9 @@ function publicationFixture() {
   const url = "https://github.com/fixture/app/pull/7#issuecomment-1";
   const command = async (file: string, args: string[]) => {
     calls.push([file, ...args]);
-    if (file === "gh")
+    if (file === "gh") {
       return JSON.stringify({ head: { sha: head }, base: { sha: input.base } });
+    }
     assert.equal(file, "python3");
     assert.equal(args[0], `${input.skillRoot}/scripts/github_progress.py`);
     assert.equal(args[2], statePath);
