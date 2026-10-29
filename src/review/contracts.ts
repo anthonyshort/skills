@@ -487,7 +487,7 @@ export type ReviewSnapshot = {
   readonly stages: Readonly<StageResults>;
   readonly failures: readonly Bundle["failures"][number][];
 };
-export type ReviewEvent = {
+export type ReviewStepEvent = {
   readonly step: ReviewStep;
   readonly snapshot: ReviewSnapshot;
 } & (
@@ -495,9 +495,22 @@ export type ReviewEvent = {
   | { readonly type: "stepAccepted" }
   | { readonly type: "stepFailed"; readonly reason: string }
 );
+/**
+ * Saving returns the accepted persisted values and the gate that passed.
+ */
+export type SavedReview = {
+  bundle: Bundle;
+  result: ReviewResult;
+  validationCommand: string;
+};
+export type ReviewEvent =
+  | ReviewStepEvent
+  | { type: "runFinished"; saved: SavedReview; publication: PublicationResult }
+  | { type: "runFailed"; review: ReviewRun; reason: string };
+
 export type ReviewWorkflowInput = {
   input: ReviewInput;
-  onEvent: (event: ReviewEvent) => Promise<void>;
+  onEvent: (event: ReviewStepEvent) => Promise<void>;
 };
 export type ReviewRun = Pick<
   Bundle,
@@ -523,18 +536,8 @@ export type ProgressUpdateInput = {
 };
 
 export type ReviewPublicationInput = {
-  input: ReviewInput;
+  saved: SavedReview;
   state: DeliveryState;
-  bundle: Bundle;
-  result: ReviewResult;
-};
-
-/**
- * Final delivery describes the publication operation's returned outcome, which
- * later progress operations cannot overwrite.
- */
-export type FinalNotificationInput = ReviewPublicationInput & {
-  publication: PublicationResult;
 };
 
 export type GitHubSendInput = {
@@ -552,7 +555,7 @@ export type RequestHostNotificationInput = {
   text: string;
 };
 
-export type SaveArtifactsInput = {
-  bundle: Bundle;
-  result: ReviewResult;
+export type SaveReviewInput = {
+  review: ReviewRun;
+  notifications: Bundle["notifications"];
 };

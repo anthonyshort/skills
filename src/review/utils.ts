@@ -11,7 +11,6 @@ import {
 import type {
   ProgressUpdateInput,
   RequestHostNotificationInput,
-  FinalNotificationInput,
   ProgressStatuses,
   ReviewProgressInput,
   StageResults,
@@ -93,49 +92,6 @@ export function fingerprint(text: string): string {
   return (
     first.toString(16).padStart(8, "0") + second.toString(16).padStart(8, "0")
   );
-}
-
-/**
- * Finish the host message with actual publication and approval confirmation.
- */
-export async function sendFinalNotification({
-  input,
-  state,
-  bundle,
-  result,
-  publication,
-}: FinalNotificationInput): Promise<void> {
-  if (!bundle.stages.setup) {
-    return;
-  }
-  await sendHostNotification({
-    input,
-    state,
-    statuses: {
-      ...reviewProgress({
-        stages: bundle.stages,
-        failures: bundle.failures,
-        saved: true,
-      }),
-      publication: publication.status,
-      review: bundle.status,
-    },
-    stage: "review",
-    status: bundle.status,
-    reason: [
-      `Assessment: ${bundle.stages.decision?.approval.outcome ?? "incomplete"}`,
-      ...bundle.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
-      `Report: ${result.reportPath ?? `${input.artifacts}/incomplete.md`}`,
-      `GitHub: ${publication.status}. ${publication.reason}`,
-      publication.url ?? "",
-      publication.approval
-        ? `Approval submission: ${publication.approval.status}`
-        : "",
-      publication.newerCommits ? "Newer commits are not reviewed." : "",
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  });
 }
 
 /**

@@ -43,15 +43,19 @@ import type {
   ReviewWorkflowInput,
   ReviewRun,
   ReviewStepInput,
-  ProgressUpdateInput,
-  SaveArtifactsInput,
+  SaveReviewInput,
+  SavedReview,
+  ReviewEvent,
+  ProgressStatuses,
+  ProgressStep,
+  ProgressStatus,
   ReviewResult,
   ReviewOutput,
   StageName,
   StageResult,
   StageResults,
 } from "./contracts.js";
-import { githubEnabled, sendGitHub, publishAcceptedReview } from "./github.js";
+import { githubEnabled, sendGitHub, publishReview } from "./github.js";
 import {
   validateAnswer,
   validateSetup,
@@ -67,7 +71,6 @@ import {
   progressChecklist,
   reviewProgress,
   sendHostNotification,
-  sendFinalNotification,
 } from "./utils.js";
 
 /**
@@ -91,90 +94,26 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
     hostNotifications: true,
     githubSequence: 0,
   };
-  const review = await reviewWorkflow({
-    input,
-    onEvent: (event) => handleReviewEvent({ input, state: delivery, event }),
-  });
-  let validationCommand: string | undefined;
-
-  /**
-   * Saving and publication have their own progress after reviewer work ends.
-   * Failed setup still saves partial evidence without starting external delivery.
-   */
-  async function reportDelivery({
-    stage,
-    status,
-    reason,
-  }: Pick<ProgressUpdateInput, "stage" | "status" | "reason">) {
-    if (!review.stages.setup) {
-      return;
-    }
-    await updateProgress({
-      input,
-      state: delivery,
-      statuses: {
-        ...reviewProgress({
-          ...review,
-          saved: validationCommand !== undefined,
-        }),
-        [stage]: status,
-      },
-      stage,
-      status,
-      reason,
-    });
-  }
-
-  // Capture pre-save receipts, then validate actual files before any publication.
-  await reportDelivery({ stage: "save-artefacts", status: "running" });
-  const bundle: Bundle = {
-    version: 1,
-    ...review,
-    notifications: [...delivery.notifications],
-  };
-  const result = createReviewResult(bundle);
-  phase("save-artefacts");
+  const onEvent = (event: ReviewEvent) =>
+    handleReviewEvent({ input, state: delivery, event });
+  const review = await reviewWorkflow({ input, onEvent });
+  let saved: SavedReview;
   try {
-    validationCommand = await saveReviewFiles({ bundle, result });
-  } catch (error) {
-    await reportDelivery({
-      stage: "save-artefacts",
-      status: "blocked",
-      reason: errorMessage(error),
+    saved = await saveReviewFiles({
+      review,
+      notifications: delivery.notifications,
     });
+  } catch (error) {
+    await onEvent({ type: "runFailed", review, reason: errorMessage(error) });
     throw error;
   }
-  await reportDelivery({ stage: "save-artefacts", status: "complete" });
-
-  // Delivery outcomes never change accepted review evidence or retry reviewers.
-  if (review.stages.setup && review.status !== "incomplete") {
-    await reportDelivery({ stage: "publication", status: "running" });
-  }
-  const publication = await publishAcceptedReview({
-    input,
-    state: delivery,
-    bundle,
-    result,
-  });
-  if (publication.status === "rejected" && review.status !== "incomplete") {
-    await reportDelivery({
-      stage: "publication",
-      status: "blocked",
-      reason: publication.reason,
-    });
-  }
-  await sendFinalNotification({
-    input,
-    state: delivery,
-    bundle,
-    result,
-    publication,
-  });
+  const publication = await publishReview({ saved, state: delivery });
+  await onEvent({ type: "runFinished", saved, publication });
   return {
-    ...result,
+    ...saved.result,
     approval: review.stages.decision?.approval ?? null,
     publication,
-    validationCommand,
+    validationCommand: saved.validationCommand,
     failures: review.failures,
     notifications: delivery.notifications,
   };
@@ -190,35 +129,89 @@ async function handleReviewEvent({
   state,
   event,
 }: ReviewEventInput): Promise<void> {
-  let status: "running" | "complete" | "blocked";
-  let reason: string | undefined;
+  let snapshot: ReviewSnapshot;
+  let stage: ProgressStep;
+  let status: ProgressStatus;
+  let reason = "";
+  let operation: GitHubRequest["operation"] | undefined;
   switch (event.type) {
     case "stepStarted":
       phase(event.step);
+      snapshot = event.snapshot;
+      stage = event.step;
       status = "running";
+      operation = state.githubSequence === 0 ? "start" : "update";
       break;
     case "stepAccepted":
+      snapshot = event.snapshot;
+      stage = event.step;
       status = "complete";
+      operation = state.githubSequence === 0 ? "start" : "update";
       break;
     case "stepFailed":
+      snapshot = event.snapshot;
+      stage = event.step;
       status = "blocked";
       reason = event.reason;
+      operation = "interrupt";
       break;
+    case "runFailed":
+      snapshot = event.review;
+      stage = "review";
+      status = "incomplete";
+      reason = `Saving review files failed: ${event.reason}`;
+      operation = "interrupt";
+      break;
+    case "runFinished": {
+      const { bundle, result } = event.saved;
+      const { publication } = event;
+      snapshot = bundle;
+      stage = "review";
+      status = bundle.status;
+      reason = [
+        `Assessment: ${bundle.stages.decision?.approval.outcome ?? "incomplete"}`,
+        ...bundle.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
+        `Report: ${result.reportPath ?? `${input.artifacts}/incomplete.md`}`,
+        `GitHub: ${publication.status}. ${publication.reason}`,
+        publication.url ?? "",
+        publication.approval
+          ? `Approval submission: ${publication.approval.status}`
+          : "",
+        publication.newerCommits ? "Newer commits are not reviewed." : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      // Close stale live progress after a refusal, without changing its outcome.
+      if (publication.status === "rejected" && bundle.status !== "incomplete") {
+        operation = "interrupt";
+      }
+      break;
+    }
   }
-  if (!event.snapshot.stages.setup) {
+  if (!snapshot.stages.setup) {
     return;
   }
-  await updateProgress({
-    input,
-    state,
-    statuses: {
-      ...reviewProgress({ ...event.snapshot, saved: false }),
-      [event.step]: status,
-    },
-    stage: event.step,
-    status,
-    reason,
-  });
+  const statuses: ProgressStatuses = {
+    ...reviewProgress({ ...snapshot, saved: event.type === "runFinished" }),
+    [stage]: status,
+  };
+  if (event.type === "runFinished") {
+    statuses.publication = event.publication.status;
+  }
+  if (event.type === "runFailed") {
+    statuses["save-artefacts"] = "blocked";
+  }
+  // All progress delivery enters here; final report publication is separate.
+  if (operation && githubEnabled(input)) {
+    await sendGitHub({
+      input,
+      state,
+      operation,
+      checklist: progressChecklist(statuses),
+      reason: event.type === "runFinished" ? event.publication.reason : reason,
+    });
+  }
+  await sendHostNotification({ input, state, statuses, stage, status, reason });
 }
 
 /**
@@ -667,10 +660,34 @@ async function reviewAgent<Result extends StageResult>({
  * writer whose filesystem work may already have completed.
  */
 async function saveReviewFiles({
-  bundle,
-  result,
-}: SaveArtifactsInput): Promise<string> {
-  const { input } = bundle;
+  review,
+  notifications,
+}: SaveReviewInput): Promise<SavedReview> {
+  const bundle: Bundle = {
+    version: 1,
+    ...review,
+    notifications: [...notifications],
+  };
+  const { input, status, stages } = bundle;
+  const required: readonly StageName[] =
+    stages.setup?.mode === "split"
+      ? ["setup", "splitPlan", "decision"]
+      : stageNames.filter((name) => name !== "splitPlan");
+  const result: ReviewResult = {
+    status,
+    runId: input.runId,
+    invocationId: input.invocationId,
+    base: input.base,
+    head: input.head,
+    bundlePath: `${input.artifacts}/bundle.json`,
+    reportPath:
+      status === "incomplete" ? null : `${input.artifacts}/review-report.md`,
+    fingerprint: fingerprint(JSON.stringify(bundle)),
+    missingStages: required.filter((name) => !stages[name]),
+    coverageGaps: Object.entries(stages).flatMap(([stage, value]) =>
+      value.gaps.map((reason) => ({ stage, reason })),
+    ),
+  };
   const validationCommand = `node --import ${quote(input.tsxLoader)} ${quote(`${input.supportRoot}/validate-bundle.ts`)} ${quote(`${input.artifacts}/bundle.json`)} --fingerprint ${quote(result.fingerprint)}`;
 
   // This worker writes accepted values; the command gate checks the actual files.
@@ -699,67 +716,5 @@ async function saveReviewFiles({
       `Artefact validation failed. Inspect ${input.artifacts}; review is incomplete.`,
     );
   }
-  return validationCommand;
-}
-
-/**
- * Describe structural completion and validated local file locations separately
- * from the later publication result and notification receipts.
- */
-function createReviewResult(bundle: Bundle): ReviewResult {
-  const { input, status, stages } = bundle;
-
-  // Missing-stage diagnostics follow the route selected during setup.
-  const required: readonly StageName[] =
-    stages.setup?.mode === "split"
-      ? ["setup", "splitPlan", "decision"]
-      : stageNames.filter((name) => name !== "splitPlan");
-  return {
-    status,
-    runId: input.runId,
-    invocationId: input.invocationId,
-    base: input.base,
-    head: input.head,
-    bundlePath: `${input.artifacts}/bundle.json`,
-    reportPath:
-      status === "incomplete" ? null : `${input.artifacts}/review-report.md`,
-    fingerprint: fingerprint(JSON.stringify(bundle)),
-    missingStages: required.filter((name) => !stages[name]),
-    coverageGaps: Object.entries(stages).flatMap(([stage, value]) =>
-      value.gaps.map((reason) => ({ stage, reason })),
-    ),
-  };
-}
-
-/**
- * Send a derived progress snapshot to GitHub and the host notification tool.
- * Delivery failures do not repeat review work or replace final publication.
- */
-async function updateProgress({
-  input,
-  state,
-  statuses,
-  stage,
-  status,
-  reason,
-}: ProgressUpdateInput): Promise<void> {
-  if (githubEnabled(input)) {
-    const blocked = Object.entries(statuses).find(
-      ([, value]) => value === "blocked",
-    );
-    let operation: GitHubRequest["operation"] = "update";
-    if (state.githubSequence === 0) {
-      operation = "start";
-    } else if (blocked) {
-      operation = "interrupt";
-    }
-    await sendGitHub({
-      input,
-      state,
-      operation,
-      checklist: progressChecklist(statuses),
-      reason: blocked ? (reason ?? `${blocked[0]} is blocked`) : "",
-    });
-  }
-  await sendHostNotification({ input, state, statuses, stage, status, reason });
+  return { bundle, result, validationCommand };
 }

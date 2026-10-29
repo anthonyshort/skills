@@ -54,15 +54,15 @@ export function githubEnabled(input: ReviewInput): boolean {
 }
 
 /**
- * Publish accepted saved files, or interrupt an incomplete review. The Node
- * bridge independently validates files before publishing the final result.
+ * Publish accepted saved files and withhold incomplete reviews. The Node bridge
+ * independently validates files before publishing the final result.
  */
-export async function publishAcceptedReview({
-  input,
+export async function publishReview({
+  saved,
   state,
-  bundle,
-  result,
 }: ReviewPublicationInput): Promise<PublicationResult> {
+  const { bundle, result } = saved;
+  const { input } = bundle;
   if (!bundle.stages.setup) {
     return {
       ...initialPublication(input),
@@ -73,29 +73,27 @@ export async function publishAcceptedReview({
   if (!githubEnabled(input)) {
     return initialPublication(input);
   }
-  const statuses = reviewProgress({
-    stages: bundle.stages,
-    failures: bundle.failures,
-    saved: true,
-  });
   switch (bundle.status) {
     case "incomplete": {
       const reason = bundle.failures
         .map((failure) => `${failure.stage}: ${failure.reason}`)
         .join("; ");
-      return sendGitHub({
-        input,
-        state,
-        operation: "interrupt",
-        checklist: progressChecklist(statuses),
-        reason,
-      });
+      return {
+        ...initialPublication(input),
+        status: "rejected",
+        reason: `Final publication withheld because review is incomplete${reason ? `: ${reason}` : ""}`,
+      };
     }
     case "complete":
     case "split": {
       if (!result.reportPath) {
         throw new Error("Publication requires validated saved output");
       }
+      const statuses = reviewProgress({
+        stages: bundle.stages,
+        failures: bundle.failures,
+        saved: true,
+      });
       // The helper unchecks this final row until publication succeeds.
       const checklist = progressChecklist({
         ...statuses,

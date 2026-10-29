@@ -466,7 +466,7 @@ test("parent validation detects missing files even if a caller reuses journal id
     assert.match(validation.stderr, /Missing artefact/);
   }));
 
-test("persistence failure reports blocked progress without retrying the writer", () =>
+test("persistence failure sends one final incomplete notification without retrying the writer", () =>
   scenario(
     {
       notify: true,
@@ -477,9 +477,19 @@ test("persistence failure reports blocked progress without retrying the writer",
     async (state) => {
       const result = await state.run();
       assert.equal(result.status, "failed");
-      assert.ok(state.calls.includes("notify:save-artefacts:blocked"));
+      const terminal = state.prompts.get("notify:review:incomplete");
+      assert.ok(terminal);
+      assert.match(terminal, /Artefact validation failed/);
+      assert.match(terminal, /save-artefacts: blocked/);
       assert.equal(
-        state.calls.includes("notify:save-artefacts:complete"),
+        state.calls.filter((label) => label === "notify:review:incomplete")
+          .length,
+        1,
+      );
+      assert.equal(
+        state.calls.some((label) =>
+          /^notify:(?:save-artefacts|publication):/.test(label),
+        ),
         false,
       );
       assert.equal(
@@ -700,6 +710,10 @@ test("GitHub progress starts after setup and final publication follows the real 
       state.calls.filter((name) => name.startsWith("github:finish:")).length,
       1,
     );
+    assert.equal(
+      state.calls.slice(finish + 1).some((name) => name.startsWith("github:")),
+      false,
+    );
     for (const stage of [
       "setup",
       "research",
@@ -716,13 +730,20 @@ test("GitHub progress starts after setup and final publication follows the real 
     for (const stage of questions) {
       assert.equal(state.phases.get(`${stage}:1`), "assessments");
     }
-    assert.equal(state.phases.get("save-artefacts"), "save-artefacts");
+    assert.equal(
+      state.calls.some((label) =>
+        /^notify:(?:save-artefacts|publication):/.test(label),
+      ),
+      false,
+    );
     const terminal = state.prompts.get("notify:review:complete");
     assert.ok(terminal);
     assert.match(
       terminal,
       /https:\/\/github.com\/fixture\/app\/pull\/7#issuecomment-1/,
     );
+    assert.match(terminal, /save-artefacts: complete/);
+    assert.match(terminal, /publication: confirmed/);
     assert.match(terminal, /Approval submission: withheld/);
     assert.equal(result.value.approval?.outcome, "human_review");
   }));
@@ -799,6 +820,11 @@ test("incomplete review interrupts GitHub and returns accepted partial evidence"
       const result = await state.run();
       assert.equal(result.value.status, "incomplete");
       assert.equal(result.value.publication.status, "rejected");
+      assert.equal(
+        state.calls.filter((name) => name.startsWith("github:interrupt:"))
+          .length,
+        1,
+      );
       assert.ok(state.bundle.stages.correctness);
       assert.equal(
         state.calls.some((name) => name.startsWith("github:finish:")),
@@ -855,7 +881,7 @@ test("unaccepted setup saves incomplete evidence without starting delivery", () 
   ));
 
 for (const deliveryFailure of [undefined, "interrupt"] as const) {
-  test(`freshness refusal survives ${deliveryFailure ? "a failed" : "a confirmed"} progress interruption`, () =>
+  test(`freshness refusal survives ${deliveryFailure ? "a failed" : "a confirmed"} final progress interruption`, () =>
     scenario(
       {
         github: true,
@@ -874,15 +900,20 @@ for (const deliveryFailure of [undefined, "interrupt"] as const) {
         const finish = state.calls.findIndex((name) =>
           name.startsWith("github:finish:"),
         );
-        assert.ok(
-          state.calls
-            .slice(finish + 1)
-            .some((name) => name.startsWith("github:interrupt:")),
-        );
+        assert.ok(finish >= 0);
+        const terminalOperations = state.calls
+          .slice(finish + 1)
+          .filter((name) => name.startsWith("github:"));
+        assert.equal(terminalOperations.length, 1);
+        assert.match(terminalOperations[0], /^github:interrupt:/);
         assert.equal(
           state.calls.filter((name) => name.startsWith("github:finish:"))
             .length,
           1,
+        );
+        assert.equal(
+          state.calls.some((label) => label.startsWith("notify:publication:")),
+          false,
         );
         const terminal = state.prompts.get("notify:review:complete");
         assert.ok(terminal);
