@@ -117,6 +117,9 @@ export function reviewEventProgress(
         `Assessment: ${review.stages.decision?.approval.outcome ?? "incomplete"}`,
         ...review.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
         `GitHub: ${publication.status}. ${publication.reason}`,
+        publication.review
+          ? `Submitted review: ${publication.review.state}`
+          : "",
         publication.url ?? "",
       ]
         .filter(Boolean)

@@ -29,7 +29,7 @@ The `pi` manifest exports the skills and an opt-in review workflow. The ordinary
 
 ## Review workflow for Pi
 
-The experimental named `review` workflow runs the required assessments in an existing Pi session and returns the report, approval assessment and accepted evidence in memory. GitHub comments use the separate Picco plugin’s `github_comment` tool; inline comments and review submission await its tool contracts. The original review skill remains unchanged.
+The experimental named `review` workflow runs the required assessments in an existing Pi session and returns the report, approval assessment and accepted evidence in memory. GitHub publication requires the separate [Picco GitHub plugin](https://github.com/anthonyshort/picco/tree/main/packages/plugin-github/src) to expose `github_comment` for progress and `github_review` for the final report and inline findings. Missing tools are reported as publication failures while the accepted report remains available. The original review skill remains unchanged.
 
 Install this package and `@tintinweb/pi-subagents@0.22.0` in Pi, enable package workflow discovery and reload. Invoke `SubagentWorkflow` with:
 
@@ -48,9 +48,9 @@ Install this package and `@tintinweb/pi-subagents@0.22.0` in Pi, enable package 
 }
 ```
 
-Use a clean checkout at the pinned head. `local-only` suppresses external updates. To enable them, use `publication: "publish"` and supply `github: { "repository": "owner/app", "pr": 42 }`. Host notifications use the configured host tools and default to the key `review:RUN_ID`; pass `notification: null` to disable them. An approval assessment does not confirm approval submission.
+Use a clean checkout at the pinned head. `local-only` suppresses external updates. To enable them, use `publication: "publish"` and supply `github: { "repository": "owner/app", "pr": 42 }`. Host notifications use the configured host tools and default to the key `review:RUN_ID`; pass `notification: null` to disable them. `comment-only` submits a comment review without approving. `publish` may approve only when the assessment allows it and the publishing agent verifies the current head, CI and discussion. `publication.review.state` records the confirmed submission state; the assessment alone does not confirm approval. These freshness checks are agent instructions; the Picco tool pins the commit but does not enforce them.
 
-Start at `src/review/workflow.ts` for the sequence and named steps. Prompts sit beside the source under `src/review/prompts/`. Run `npm install`, then `npm run build` to rebuild the JavaScript Pi loads. `npm test` checks types, oxfmt, generated-output freshness and three colocated unit tests. These checks do not validate live model behaviour or real delivery.
+Start at `src/review/workflow.ts` for the sequence and named steps. Prompts sit beside the source under `src/review/prompts/`. Run `npm install`, then `npm run build` to rebuild the JavaScript Pi loads. `npm test` checks types, oxfmt, generated-output freshness and five colocated unit tests. These checks do not validate live model behaviour or real delivery.
 
 ## Communication style
 

@@ -334,24 +334,58 @@ const githubUrl = z
   .string()
   .max(4096)
   .regex(/^https:\/\/github\.com\/[^\s]+$/);
+// Picco plugin-github receipts. Keep its rejected and uncertain outcomes distinct.
+const githubId = text
+  .max(32)
+  .regex(/^[1-9]\d*$/)
+  .refine((value) => Number.isSafeInteger(Number(value)));
+const GithubFailureSchema = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("rejected"), reason: text }),
+  z.strictObject({ status: z.literal("uncertain"), message: text }),
+]);
+export const GithubCommentReceiptSchema = z.union([
+  z.strictObject({ status: z.literal("confirmed"), commentId: githubId }),
+  GithubFailureSchema,
+]);
+const GithubReviewSuccessSchema = z.strictObject({
+  status: z.literal("confirmed"),
+  reviewId: githubId,
+  state: z.enum(["COMMENTED", "APPROVED", "CHANGES_REQUESTED"]),
+});
+export const GithubReviewReceiptSchema = z.union([
+  GithubReviewSuccessSchema,
+  GithubFailureSchema,
+]);
 export const PublicationResultSchema = z.strictObject({
   status: z.enum(["skipped", "pending", "confirmed", "uncertain", "rejected"]),
-  reason: z.string().min(1),
+  reason: text,
   url: githubUrl.nullable(),
+  review: GithubReviewSuccessSchema.nullable(),
 });
 export type PublicationResult = z.infer<typeof PublicationResultSchema>;
 
 export const GithubCommentRequestSchema = z.strictObject({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
   pullRequest: z.number().int().positive(),
-  commentId: text.optional(),
-  body: text,
+  commentId: githubId.optional(),
+  body: text.max(65_536),
 });
 export type GithubCommentRequest = z.infer<typeof GithubCommentRequestSchema>;
-export const GithubCommentAnswerSchema = z.strictObject({
-  commentId: text.nullable(),
-  error: text.nullable(),
+export const GithubReviewRequestSchema = GithubCommentRequestSchema.omit({
+  commentId: true,
+}).extend({
+  action: z.enum(["comment", "approve"]),
+  commitId: z.string().regex(/^[a-f0-9]{40}$/i),
+  comments: z
+    .array(
+      InlineCommentSchema.omit({ id: true }).extend({
+        path: text.max(1000),
+        body: text.max(65_536),
+      }),
+    )
+    .max(100),
 });
+export type GithubReviewRequest = z.infer<typeof GithubReviewRequestSchema>;
 
 /**
  * Return accepted evidence and the final report directly to the caller.
