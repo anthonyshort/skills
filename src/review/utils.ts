@@ -14,7 +14,147 @@ import type {
   ProgressStatuses,
   ReviewProgressInput,
   StageResults,
+  ReviewEvent,
+  ReviewEventEmitter,
+  ReviewEventHandler,
+  ReviewEventProgress,
+  ReviewInput,
+  ReviewNotifications,
+  NotificationState,
+  ReviewSnapshot,
+  ProgressStep,
+  ProgressStatus,
 } from "./contracts.js";
+
+/**
+ * Await observers in subscription order. A listener may emit another event;
+ * that nested event finishes before the original emission continues.
+ */
+export class ReviewEvents implements ReviewEventEmitter {
+  private readonly handlers: ReviewEventHandler[] = [];
+
+  /**
+   * Register one observer for this run. Subscriptions live only for the run.
+   */
+  subscribe(handler: ReviewEventHandler): void {
+    this.handlers.push(handler);
+  }
+
+  /**
+   * Finish observer work before the producer advances to its next step.
+   */
+  async emit(event: ReviewEvent): Promise<void> {
+    for (const handler of this.handlers) {
+      await handler(event);
+    }
+  }
+}
+
+/**
+ * Subscribe to review progress and publication outcomes. Delivery receipts and
+ * the host-availability latch belong to this object, not review execution.
+ */
+export function createNotifications({
+  input,
+  events,
+}: {
+  input: ReviewInput;
+  events: ReviewEventEmitter;
+}): ReviewNotifications {
+  const state: NotificationState = { receipts: [], enabled: true };
+  events.subscribe(async (event) => {
+    const progress = reviewEventProgress(event);
+    if (!progress) {
+      return;
+    }
+    await sendHostNotification({ input, state, ...progress });
+  });
+  return {
+    get receipts() {
+      return state.receipts;
+    },
+  };
+}
+
+/**
+ * Render a shared progress view without delivery or retained state. reviewSaved requests publication;
+ * only publicationFinished has the outcome needed for a final notification.
+ */
+export function reviewEventProgress(
+  event: ReviewEvent,
+): ReviewEventProgress | undefined {
+  let snapshot: ReviewSnapshot;
+  let stage: ProgressStep;
+  let status: ProgressStatus;
+  let reason = "";
+
+  switch (event.type) {
+    case "reviewSaved":
+      return;
+    case "stepStarted":
+      snapshot = event.snapshot;
+      stage = event.step;
+      status = "running";
+      break;
+    case "stepAccepted":
+      snapshot = event.snapshot;
+      stage = event.step;
+      status = "complete";
+      break;
+    case "stepFailed":
+      snapshot = event.snapshot;
+      stage = event.step;
+      status = "blocked";
+      reason = event.reason;
+      break;
+    case "runFailed":
+      snapshot = event.review;
+      stage = "review";
+      status = "incomplete";
+      reason = `Saving review files failed: ${event.reason}`;
+      break;
+    case "publicationFinished": {
+      const { bundle, result } = event.saved;
+      const { publication } = event;
+      snapshot = bundle;
+      stage = "review";
+      status = bundle.status;
+      reason = [
+        `Assessment: ${bundle.stages.decision?.approval.outcome ?? "incomplete"}`,
+        ...bundle.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
+        `Report: ${result.reportPath ?? `${bundle.input.artifacts}/incomplete.md`}`,
+        `GitHub: ${publication.status}. ${publication.reason}`,
+        publication.url ?? "",
+        publication.approval
+          ? `Approval submission: ${publication.approval.status}`
+          : "",
+        publication.newerCommits ? "Newer commits are not reviewed." : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      break;
+    }
+  }
+
+  // Setup must establish scope before any external notification starts.
+  if (!snapshot.stages.setup) {
+    return;
+  }
+  const statuses: ProgressStatuses = {
+    ...reviewProgress({
+      ...snapshot,
+      saved: event.type === "publicationFinished",
+    }),
+    [stage]: status,
+  };
+  if (event.type === "publicationFinished") {
+    statuses.publication = event.publication.status;
+  }
+  if (event.type === "runFailed") {
+    statuses["save-artefacts"] = "blocked";
+  }
+  return { statuses, stage, status, reason };
+}
 
 /**
  * Normalises thrown values for stage failures and notification diagnostics.
@@ -98,7 +238,7 @@ export function fingerprint(text: string): string {
  * Stop host sends after a missing tool or scope change rather than creating
  * more messages. A rejected transport delivery alone can recover next stage.
  */
-export async function sendHostNotification({
+async function sendHostNotification({
   input,
   state,
   statuses,

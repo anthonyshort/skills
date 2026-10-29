@@ -504,12 +504,17 @@ export type SavedReview = {
 };
 export type ReviewEvent =
   | ReviewStepEvent
-  | { type: "runFinished"; saved: SavedReview; publication: PublicationResult }
+  | { type: "reviewSaved"; saved: SavedReview }
+  | {
+      type: "publicationFinished";
+      saved: SavedReview;
+      publication: PublicationResult;
+    }
   | { type: "runFailed"; review: ReviewRun; reason: string };
 
 export type ReviewWorkflowInput = {
   input: ReviewInput;
-  onEvent: (event: ReviewStepEvent) => Promise<void>;
+  events: Pick<ReviewEventEmitter, "emit">;
 };
 export type ReviewRun = Pick<
   Bundle,
@@ -519,11 +524,22 @@ export type ReviewStepTask<Result extends StageResult | void> = {
   step: ReviewStep;
   run: (args: ReviewStepInput) => Promise<Result>;
 };
-export type ReviewEventInput = {
-  input: ReviewInput;
-  notifications: NotificationState;
-  githubComment: GithubComment;
-  event: ReviewEvent;
+/**
+ * A per-run emitter awaits every observer, including nested emissions.
+ */
+export type ReviewEventHandler = (event: ReviewEvent) => void | Promise<void>;
+export type ReviewEventEmitter = {
+  subscribe: (handler: ReviewEventHandler) => void;
+  emit: (event: ReviewEvent) => Promise<void>;
+};
+export type ReviewEventProgress = {
+  statuses: ProgressStatuses;
+  stage: ProgressStep;
+  status: ProgressStatus;
+  reason: string;
+};
+export type ReviewNotifications = {
+  readonly receipts: Bundle["notifications"];
 };
 
 export type NotificationUpdateInput = {
@@ -539,14 +555,8 @@ export type NotificationUpdateInput = {
  * One GitHub comment owns its request sequencing and event operations. The
  * Python helper persists the actual comment identity and recovery state.
  */
-export type GithubCommentEvent = {
-  event: ReviewEvent;
-  checklist: string;
-  reason: string;
-};
 export type GithubComment = {
-  handleEvent: (args: GithubCommentEvent) => Promise<void>;
-  publishToGithub: (args: { saved: SavedReview }) => Promise<PublicationResult>;
+  readonly publication: PublicationResult;
 };
 
 export type GitHubSendInput = {

@@ -721,6 +721,7 @@ test("GitHub progress starts after setup and final publication follows the real 
     assert.ok(start > state.calls.indexOf("setup:1"));
     assert.ok(start < state.calls.indexOf("research:1"));
     assert.ok(finish > state.calls.indexOf("save-artefacts"));
+    assert.ok(state.calls.indexOf("notify:review:complete") > finish);
     assert.equal(
       state.calls.filter((name) => name.startsWith("github:finish:")).length,
       1,

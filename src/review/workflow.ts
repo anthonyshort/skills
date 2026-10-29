@@ -34,9 +34,7 @@ import {
 } from "./contracts.js";
 import type {
   Bundle,
-  NotificationState,
   ReviewAgentInput,
-  ReviewEventInput,
   ReviewSnapshot,
   ReviewStepTask,
   ReviewWorkflowInput,
@@ -44,10 +42,6 @@ import type {
   ReviewStepInput,
   SaveReviewInput,
   SavedReview,
-  ReviewEvent,
-  ProgressStatuses,
-  ProgressStep,
-  ProgressStatus,
   ReviewResult,
   ReviewOutput,
   StageName,
@@ -67,9 +61,8 @@ import {
   fingerprint,
   errorMessage,
   quote,
-  progressChecklist,
-  reviewProgress,
-  sendHostNotification,
+  ReviewEvents,
+  createNotifications,
 } from "./utils.js";
 
 /**
@@ -89,14 +82,20 @@ export const meta = {
 export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
   const input = parseReviewInput(args);
 
-  // Keep channel bookkeeping separate from accepted review evidence.
-  const githubComment = createGithubComment({ input });
-  const notifications: NotificationState = { receipts: [], enabled: true };
-  const onEvent = (event: ReviewEvent) =>
-    handleReviewEvent({ input, githubComment, notifications, event });
+  // Subscribers own their effects. Pi grouping is an optional UI observer.
+  const events = new ReviewEvents();
+  events.subscribe((event) => {
+    if (event.type === "stepStarted") {
+      phase(event.step);
+    }
+  });
 
-  // Review steps emit awaited events; the observer owns external updates.
-  const review = await reviewWorkflow({ input, onEvent });
+  // Notifications can subscribe first: final publication has its own event.
+  const notifications = createNotifications({ input, events });
+  const githubComment = createGithubComment({ input, events });
+
+  // The review knows only how to emit facts, not which objects observe them.
+  const review = await reviewWorkflow({ input, events });
 
   // Persist accepted answers and validate the files before GitHub can use them.
   let saved: SavedReview;
@@ -106,125 +105,26 @@ export async function runReviewWorkflow(args: unknown): Promise<ReviewOutput> {
       notifications: notifications.receipts,
     });
   } catch (error) {
-    await onEvent({ type: "runFailed", review, reason: errorMessage(error) });
+    await events.emit({
+      type: "runFailed",
+      review,
+      reason: errorMessage(error),
+    });
     throw error;
   }
 
-  // Publish the validated files, then report the actual outcome through events.
-  const publication = await githubComment.publishToGithub({ saved });
-  await onEvent({ type: "runFinished", saved, publication });
+  // GitHub publishes in response, then emits the outcome for notifications.
+  await events.emit({ type: "reviewSaved", saved });
 
   // Return file locations, the assessment and channel outcomes to the caller.
   return {
     ...saved.result,
     approval: review.stages.decision?.approval ?? null,
-    publication,
+    publication: githubComment.publication,
     validationCommand: saved.validationCommand,
     failures: review.failures,
     notifications: notifications.receipts,
   };
-}
-
-/**
- * Translate awaited lifecycle events into Pi display groups and external
- * progress. Transport helpers record delivery failures without throwing them
- * back into reviewer execution.
- */
-async function handleReviewEvent({
-  input,
-  githubComment,
-  notifications,
-  event,
-}: ReviewEventInput): Promise<void> {
-  let snapshot: ReviewSnapshot;
-  let stage: ProgressStep;
-  let status: ProgressStatus;
-  let reason = "";
-
-  // Render one progress view for both destinations from the event's evidence.
-  switch (event.type) {
-    case "stepStarted":
-      phase(event.step);
-      snapshot = event.snapshot;
-      stage = event.step;
-      status = "running";
-      break;
-    case "stepAccepted":
-      snapshot = event.snapshot;
-      stage = event.step;
-      status = "complete";
-      break;
-    case "stepFailed":
-      snapshot = event.snapshot;
-      stage = event.step;
-      status = "blocked";
-      reason = event.reason;
-      break;
-
-    // Saving failed before publication; retain the accepted partial review.
-    case "runFailed":
-      snapshot = event.review;
-      stage = "review";
-      status = "incomplete";
-      reason = `Saving review files failed: ${event.reason}`;
-      break;
-
-    // Include confirmed publication details in the terminal notification.
-    case "runFinished": {
-      const { bundle, result } = event.saved;
-      const { publication } = event;
-      snapshot = bundle;
-      stage = "review";
-      status = bundle.status;
-      reason = [
-        `Assessment: ${bundle.stages.decision?.approval.outcome ?? "incomplete"}`,
-        ...bundle.failures.map(({ stage, reason }) => `${stage}: ${reason}`),
-        `Report: ${result.reportPath ?? `${input.artifacts}/incomplete.md`}`,
-        `GitHub: ${publication.status}. ${publication.reason}`,
-        publication.url ?? "",
-        publication.approval
-          ? `Approval submission: ${publication.approval.status}`
-          : "",
-        publication.newerCommits ? "Newer commits are not reviewed." : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      break;
-    }
-  }
-
-  // Setup must establish the scope before any external message starts.
-  if (!snapshot.stages.setup) {
-    return;
-  }
-
-  // Completed and blocked steps come from evidence, not a second status store.
-  const statuses: ProgressStatuses = {
-    ...reviewProgress({ ...snapshot, saved: event.type === "runFinished" }),
-    [stage]: status,
-  };
-  if (event.type === "runFinished") {
-    statuses.publication = event.publication.status;
-  }
-  if (event.type === "runFailed") {
-    statuses["save-artefacts"] = "blocked";
-  }
-
-  // The comment owns GitHub operations; the host chooses notification channels.
-  // Await both channels before starting the next review step.
-  await githubComment.handleEvent({
-    event,
-    checklist: progressChecklist(statuses),
-    reason,
-  });
-  await sendHostNotification({
-    input,
-    state: notifications,
-    statuses,
-    stage,
-    status,
-    reason,
-  });
 }
 
 /**
@@ -233,7 +133,7 @@ async function handleReviewEvent({
  */
 async function reviewWorkflow({
   input,
-  onEvent,
+  events,
 }: ReviewWorkflowInput): Promise<ReviewRun> {
   let accepted: StageResults = {};
   const attempts: Bundle["attempts"] = [];
@@ -264,7 +164,7 @@ async function reviewWorkflow({
     step,
     run,
   }: ReviewStepTask<Result>): Promise<Result> {
-    await onEvent({ type: "stepStarted", step, snapshot: snapshot() });
+    await events.emit({ type: "stepStarted", step, snapshot: snapshot() });
     let result: Result;
     try {
       result = await run({ input, context: { ...accepted }, attempts });
@@ -274,10 +174,15 @@ async function reviewWorkflow({
     } catch (error) {
       const reason = errorMessage(error);
       failures.push({ stage: step, reason });
-      await onEvent({ type: "stepFailed", step, reason, snapshot: snapshot() });
+      await events.emit({
+        type: "stepFailed",
+        step,
+        reason,
+        snapshot: snapshot(),
+      });
       throw error;
     }
-    await onEvent({ type: "stepAccepted", step, snapshot: snapshot() });
+    await events.emit({ type: "stepAccepted", step, snapshot: snapshot() });
     return result;
   }
 

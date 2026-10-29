@@ -12,13 +12,15 @@ import type {
   ReviewInput,
   SavedReview,
   GithubComment,
-  GithubCommentEvent,
+  ReviewEvent,
+  ReviewEventEmitter,
 } from "./contracts.js";
 import {
   errorMessage,
   progressChecklist,
   quote,
   reviewProgress,
+  reviewEventProgress,
 } from "./utils.js";
 
 /**
@@ -61,20 +63,48 @@ function githubEnabled(input: ReviewInput): boolean {
  */
 export function createGithubComment({
   input,
+  events,
 }: {
   input: ReviewInput;
+  events: ReviewEventEmitter;
 }): GithubComment {
   let sequence = 0;
+  let publication = initialPublication(input);
 
   /**
-   * Translate events into comment operations without rebuilding review state.
-   * Successful final publication has already updated the comment via finish.
+   * Own comment updates and final publication as a subscriber. The final receipt
+   * is emitted only after publication and any refusal update have completed.
    */
-  async function handleEvent({
-    event,
-    checklist,
-    reason,
-  }: GithubCommentEvent): Promise<void> {
+  async function onEvent(event: ReviewEvent): Promise<void> {
+    switch (event.type) {
+      case "reviewSaved": {
+        publication = await publishToGithub({ saved: event.saved });
+        const finished: ReviewEvent = {
+          type: "publicationFinished",
+          saved: event.saved,
+          publication,
+        };
+        if (
+          event.saved.bundle.stages.setup &&
+          event.saved.bundle.status !== "incomplete" &&
+          publication.status === "rejected"
+        ) {
+          const progress = reviewEventProgress(finished);
+          if (progress) {
+            // A refused final report must not leave the live comment running.
+            await sendGitHub({
+              operation: "interrupt",
+              checklist: progressChecklist(progress.statuses),
+              reason: publication.reason,
+            });
+          }
+        }
+        await events.emit(finished);
+        return;
+      }
+      case "publicationFinished":
+        return;
+    }
     if (!githubEnabled(input)) {
       return;
     }
@@ -99,20 +129,15 @@ export function createGithubComment({
         }
         operation = "interrupt";
         break;
-      case "runFinished":
-        if (
-          !event.saved.bundle.stages.setup ||
-          event.saved.bundle.status === "incomplete" ||
-          event.publication.status !== "rejected"
-        ) {
-          return;
-        }
-        // A refused final report must not leave the live comment running.
-        operation = "interrupt";
-        reason = event.publication.reason;
-        break;
     }
-    await sendGitHub({ operation, checklist, reason });
+    const progress = reviewEventProgress(event);
+    if (progress) {
+      await sendGitHub({
+        operation,
+        checklist: progressChecklist(progress.statuses),
+        reason: progress.reason,
+      });
+    }
   }
 
   /**
@@ -235,5 +260,10 @@ export function createGithubComment({
     }
   }
 
-  return { handleEvent, publishToGithub };
+  events.subscribe(onEvent);
+  return {
+    get publication() {
+      return publication;
+    },
+  };
 }

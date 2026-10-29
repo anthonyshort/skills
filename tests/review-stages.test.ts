@@ -1,10 +1,11 @@
 /**
- * Pure regressions for answer evidence, finding accounting and approval policy.
+ * Pure regressions for event ordering, evidence, findings and approval policy.
  * Covers inline provenance and report consistency without policing Markdown style.
  * No agents, subprocesses or filesystem fixtures are involved.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { setImmediate } from "node:timers/promises";
 import {
   parseReviewInput,
   StageSchemas,
@@ -17,6 +18,59 @@ import {
   validateApproval,
   validateFindingDecisions,
 } from "../src/review/validation.js";
+import { ReviewEvents } from "../src/review/utils.js";
+
+test("event emission waits for a nested observer registered before its producer", async () => {
+  const events = new ReviewEvents();
+  const snapshot = { stages: {}, failures: [] };
+  const calls: string[] = [];
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = () => {};
+  const waiting = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+
+  events.subscribe(async (event) => {
+    if (event.type !== "stepAccepted") {
+      return;
+    }
+    calls.push("observer started");
+    started();
+    await held;
+    calls.push("observer finished");
+  });
+  events.subscribe(async (event) => {
+    if (event.type !== "stepStarted") {
+      return;
+    }
+    await events.emit({ type: "stepAccepted", step: "setup", snapshot });
+    calls.push("producer finished");
+  });
+
+  let finished = false;
+  const emitting = events
+    .emit({ type: "stepStarted", step: "setup", snapshot })
+    .then(() => {
+      finished = true;
+    });
+  await Promise.race([waiting, emitting]);
+  await setImmediate();
+  try {
+    assert.deepEqual(calls, ["observer started"]);
+    assert.equal(finished, false);
+  } finally {
+    release();
+  }
+  await emitting;
+  assert.deepEqual(calls, [
+    "observer started",
+    "observer finished",
+    "producer finished",
+  ]);
+});
 
 const input = parseReviewInput({
   packageRoot: "/package",
