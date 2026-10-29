@@ -227,14 +227,6 @@ for (const [title, mutate] of [
       }
     },
   ],
-  [
-    "report without required sections",
-    (value) => {
-      if (value.stage === "report") {
-        value.markdown = "# report\nLooks fine";
-      }
-    },
-  ],
 ] satisfies [string, NonNullable<FixtureOptions["mutate"]>][]) {
   test(`${title} cannot produce a complete review`, () =>
     scenario({ mutate }, async (state) => {
@@ -651,23 +643,23 @@ test("semantic approval errors retry the decision stage before writing", () =>
     },
   ));
 
-test("template source evidence survives stage validation and persistence", () =>
+test("custom report headings survive review acceptance and saved-file validation", () =>
   scenario(
     {
       mutate: (value) => {
-        if (value.stage === "correctness") {
-          value.markdown +=
-            "\nThe template renders `{{ user.name }}`.\n```handlebars\n# Review: {{ target }}\n```\n";
+        if (value.stage === "report") {
+          value.markdown =
+            "# Review outcome\n\nSource inspection found no supported defects.";
         }
       },
     },
     async (state) => {
       const result = await state.run();
       assert.equal(result.value.status, "complete");
-      assert.match(
-        readFileSync(path.join(state.args.artifacts, "correctness.md"), "utf8"),
-        /\{\{ user.name \}\}/,
-      );
+      const report = readFileSync(result.value.reportPath!, "utf8");
+      assert.match(report, /^# Review outcome/);
+      assert.match(report, /correctness observable behaviour/);
+      assert.doesNotMatch(report, /^## Assessment$/m);
     },
   ));
 

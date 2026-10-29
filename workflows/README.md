@@ -60,7 +60,7 @@ The full route is setup → research → research check → five assessments →
 | Product, system fit, simplicity, readability and correctness | Five separate assessments with concrete checks, evidence and exclusions | All five required; barrier prevents downstream work when one is missing |
 | One sequential pass over every indexed rule | Rules worker returns selected/skipped rows and evidence | Inventory coverage and distinct rule results; reading order remains instructed |
 | Independent claims, duplicates and disagreements | Consolidation returns accepted findings and unresolved gaps | Finding identity and accounting; independent source checking remains instructed |
-| Report, editorial reduction and restoration | Draft, editorial and report acceptance return the canonical report | Template sections, coverage and finding provenance; prose judgement remains instructed |
+| Report, editorial reduction and restoration | Draft, editorial and report acceptance return the canonical report | Coverage and finding provenance; report format and prose judgement remain instructed |
 | Seven approval checks and outcome policy | Decision returns approval assessment and publication material | Outcome consistency, required findings and inline provenance |
 | Real saved files matching accepted data | Writer saves files; Node gate validates them | Actual disk content, rule indexes, Git state and result identity |
 | Progress and final publication | Delivery workers invoke host tools and the existing helper | Publication after saving; separate delivery and submission results |
@@ -113,7 +113,7 @@ await runStep({ step: "report", run: acceptReport });
 
 `reviewWorkflow` owns accepted evidence, attempts and failures. It does not notify, save or publish, and the sequence does not manually assign results or update progress. The outer coordinator switches on events to choose Pi display groups and send notifications. After the review returns, it saves and validates files, then publishes accepted results. Delivery helpers record transport failures without retrying reviewer work. There is no event bus, queue, generator or state-machine library.
 
-Each named review function shows its direct Markdown imports, worker label and schema. `reviewAgent` prepends shared Markdown rules and explicit context, pins revisions in the supplied schema, validates the answer and makes at most two fresh attempts. It does not receive a phase, choose tasks, update progress or accept evidence. Labels identify Pi workers and retry diagnostics. Step, wrapper and delivery calls use object parameters.
+Each named review function shows its direct Markdown imports, worker label, schema and any step-specific validation callback. `reviewAgent` prepends shared Markdown rules and explicit context, pins revisions in the supplied schema, parses the answer, runs common answer checks and invokes the supplied step-specific validator. Invalid answers get at most two fresh attempts. It does not receive a phase, choose tasks, update progress or accept evidence. Labels identify Pi workers and retry diagnostics. Step, wrapper and delivery calls use object parameters.
 
 A review step is the domain concept. Pi’s `phase()` is only display grouping and is called by the coordinator on `stepStarted`. The five assessments share the `assessments` group. Notification and GitHub workers use their own explicit display groups without changing the ambient review group. Groups appear as steps start; metadata keeps no second list of future steps. There is no separate milestone state or phase passed through the review agent wrapper.
 
@@ -151,11 +151,14 @@ Pi supplies the structured-output and shell-gate mechanisms. The checks we put i
 | Checks | Why they exist | Where they run |
 | --- | --- | --- |
 | Schemas | Require fields, known outcomes and bounded collections | Pi’s structured-output contract and `contracts.ts` parsing |
-| Review policy | Reject missing rule coverage, lost findings or approval that contradicts required fixes | `validation.ts` before accepting a stage |
+| Common answers | Require pinned revisions, evidence for verified checks and unique finding IDs | `validateAnswer` in the agent wrapper |
+| Step-specific policy | Reject missing rule coverage, lost findings or approval that contradicts required fixes | Explicit validation callback beside each named step’s prompt and schema |
 | Saved files | Confirm files match accepted answers, pinned Git state and actual rule indexes | `scripts/review/validate-bundle.ts`, after saving and before publication |
 | Publication receipts | Confirm the helper’s state matches the operation and approval being reported | `scripts/review/github.ts` |
 
-The saved-file gate reuses the same review-policy functions rather than maintaining a second set of rules. Shape checks do not establish that evidence is true, and policy checks do not prove the model followed every instruction. These checks go beyond merely requiring stages to run; they preserve the agreed report, finding and approval guarantees.
+Setup selects `validateSetup`, the rule pass selects `validateRuleCoverage`, report acceptance selects `validateFindingDecisions` and the decision selects `validateApproval`. These functions take typed step outputs and explicit dependencies; rule coverage receives only returned rules and expected paths. The agent wrapper does not inspect stage names to choose checks. The callbacks run inside the existing retry boundary.
+
+The pure function bodies stay in `validation.ts` so the Node saved-file gate can reuse them without importing Pi or Markdown prompts. The gate narrows saved answers by their stage before calling those same functions. Markdown headings and template placeholders are left to the worker instructions; they are not mechanically validated. Shape checks do not establish that evidence is true, and policy checks do not prove the model followed every instruction. These checks go beyond merely requiring stages to run; they preserve the agreed report, finding and approval guarantees.
 
 The restricted workflow VM cannot access Node or the filesystem. `scripts/review/validate-bundle.ts` owns the Node-only filesystem and Git checks; `scripts/review/github.ts` bridges helper operations. `workflow.ts` owns the literal `meta` declaration. `scripts/build/workflow.ts` copies it into the generated header and bundles authored TypeScript into `workflows/review.js`. Edit TypeScript and run `npm run format` (oxfmt), then `npm run build`; prompt and template changes also require a rebuild. `format:check` and `build:check` reject stale formatting or generated output. Authored `if` statements always use braces; use `switch` for branches over stages or outcomes.
 

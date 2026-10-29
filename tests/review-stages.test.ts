@@ -1,6 +1,6 @@
 /**
- * Pure regression tests for answers that must be rejected before stage acceptance.
- * Covers finding-to-approval consistency, inline provenance and template excerpts.
+ * Pure regressions for answer evidence, finding accounting and approval policy.
+ * Covers inline provenance and report consistency without policing Markdown style.
  * No agents, subprocesses or filesystem fixtures are involved.
  */
 import assert from "node:assert/strict";
@@ -12,7 +12,11 @@ import {
   FindingSchema,
 } from "../src/review/contracts.js";
 import type { StageResults } from "../src/review/contracts.js";
-import { validateStage } from "../src/review/validation.js";
+import {
+  validateAnswer,
+  validateApproval,
+  validateFindingDecisions,
+} from "../src/review/validation.js";
 
 const input = parseReviewInput({
   packageRoot: "/package",
@@ -71,25 +75,23 @@ function assessment() {
     summaryMarkdown: "Review complete",
     inlineComments: [],
   });
-  const prior: StageResults = {
-    setup: StageSchemas.setup.parse({
-      ...common,
-      stage: "setup",
-      mode: "full",
-      addedLines: 1,
-      deletedLines: 0,
-      rulePaths: [],
-      sizeException: null,
-    }),
-    report: StageSchemas.report.parse({
-      ...common,
-      stage: "report",
-      markdown:
-        "## Assessment\n## Risk and scope\n## Findings\nF1\n## Verification summary\n## References\n## Supporting details",
-      decisions: [],
-    }),
-  };
-  return { prior, decision };
+  const setup = StageSchemas.setup.parse({
+    ...common,
+    stage: "setup",
+    mode: "full",
+    addedLines: 1,
+    deletedLines: 0,
+    rulePaths: [],
+    sizeException: null,
+  });
+  const report = StageSchemas.report.parse({
+    ...common,
+    stage: "report",
+    markdown: "F1: Persist the updated value.",
+    decisions: [],
+  });
+  const prior: StageResults = { setup, report };
+  return { prior, decision, setup, report };
 }
 const bug = FindingSchema.parse({
   id: "source-bug",
@@ -104,35 +106,51 @@ const bug = FindingSchema.parse({
   existingThread: null,
 });
 
+test("verified checks require evidence while blocked checks remain explicit gaps", () => {
+  const result = StageSchemas.correctness.parse({
+    ...common,
+    stage: "correctness",
+  });
+  result.checks[0].evidence = [];
+  assert.throws(
+    () => validateAnswer({ result, input }),
+    /Verified checks require evidence/,
+  );
+  result.checks[0].result = "Blocked";
+  result.checks[0].reason = "CI is unavailable";
+  result.gaps = ["CI is unavailable"];
+  assert.doesNotThrow(() => validateAnswer({ result, input }));
+});
+
 for (const disposition of ["retained", "merged", "open"] as const) {
   test(`${disposition} required finding cannot pass clean_review without inline comments`, () => {
-    const { prior, decision } = assessment();
+    const { prior, decision, setup, report } = assessment();
     prior.correctness = StageSchemas.correctness.parse({
       ...common,
       stage: "correctness",
       findings: [bug],
     });
-    prior.report!.decisions.push({
+    report.decisions.push({
       sourceId: "correctness:source-bug",
       disposition,
       reportId: "F1",
       reason: "Verified caller trace",
     });
     assert.throws(
-      () => validateStage({ result: decision, prior, input }),
+      () => validateApproval({ decision, setup, report, prior }),
       /retained required or unresolved/,
     );
     decision.approval.outcome = "changes_needed";
     decision.approval.next_steps = ["Author: fix F1"];
     decision.approval.checks!.clean_review.result = "Fail";
     assert.doesNotThrow(() =>
-      validateStage({ result: decision, prior, input }),
+      validateApproval({ decision, setup, report, prior }),
     );
   });
 }
 
 test("inline comments must reference an accepted new bug by exact report ID", () => {
-  const { prior, decision } = assessment();
+  const { prior, decision, setup, report } = assessment();
   decision.approval.outcome = "human_review";
   decision.approval.next_steps = ["Reviewer: inspect concern"];
   decision.approval.checks!.clean_review.result = "Fail";
@@ -144,7 +162,7 @@ test("inline comments must reference an accepted new bug by exact report ID", ()
     body: "Unreviewed claim",
   });
   assert.throws(
-    () => validateStage({ result: decision, prior, input }),
+    () => validateApproval({ decision, setup, report, prior }),
     /accepted new bug/,
   );
   prior.correctness = StageSchemas.correctness.parse({
@@ -152,74 +170,83 @@ test("inline comments must reference an accepted new bug by exact report ID", ()
     stage: "correctness",
     findings: [bug],
   });
-  prior.report!.decisions.push({
+  report.decisions.push({
     sourceId: "correctness:source-bug",
     disposition: "retained",
     reportId: "F1",
     reason: "Caller trace verified",
   });
   decision.inlineComments[0].id = "F1";
-  assert.doesNotThrow(() => validateStage({ result: decision, prior, input }));
+  assert.doesNotThrow(() =>
+    validateApproval({ decision, setup, report, prior }),
+  );
   prior.correctness.findings[0].existingThread =
     "https://github.com/example/app/pull/1#discussion_r1";
   assert.throws(
-    () => validateStage({ result: decision, prior, input }),
+    () => validateApproval({ decision, setup, report, prior }),
     /accepted new bug/,
   );
   prior.correctness.findings[0].existingThread = null;
   prior.correctness.findings[0].kind = "readability";
   assert.throws(
-    () => validateStage({ result: decision, prior, input }),
+    () => validateApproval({ decision, setup, report, prior }),
     /accepted new bug/,
   );
 });
 
-test("legitimate template source excerpts are accepted as review evidence", () => {
-  const result = StageSchemas.correctness.parse({
-    ...common,
-    stage: "correctness",
-    markdown:
-      "The template renders `{{ user.name }}`.\n```handlebars\n{{ target }}\n```",
-  });
-  assert.doesNotThrow(() => validateStage({ result, prior: {}, input }));
-});
-
 test("invalid approval semantics fail before the writer gate", () => {
-  const { prior, decision } = assessment();
+  const { prior, decision, setup, report } = assessment();
   decision.approval.checks!.verification.result = "Fail";
   assert.throws(
-    () => validateStage({ result: decision, prior, input }),
+    () => validateApproval({ decision, setup, report, prior }),
     /every checklist item/,
   );
 });
 
 test("an open optional concern cannot be hidden behind a passing approval", () => {
-  const { prior, decision } = assessment();
+  const { prior, decision, setup, report } = assessment();
   prior.correctness = StageSchemas.correctness.parse({
     ...common,
     stage: "correctness",
     findings: [{ ...bug, disposition: "optional" }],
   });
-  prior.report!.decisions.push({
+  report.decisions.push({
     sourceId: "correctness:source-bug",
     disposition: "open",
     reportId: null,
     reason: "Not yet resolved",
   });
   assert.throws(
-    () => validateStage({ result: decision, prior, input }),
+    () => validateApproval({ decision, setup, report, prior }),
     /unresolved/,
   );
 });
 
-test("the unfilled report target scaffold is rejected outside quoted source", () => {
-  const result = StageSchemas.correctness.parse({
+test("custom report headings preserve the requirement to account for findings", () => {
+  const report = StageSchemas.report.parse({
     ...common,
-    stage: "correctness",
-    markdown: "# Review: {{ target }}",
+    stage: "report",
+    markdown: "# Review outcome\n\nF1: Persist the updated value.",
+    decisions: [
+      {
+        sourceId: "correctness:source-bug",
+        disposition: "retained",
+        reportId: "F1",
+        reason: "Caller trace verified",
+      },
+    ],
   });
+  const prior = {
+    correctness: StageSchemas.correctness.parse({
+      ...common,
+      stage: "correctness",
+      findings: [bug],
+    }),
+  };
+  assert.doesNotThrow(() => validateFindingDecisions({ report, prior }));
+  report.decisions = [];
   assert.throws(
-    () => validateStage({ result, prior: {}, input }),
-    /target scaffold/,
+    () => validateFindingDecisions({ report, prior }),
+    /account for every input finding/,
   );
 });

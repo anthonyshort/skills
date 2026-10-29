@@ -476,6 +476,7 @@ export type ReviewAgentInput<Result extends StageResult> = ReviewStepInput & {
   label: StageName;
   schema: z.ZodType<Result>;
   prompt: string;
+  validate?: (result: Result) => void;
 };
 
 /**
@@ -554,10 +555,4 @@ export type RequestHostNotificationInput = {
 export type SaveArtifactsInput = {
   bundle: Bundle;
   result: ReviewResult;
-};
-
-export type StageValidationInput = {
-  result: StageResult;
-  prior: StageResults;
-  input: ReviewInput;
 };

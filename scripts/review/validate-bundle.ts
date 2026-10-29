@@ -14,7 +14,13 @@ import {
   stageNames,
 } from "../../src/review/contracts.js";
 import type { Bundle, ReviewInput } from "../../src/review/contracts.js";
-import { validateStage } from "../../src/review/validation.js";
+import {
+  validateAnswer,
+  validateSetup,
+  validateRuleCoverage,
+  validateFindingDecisions,
+  validateApproval,
+} from "../../src/review/validation.js";
 import { errorMessage, fingerprint } from "../../src/review/utils.js";
 
 const execute = promisify(execFile);
@@ -273,11 +279,36 @@ export async function validateBundle(
   );
   for (const [name, result] of Object.entries(bundle.stages)) {
     requireCondition(result.stage === name, `Stage identity mismatch: ${name}`);
-    validateStage({
-      result,
-      prior: bundle.stages,
-      input: bundle.input,
-    });
+    validateAnswer({ result, input: bundle.input });
+    // Saved answers reuse each step's checks, independently of the Pi runtime.
+    switch (result.stage) {
+      case "setup":
+        validateSetup({ setup: result });
+        break;
+      case "rules": {
+        const setup = bundle.stages.setup;
+        requireCondition(setup, "Rule coverage requires accepted setup");
+        validateRuleCoverage({
+          rules: result.rules,
+          expectedPaths: setup.rulePaths,
+        });
+        break;
+      }
+      case "report":
+        validateFindingDecisions({ report: result, prior: bundle.stages });
+        break;
+      case "decision": {
+        const setup = bundle.stages.setup;
+        requireCondition(setup, "Approval requires accepted setup");
+        validateApproval({
+          decision: result,
+          setup,
+          report: bundle.stages.report,
+          prior: bundle.stages,
+        });
+        break;
+      }
+    }
     requireCondition(
       (await readArtifact(root, `${name}.md`)) === result.markdown,
       `Saved assessment differs: ${name}`,

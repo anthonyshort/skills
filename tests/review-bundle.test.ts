@@ -128,19 +128,6 @@ const acceptedMutations: [
     /lost individual check coverage/,
   ],
   [
-    "missing report section",
-    (state) => {
-      const report = state.bundle.stages.report;
-      if (report) {
-        report.markdown = report.markdown.replace(
-          "## Assessment",
-          "Assessment",
-        );
-      }
-    },
-    /missing required template sections/,
-  ],
-  [
     "contradictory approval",
     (state) => {
       const approval = state.bundle.stages.decision?.approval;
@@ -277,12 +264,16 @@ test("wrapper rule inventory is independently inspected", () =>
     state.save();
     await assert.rejects(validate(state), /inventory differs/);
   }));
-test("accepted findings must survive reconciliation and cannot contradict clean approval", () =>
+test("custom report headings retain finding accounting and approval checks", () =>
   scenario(async (state) => {
     const correctness = state.bundle.stages.correctness;
     const report = state.bundle.stages.report;
     const decision = state.bundle.stages.decision;
     assert.ok(correctness && report && decision && decision.approval.checks);
+    report.markdown = report.markdown.replace(
+      /^## .+$/gm,
+      "### Review evidence",
+    );
     correctness.findings.push(
       FindingSchema.parse({
         id: "R1",
@@ -330,15 +321,6 @@ test("inline findings must reference exact accepted new bugs", () =>
       /accepted new bug by exact report ID/,
     );
   }));
-test("legitimate source template evidence remains valid", () =>
-  scenario(async (state) => {
-    const correctness = state.bundle.stages.correctness;
-    assert.ok(correctness);
-    correctness.markdown += "\n```handlebars\n{{ user.name }}\n```\n";
-    state.save();
-    assert.equal((await validate(state)).status, "complete");
-  }));
-
 test("an indexed rule directory cannot substitute for a rule file", () =>
   scenario(async (state) => {
     const file = state.bundle.stages.setup!.rulePaths[0];

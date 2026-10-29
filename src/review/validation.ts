@@ -8,20 +8,26 @@ import type {
   ApprovalSchema,
   StageSchemas,
   StageResults,
-  StageValidationInput,
+  StageResult,
+  ReviewInput,
 } from "./contracts.js";
 type Approval = z.infer<typeof ApprovalSchema>;
 type Decision = z.infer<typeof StageSchemas.decision>;
+type Setup = z.infer<typeof StageSchemas.setup>;
+type Report = z.infer<typeof StageSchemas.report>;
+type Rules = z.infer<typeof StageSchemas.rules>;
 
 /**
- * Throws when an answer loses evidence, coverage or finding provenance.
- * The caller owns retrying the stage and recording a final failure.
+ * Require pinned revisions, evidence for verified checks and unique finding IDs.
+ * These common checks do not depend on the answer's stage or report format.
  */
-export function validateStage({
+export function validateAnswer({
   result,
-  prior,
   input,
-}: StageValidationInput): void {
+}: {
+  result: Pick<StageResult, "base" | "head" | "checks" | "findings">;
+  input: Pick<ReviewInput, "base" | "head">;
+}): void {
   if (result.base !== input.base || result.head !== input.head) {
     throw new Error("Assessment revisions differ from pinned inputs");
   }
@@ -47,81 +53,47 @@ export function validateStage({
   ) {
     throw new Error("Finding IDs must be unique within an assessment");
   }
-  const prose = result.markdown.replace(
-    /^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$/gm,
-    "",
-  );
-  if (/^# Review:\s+\{\{\s*target\s*\}\}\s*$/m.test(prose)) {
-    throw new Error("Replace the report target scaffold");
-  }
-  let headings: string[] = [];
-  switch (result.stage) {
-    case "report":
-      headings = [
-        "Assessment",
-        "Risk and scope",
-        "Findings",
-        "Verification summary",
-        "References",
-        "Supporting details",
-      ];
-      break;
-    case "splitPlan":
-      headings = ["Assessment", "Risk and scope", "Split plan", "CI status"];
-      break;
+}
+
+/**
+ * Require a unique rule inventory and a documented exception for oversized full
+ * reviews. Split-only reviews retain their shorter route without that exception.
+ */
+export function validateSetup({ setup }: { setup: Setup }): void {
+  if (new Set(setup.rulePaths).size !== setup.rulePaths.length) {
+    throw new Error("Rule inventory paths must be unique");
   }
   if (
-    headings.some(
-      (heading) =>
-        !new RegExp(`^#{2,3} ${heading}\\s*$`, "m").test(result.markdown),
-    )
+    setup.addedLines > 2000 &&
+    setup.mode === "full" &&
+    !setup.sizeException?.trim()
   ) {
-    throw new Error("Final report is missing required template sections");
-  }
-  switch (result.stage) {
-    case "setup":
-      if (new Set(result.rulePaths).size !== result.rulePaths.length) {
-        throw new Error("Rule inventory paths must be unique");
-      }
-      if (
-        result.addedLines > 2000 &&
-        result.mode === "full" &&
-        !result.sizeException?.trim()
-      ) {
-        throw new Error(
-          "Oversized full review requires a documented permitted exception",
-        );
-      }
-      break;
-    case "rules":
-      validateRuleCoverage(result, prior);
-      break;
-    case "report":
-      validateFindingDecisions(result, prior);
-      break;
-    case "decision":
-      validateApproval(result, prior);
-      break;
+    throw new Error(
+      "Oversized full review requires a documented permitted exception",
+    );
   }
 }
 
-function validateRuleCoverage(
-  result: z.infer<typeof StageSchemas.rules>,
-  prior: StageResults,
-): void {
-  const expected = prior.setup?.rulePaths;
-  if (!expected) {
-    throw new Error("Rule coverage requires accepted setup");
-  }
-  const actual = result.rules.map((rule) => rule.path);
+/**
+ * Account for every indexed rule once and keep skipped or unverified work
+ * distinct from selected rules supported by evidence.
+ */
+export function validateRuleCoverage({
+  rules,
+  expectedPaths,
+}: {
+  rules: Rules["rules"];
+  expectedPaths: Setup["rulePaths"];
+}): void {
+  const actual = rules.map((rule) => rule.path);
   if (
     new Set(actual).size !== actual.length ||
-    expected.length !== actual.length ||
-    expected.some((path) => !actual.includes(path))
+    expectedPaths.length !== actual.length ||
+    expectedPaths.some((path) => !actual.includes(path))
   ) {
     throw new Error("Rule coverage has missing, duplicate or unexpected paths");
   }
-  for (const rule of result.rules) {
+  for (const rule of rules) {
     if ((rule.selection === "skipped") !== (rule.result === "Skipped")) {
       throw new Error("Rule selection and result disagree");
     }
@@ -135,10 +107,17 @@ function validateRuleCoverage(
   }
 }
 
-function validateFindingDecisions(
-  report: z.infer<typeof StageSchemas.report>,
-  prior: StageResults,
-): void {
+/**
+ * Account for each input finding exactly once and keep retained finding IDs
+ * visible in the accepted report. Exclusions require an explicit decision.
+ */
+export function validateFindingDecisions({
+  report,
+  prior,
+}: {
+  report: Report;
+  prior: StageResults;
+}): void {
   const expected = Object.entries(prior)
     .filter(([name]) => !["report", "decision"].includes(name))
     .flatMap(([stage, result]) =>
@@ -169,14 +148,17 @@ function validateFindingDecisions(
  * Rejects approval answers that contradict the review scope or included findings.
  * Inline comments must resolve to an accepted new bug, never an arbitrary ID.
  */
-export function validateApproval(
-  decision: Decision,
-  prior: StageResults,
-): void {
-  const setup = prior.setup;
-  if (!setup) {
-    throw new Error("Approval requires accepted setup");
-  }
+export function validateApproval({
+  decision,
+  setup,
+  report,
+  prior,
+}: {
+  decision: Decision;
+  setup: Setup;
+  report: Report | undefined;
+  prior: StageResults;
+}): void {
   const { approval, inlineComments } = decision;
   if (approval.changed_lines !== setup.addedLines + setup.deletedLines) {
     throw new Error("Approval changed_lines must match the complete diff");
@@ -194,11 +176,10 @@ export function validateApproval(
   if (approval.outcome === "split" || !checks) {
     throw new Error("Full review requires all seven approval checks");
   }
-  const report = prior.report;
   if (!report) {
     throw new Error("Approval requires an accepted report");
   }
-  const includedFindings = resolveReportFindings(report, prior);
+  const includedFindings = resolveReportFindings({ report, prior });
   const hasUnresolvedFindings =
     report.findings.some((finding) =>
       ["required", "open"].includes(finding.disposition),
@@ -216,7 +197,7 @@ export function validateApproval(
       "Clean review cannot pass with retained required or unresolved findings",
     );
   }
-  validateInlineSources(inlineComments, includedFindings);
+  validateInlineSources({ comments: inlineComments, includedFindings });
 }
 
 function validateApprovalOutcome(approval: Approval): void {
@@ -300,10 +281,13 @@ function validateApprovalOutcome(approval: Approval): void {
   }
 }
 
-function resolveReportFindings(
-  report: z.infer<typeof StageSchemas.report>,
-  prior: StageResults,
-) {
+function resolveReportFindings({
+  report,
+  prior,
+}: {
+  report: Report;
+  prior: StageResults;
+}) {
   const sources = Object.entries(prior).flatMap(([stage, result]) =>
     result.findings.map((finding) => ({
       sourceId: `${stage}:${finding.id}`,
@@ -323,10 +307,13 @@ function resolveReportFindings(
     });
 }
 
-function validateInlineSources(
-  comments: Decision["inlineComments"],
-  includedFindings: ReturnType<typeof resolveReportFindings>,
-): void {
+function validateInlineSources({
+  comments,
+  includedFindings,
+}: {
+  comments: Decision["inlineComments"];
+  includedFindings: ReturnType<typeof resolveReportFindings>;
+}): void {
   if (new Set(comments.map((comment) => comment.id)).size !== comments.length) {
     throw new Error("Inline finding IDs must be unique");
   }

@@ -52,7 +52,13 @@ import type {
   StageResults,
 } from "./contracts.js";
 import { githubEnabled, sendGitHub, publishAcceptedReview } from "./github.js";
-import { validateStage } from "./validation.js";
+import {
+  validateAnswer,
+  validateSetup,
+  validateRuleCoverage,
+  validateFindingDecisions,
+  validateApproval,
+} from "./validation.js";
 import {
   coverageMarkdown,
   fingerprint,
@@ -352,6 +358,7 @@ async function setupReview({ input, context, attempts }: ReviewStepInput) {
     attempts,
     label: "setup",
     schema: StageSchemas.setup,
+    validate: (setup) => validateSetup({ setup }),
     prompt: setupPrompt,
   });
 }
@@ -466,12 +473,21 @@ async function assessCorrectness({
  * Account for every indexed rule in one sequential pass.
  */
 async function checkRules({ input, context, attempts }: ReviewStepInput) {
+  const setup = context.setup;
+  if (!setup) {
+    throw new Error("Rule coverage requires accepted setup");
+  }
   return reviewAgent({
     input,
     context,
     attempts,
     label: "rules",
     schema: StageSchemas.rules,
+    validate: (assessment) =>
+      validateRuleCoverage({
+        rules: assessment.rules,
+        expectedPaths: setup.rulePaths,
+      }),
     prompt: rulesPrompt,
   });
 }
@@ -532,6 +548,7 @@ async function acceptReport({ input, context, attempts }: ReviewStepInput) {
     attempts,
     label: "report",
     schema: StageSchemas.report,
+    validate: (report) => validateFindingDecisions({ report, prior: context }),
     prompt: [reportingRules, reportPrompt, reportTemplate].join("\n\n"),
   });
 }
@@ -554,21 +571,32 @@ async function planSplit({ input, context, attempts }: ReviewStepInput) {
  * Assess approval and prepare publication material without submitting it.
  */
 async function decideReview({ input, context, attempts }: ReviewStepInput) {
+  const setup = context.setup;
+  if (!setup) {
+    throw new Error("Approval requires accepted setup");
+  }
   return reviewAgent({
     input,
     context,
     attempts,
     label: "decision",
     schema: StageSchemas.decision,
+    validate: (decision) =>
+      validateApproval({
+        decision,
+        setup,
+        report: context.report,
+        prior: context,
+      }),
     prompt: [decisionPrompt, githubProgressTemplate].join("\n\n"),
   });
 }
 
 /**
  * Our small wrapper around Pi's agent API. The caller supplies the prompt,
- * label and schema. Shared rules and revisions apply to every review worker;
- * invalid answers get one fresh retry. This function does not schedule steps,
- * update progress or accept evidence. Labels identify Pi workers and retry
+ * label, schema and optional step-specific check. Shared evidence and revision
+ * checks apply to every worker; invalid answers get one fresh retry. This
+ * function does not schedule steps, update progress or accept evidence. Labels identify Pi workers and retry
  * diagnostics; the coordinator selects display groups from lifecycle events.
  */
 async function reviewAgent<Result extends StageResult>({
@@ -578,6 +606,7 @@ async function reviewAgent<Result extends StageResult>({
   label,
   schema,
   prompt,
+  validate,
 }: ReviewAgentInput<Result>): Promise<Result> {
   // Every review worker gets these rules before its task-specific prompt.
   const commonRules = [
@@ -619,7 +648,8 @@ async function reviewAgent<Result extends StageResult>({
         );
       }
       const result = schema.parse(output);
-      validateStage({ result, prior: context, input });
+      validateAnswer({ result, input });
+      validate?.(result);
       return result;
     } catch (error) {
       feedback = errorMessage(error);
