@@ -33,7 +33,7 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Display expressions accurately](display-expressions-accurately.md) | The change renders a formula, condition, query or other expression, or substitutes display names and bindings into one. |
 | [Explain why code works this way](explain-why-code-works-this-way.md) | The change introduces unclear names, unusual ordering, a workaround, or comments that no longer describe the code. |
 | [Handle only the error you mean to handle](handle-only-the-intended-error.md) | The change adds a retry, fallback, broad catch or optional request whose failure can affect other content. |
-| [Handle the supported data shapes](handle-supported-data-shapes.md) | The change adds an enum or union case, changes runtime validation, or reads saved data that may come from another supported version. |
+| [Handle the supported data shapes](handle-supported-data-shapes.md) | The change adds an enum or union case, branches several times on the same enum, union or state value, changes runtime validation, or reads saved data that may come from another supported version. |
 | [Keep API pages within the requested data](keep-api-pages-scoped-and-bounded.md) | The change adds or changes paginated reads, page sizes or page tokens. |
 | [Keep controls accessible](keep-controls-accessible.md) | The change adds or changes controls, keyboard interactions, focus handling, accessibility attributes or wrappers around rich content. |
 | [Keep logs useful without exposing private data](keep-logs-useful-and-safe.md) | The change adds or changes logs, error summaries, error wrapping or fields sent to monitoring tools. |

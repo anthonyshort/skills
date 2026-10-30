@@ -14,7 +14,9 @@
   }
   ```
 
-- Assign unhandled switch variants to `never` so new variants fail typechecking. Return a reasonable fallback for unknown runtime variants rather than throwing on version skew.
+- Prefer a switch when several branches compare the same enum, union or state value. Keep if statements for unrelated conditions, ranges and short guards. A complete mapping is also useful when each case only needs a value.
+
+- A switch alone does not catch missing cases. Assign unhandled variants to `never` so new variants fail type checking rather than taking a broad default. Validate external data separately and choose how to handle unsupported values. Keep a reasonable fallback for unknown runtime variants rather than throwing when saved data comes from a newer version.
 
   ```typescript
   function label(result: Result): string {
