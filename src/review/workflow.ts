@@ -48,10 +48,12 @@ export type ReviewResult = {
   report: string | null;
   approval: ReviewResults["decision"]["approval"] | null;
 };
+
 export type ReviewPluginResults = {
   github: { readonly publication: PublicationResult };
   notifications: { readonly receipts: Notification[] };
 };
+
 export type ReviewOutput = ReviewResult & {
   notifications: Notification[];
   publication: PublicationResult;
@@ -156,7 +158,7 @@ function finalizeReview({
   if (status === "complete" && stages.report) {
     stages.report = {
       ...stages.report,
-      markdown: stages.report.markdown + coverageMarkdown(stages),
+      markdown: stages.report.markdown + renderReviewEvidenceAppendix(stages),
     };
   }
   return {
@@ -174,10 +176,12 @@ function finalizeReview({
 }
 
 /**
- * Preserve checks and gaps in the report as expandable sections.
+ * Render assessment checklists, evidence gaps and rule results as collapsible
+ * sections appended to the final report.
  */
-function coverageMarkdown(stages: StageResults): string {
+function renderReviewEvidenceAppendix(stages: StageResults): string {
   const lines = ["", "## Workflow assessment and rule coverage", ""];
+
   function fold(title: string, blocks: string[]): void {
     if (!blocks.length) {
       return;
@@ -191,6 +195,7 @@ function coverageMarkdown(stages: StageResults): string {
       "",
     );
   }
+
   for (const [name, result] of Object.entries(stages)) {
     const blocks = result.checks.map((item) =>
       [

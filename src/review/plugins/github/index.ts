@@ -16,32 +16,59 @@ import type {
 } from "../../workflow.js";
 import { reviewProgress, reviewEventProgress } from "../progress.js";
 
+/**
+ * Require non-blank tool arguments and receipt text without altering whitespace.
+ */
 const text = z
   .string()
   .min(1)
   .refine((value) => Boolean(value.trim()), "Expected non-empty text");
-// Picco plugin-github receipts. Keep its rejected and uncertain outcomes distinct.
+
+/**
+ * Keep Picco's decimal receipt IDs as strings for later comment updates and URLs.
+ */
 const githubId = text
   .max(32)
   .regex(/^[1-9]\d*$/)
   .refine((value) => Number.isSafeInteger(Number(value)));
+
+/**
+ * Distinguish known rejections from uncertain writes when parsing tool responses.
+ * Neither outcome confirms delivery.
+ */
 const GithubFailureSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("rejected"), reason: text }),
   z.strictObject({ status: z.literal("uncertain"), message: text }),
 ]);
+
+/**
+ * Validate github_comment responses before retaining a progress comment's identity.
+ */
 const GithubCommentReceiptSchema = z.union([
   z.strictObject({ status: z.literal("confirmed"), commentId: githubId }),
   GithubFailureSchema,
 ]);
+
+/**
+ * Retain a confirmed github_review receipt in the final publication result.
+ */
 const GithubReviewSuccessSchema = z.strictObject({
   status: z.literal("confirmed"),
   reviewId: githubId,
   state: z.enum(["COMMENTED", "APPROVED", "CHANGES_REQUESTED"]),
 });
+
+/**
+ * Validate final review tool responses, including rejected and uncertain outcomes.
+ */
 const GithubReviewReceiptSchema = z.union([
   GithubReviewSuccessSchema,
   GithubFailureSchema,
 ]);
+
+/**
+ * Expose actual delivery status separately from the review's approval assessment.
+ */
 export type PublicationResult = {
   status:
     | "skipped"
@@ -52,13 +79,21 @@ export type PublicationResult = {
   review: z.infer<typeof GithubReviewSuccessSchema> | null;
 };
 
+/**
+ * Validate Picco create/edit arguments before a worker calls github_comment.
+ */
 const GithubCommentRequestSchema = z.strictObject({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
   pullRequest: z.number().int().positive(),
   commentId: githubId.optional(),
   body: text.max(65_536),
 });
+
 type GithubCommentRequest = z.infer<typeof GithubCommentRequestSchema>;
+
+/**
+ * Validate pinned github_review arguments with Picco's body and inline limits.
+ */
 const GithubReviewRequestSchema = GithubCommentRequestSchema.omit({
   commentId: true,
 }).extend({
@@ -75,6 +110,7 @@ const GithubReviewRequestSchema = GithubCommentRequestSchema.omit({
     )
     .max(100),
 });
+
 type GithubReviewRequest = z.infer<typeof GithubReviewRequestSchema>;
 
 /**
@@ -319,7 +355,11 @@ export const createGithubComment: WorkflowPlugin<
     schema: z.ZodType<Result>;
     instructions?: string;
   }): Promise<Result | z.infer<typeof GithubFailureSchema>> {
+    /**
+     * StructuredOutput envelope carrying the delivery worker's exact tool receipt.
+     */
     const outputSchema = z.strictObject({ receipt: schema });
+
     try {
       const answer = await agent(
         [
@@ -386,6 +426,7 @@ export const createGithubComment: WorkflowPlugin<
     },
   };
 };
+
 /**
  * Describe actual work status without treating completed review work as passing.
  */

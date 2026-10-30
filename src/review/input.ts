@@ -3,8 +3,20 @@
  */
 import * as z from "zod";
 
+/**
+ * Absolute caller paths passed to workers for read-only repository inspection.
+ */
 const path = z.string().startsWith("/");
+
+/**
+ * Full commit identifiers used to pin every worker to the same review scope.
+ */
 const revision = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/);
+
+/**
+ * Caller configuration parsed before plugin setup. The transform supplies
+ * skillRoot and notification defaults from the validated packageRoot and runId.
+ */
 const inputSchema = z
   .strictObject({
     packageRoot: path,

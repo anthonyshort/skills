@@ -12,6 +12,9 @@ import type { ReviewContext } from "../../steps.js";
 import { errorMessage } from "../../../workflow/run.js";
 import { reviewEventProgress } from "../progress.js";
 
+/**
+ * Require non-blank host receipt fields without altering the returned text.
+ */
 const text = z
   .string()
   .min(1)
@@ -45,6 +48,10 @@ const NotificationAnswerSchema = z.strictObject({
   broadcast: NotificationBroadcastSchema.nullable(),
   reason: z.string().min(1),
 });
+
+/**
+ * Return the described progress and its transport outcome to the workflow caller.
+ */
 export type Notification = {
   stage: string;
   status: string;

@@ -25,12 +25,20 @@ import reportingRules from "./prompts/reporting.md";
 import reportTemplate from "../../skills/review/templates/review-report.md";
 import type { ReviewInput } from "./input.js";
 
+/**
+ * Nonempty prose and identifiers returned in worker answers.
+ */
 const text = z.string().min(1);
+
+/**
+ * Bounded evidence references and gap notes shared by worker output schemas.
+ */
 const strings = z.array(text).max(10_000);
 
 /**
- * Shared worker evidence. Check statuses are descriptive; finding kinds and
- * dispositions stay constrained because they affect publication and approval.
+ * Output contract shared by every review worker. Setup, rules, report and
+ * decision extend it locally. Finding kinds and dispositions affect publication;
+ * checklist statuses remain descriptive.
  */
 const ReviewEvidenceSchema = z.object({
   base: z.string(),
@@ -97,6 +105,7 @@ export type ReviewResults = {
   splitPlan: Awaited<ReturnType<typeof planSplit>>;
   decision: Awaited<ReturnType<typeof decideReview>>;
 };
+
 export type StageResults = Partial<ReviewResults>;
 export type StageName = keyof ReviewResults;
 
@@ -108,6 +117,7 @@ export type ReviewContext = {
   attempts: { stage: StageName; attempt: number; reason: string }[];
   call?: typeof agent;
 };
+
 type ReviewStepInput = StepInput<ReviewContext, ReviewResults>;
 
 /**
@@ -117,6 +127,11 @@ export function setupReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "setup",
+
+    /**
+     * Scope and rule inventory used to choose the review route and check
+     * rule coverage.
+     */
     outputSchema: ReviewEvidenceSchema.extend({
       mode: z.enum(["full", "split"]),
       addedLines: z.number().int().nonnegative(),
@@ -124,6 +139,7 @@ export function setupReview(args: ReviewStepInput) {
       sizeException: z.string().nullable(),
       rulePaths: z.array(text).max(1000),
     }),
+
     validate: (setup) => {
       if (new Set(setup.rulePaths).size !== setup.rulePaths.length) {
         throw new Error("Rule inventory paths must be unique");
@@ -237,6 +253,10 @@ export function checkRules(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "rules",
+
+    /**
+     * One result per indexed rule, consumed by consolidation and the final report.
+     */
     outputSchema: ReviewEvidenceSchema.extend({
       rules: z
         .array(
@@ -256,6 +276,7 @@ export function checkRules(args: ReviewStepInput) {
         )
         .max(1000),
     }),
+
     validate: ({ rules }) => {
       const actual = rules.map((rule) => rule.path);
       if (
@@ -328,6 +349,10 @@ export function acceptReport(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "report",
+
+    /**
+     * The accepted report and accounting decisions for every earlier finding.
+     */
     outputSchema: ReviewEvidenceSchema.extend({
       decisions: z
         .array(
@@ -340,6 +365,7 @@ export function acceptReport(args: ReviewStepInput) {
         )
         .max(10_000),
     }),
+
     validate: (report) => {
       const expected = Object.entries(args.results)
         .filter(([name]) => !["report", "decision"].includes(name))
@@ -393,13 +419,23 @@ export function decideReview(args: ReviewStepInput) {
   if (!setup) {
     throw new Error("Approval requires accepted setup");
   }
+
+  /**
+   * A single approval gate. All seven named gates must pass before approval.
+   */
   const approvalCheck = z.object({
     result: z.enum(["Pass", "Fail", "Not verified"]),
     reason: text,
   });
+
   return reviewAgent({
     ...args,
     label: "decision",
+
+    /**
+     * Approval assessment and publication content, including source-linked
+     * inline findings.
+     */
     outputSchema: ReviewEvidenceSchema.extend({
       findings: ReviewEvidenceSchema.shape.findings.max(0),
       approval: z.object({
@@ -440,6 +476,7 @@ export function decideReview(args: ReviewStepInput) {
         )
         .max(100),
     }),
+
     validate: (decision) => {
       const { approval, inlineComments } = decision;
       const report = args.results.report;
