@@ -7,6 +7,7 @@ The change branches several times on the same enum, union or state value.
 ## What to check
 
 - Prefer a switch when several branches compare the same value. Keep the known cases together so the reader can see how each one is handled.
+- Suggesting switch syntax is a readability preference and does not require a bug, while a missed known case is a correctness concern.
 - Use a `never` check for unhandled cases so adding a case fails type checking. A switch alone does not catch missing cases, and a broad default can hide them.
 - Separate known, validated cases from unknown external data. Keep the chosen unsupported-data path for future saved values rather than casting them into a known union.
 

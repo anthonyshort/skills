@@ -31,7 +31,6 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Check what package imports load](check-package-imports-and-dependencies.md) | The change adds a package import, changes a package entry point, or moves code into a worker or separately built package. |
 | [Check the cost of performance changes](check-the-cost-of-performance-changes.md) | The change adds a cache, memoisation, comparison, preloading or other work intended to improve performance. |
 | [Display expressions accurately](display-expressions-accurately.md) | The change renders a formula, condition, query or other expression, or substitutes display names and bindings into one. |
-| [Explain why code works this way](explain-why-code-works-this-way.md) | The change introduces unclear names, unusual ordering, a workaround, or comments that no longer describe the code. |
 | [Handle only the error you mean to handle](handle-only-the-intended-error.md) | The change adds a retry, fallback, broad catch or optional request whose failure can affect other content. |
 | [Handle the supported data shapes](handle-supported-data-shapes.md) | The change adds an enum or union case, changes runtime validation, or reads saved data that may come from another supported version. |
 | [Keep API pages within the requested data](keep-api-pages-scoped-and-bounded.md) | The change adds or changes paginated reads, page sizes or page tokens. |
@@ -41,7 +40,6 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Make component props fit together](make-component-props-fit-together.md) | A component adds paired props, mode flags or values that only make sense for some supported modes. |
 | [Match checks to what is built and deployed](match-checks-to-build-and-rollout.md) | The change skips CI checks based on changed files, changes build dependencies, or enables a caller of a service that may not yet be deployed. |
 | [Preserve items the user cannot see](preserve-hidden-items.md) | The change filters or restricts a collection, saves its members, or adds selection and bulk actions over a partial view. |
-| [Remove code without a real caller](remove-code-without-callers.md) | A change adds a helper, prop, parameter, export or branch with no visible use, or removes the last known caller. |
 | [Show the actual loading and result state](show-loading-and-error-states.md) | The change displays asynchronous results, progress, success messages or actions that can become unavailable. |
 | [Test the real behaviour](test-the-real-behaviour.md) | The change adds or updates tests, changes behaviour covered by tests, or claims that a client, store, provider or interaction is protected by a test. |
 | [Use stable IDs and predictable ordering](use-stable-ids-and-ordering.md) | The change identifies selected items, stores references to them, or sorts and pages results. |
