@@ -16,5 +16,6 @@ description: Use for Galaxy api-query adoption, generated backend contracts and 
 ## Contracts
 
 - Locate shared utility types in their owning package.
+- Trace provisional frontend models to the generated server contract or vendor definition they represent. Reuse available generated types. When the backend is not implemented or the vendor contract remains separate, keep the local boundary explicit and identify how it will be maintained or replaced rather than requiring speculative generated types.
 - Check actual compiler settings and schema-factory conventions before recommending declaration changes.
 - Verify API adoption on the reviewed branch rather than assuming a historical migration is complete.

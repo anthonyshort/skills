@@ -2,11 +2,13 @@
 
 ## When to check
 
-A layer mostly forwards calls to another capability, or the change adds or modifies an abstraction.
+A layer mostly forwards calls, the change adds or modifies an abstraction, or a feature duplicates behaviour already owned by a shared capability.
 
 ## What to check
 
 Identify the complexity, invariant or useful boundary the abstraction handles. For wrappers, check whether they translate a real boundary or provide useful behaviour or isolation. Consider passing the existing capability directly when they do neither. Check callers and the whole design before recommending removal. Preserve required behaviour and isolation.
+
+Compare the shared capability's actual options and consumers before adding feature-local coordination. Prefer its supported configuration, or a small extension at the existing owner, when that removes duplicated behaviour. Name the behaviour the owner should share and the feature-specific work that should remain with its caller. Similar JSX or an imagined future consumer is not enough to justify extraction.
 
 ## Why it matters
 
@@ -14,7 +16,7 @@ Forwarding layers add concepts and call paths without always adding value.
 
 ## Exceptions
 
-Keep boundaries that enforce access, translate data or errors, provide instrumentation, establish ownership or preserve compatibility.
+Keep boundaries that enforce access, translate data or errors, provide instrumentation, establish ownership or preserve compatibility. Different permissions, lifecycles or product interactions can justify separate UI implementations. Do not force one interaction, such as infinite scroll, on all consumers merely because a shared component supports it.
 
 ## Good and bad examples
 

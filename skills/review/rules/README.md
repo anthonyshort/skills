@@ -6,18 +6,22 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | --- | --- |
 | [Fix the code instead of disabling lint checks](fix-code-instead-of-disabling-lint.md) | Changed code is covered by a lint suppression, or the change weakens lint configuration or coverage. |
 | [Avoid storing values that can be calculated](avoid-duplicate-live-state.md) | The change stores a value calculated from other changing state. |
+| [Reconcile dependent state when its source changes](reconcile-state-when-its-source-changes.md) | A selected resource, query, source object, version or owner can change while dependent state or asynchronous work survives. |
 | [Keep shared operations independent of mounted UI](keep-domain-operations-independent-of-ui.md) | A shared operation requires a component, editor or UI object. |
 | [Use consistent cleanup contracts for similar resources](make-cleanup-contracts-consistent.md) | Callers manage resources with different cleanup shapes. |
 | [Remove interaction steps the task does not need](remove-unnecessary-interaction-steps.md) | A UI introduces selection, confirmation or other intermediate states. |
 | [Make function calls clear and direct](make-function-calls-clear.md) | A function API changes or callers supply misleading flags or placeholder values. |
+| [Localise values shown to users](localise-user-facing-values.md) | Changed code displays or formats currency, dates, times, numbers, percentages or other locale-sensitive values. |
 | [Simplify HTTP calls without changing their meaning](simplify-http-calls.md) | An HTTP API introduces command envelopes or unnecessary response unpacking. |
 | [Migrate callers in small supported steps](migrate-callers-in-small-steps.md) | Changed code uses an API that has an adopted replacement. |
-| [Remove wrappers that add no value](remove-wrappers-that-add-no-value.md) | A layer forwards calls or the change adds or modifies an abstraction. |
+| [Remove wrappers that add no value](remove-wrappers-that-add-no-value.md) | A layer forwards calls, the change adds or modifies an abstraction, or a feature duplicates behaviour already owned by a shared capability. |
 | [Use registries for real extension needs](use-registries-for-real-extensions.md) | A change introduces a registry, plugin system or dynamic lookup. |
 | [Await operations whose results matter](await-required-operations.md) | Events or callbacks trigger work that later code depends on. |
 | [Extract decisions only when it helps](extract-decisions-only-when-useful.md) | Code mixes decisions with effects, combines distinct phases or abstraction levels, or splits small operations into helpers. |
 | [Keep shared code independent of its consumers](keep-shared-code-independent.md) | The change adds shared-code dependencies or moves behaviour between shared and feature modules. |
-| [Keep API changes compatible with callers](keep-api-changes-compatible.md) | A function, event or HTTP contract used by supported callers changes. |
+| [Keep API changes compatible with callers](keep-api-changes-compatible.md) | A function, event, HTTP or operational logging contract used by supported consumers changes. |
+| [Give duplicated contracts an explicit source](keep-duplicated-contracts-in-sync.md) | Changed code recreates externally or jointly owned types, schemas, enum members, policy lists, error shapes or defaults. |
+| [Keep unknown permission distinct from allowed](keep-unknown-permissions-distinct-from-allowed.md) | Changed code affects permission metadata, permissive defaults, cached decisions, resource scope or token lifetime. |
 | [Check retries for repeated side effects](check-retries-for-repeated-effects.md) | A changed operation has side effects and a realistic retry or duplicate-request path. |
 | [Bind query values and restrict dynamic identifiers](bind-query-values.md) | External values or dynamic identifiers enter database query construction. |
 | [Keep file access within allowed paths](keep-file-access-within-allowed-paths.md) | External input controls paths or a directory containment check changes. |
