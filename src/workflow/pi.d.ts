@@ -9,11 +9,3 @@ declare function agent(
   prompt: string,
   options?: { label?: string; phase?: string; schema?: unknown },
 ): Promise<unknown>;
-
-/**
- * esbuild embeds imported Markdown as text in the generated workflow.
- */
-declare module "*.md" {
-  const text: string;
-  export default text;
-}

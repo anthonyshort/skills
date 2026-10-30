@@ -1,28 +1,9 @@
 /**
- * Named review workers own their prompts, schemas and review-policy checks.
+ * Named review workers own their assignments, schemas and review-policy checks.
  */
 import * as z from "zod";
 import { callValidatedAgent } from "../workflow/agent.js";
 import type { StepInput } from "../workflow/run.js";
-import setupPrompt from "./prompts/setup.md";
-import researchPrompt from "./prompts/research.md";
-import researchCheckPrompt from "./prompts/researchCheck.md";
-import productPrompt from "./prompts/product.md";
-import systemFitPrompt from "./prompts/systemFit.md";
-import simplicityPrompt from "./prompts/simplicity.md";
-import readabilityPrompt from "./prompts/readability.md";
-import correctnessPrompt from "./prompts/correctness.md";
-import rulesPrompt from "./prompts/rules.md";
-import consolidationPrompt from "./prompts/consolidation.md";
-import draftPrompt from "./prompts/draft.md";
-import editorialPrompt from "./prompts/editorial.md";
-import reportPrompt from "./prompts/report.md";
-import splitPlanPrompt from "./prompts/splitPlan.md";
-import decisionPrompt from "./prompts/decision.md";
-import sharedRules from "./prompts/common.md";
-import assessmentRules from "./prompts/assessment.md";
-import reportingRules from "./prompts/reporting.md";
-import reportTemplate from "../../skills/review/templates/review-report.md";
 import type { ReviewInput } from "./input.js";
 
 /**
@@ -154,7 +135,13 @@ export function setupReview(args: ReviewStepInput) {
         );
       }
     },
-    prompt: setupPrompt,
+    prompt: `
+Read “Step 1: Setup” in the review skill. Establish the pinned scope, depth and
+initial risks. Return mode, addedLines, deletedLines and any sizeException.
+Enumerate every rule in the main and wrapper rules/README.md indexes, returning
+absolute canonical paths in rulePaths. Return the setup evidence without doing
+research, splitting or the implementation review; those are later steps.
+`,
   });
 }
 
@@ -166,7 +153,11 @@ export function researchReview(args: ReviewStepInput) {
     ...args,
     label: "research",
     outputSchema: ReviewEvidenceSchema,
-    prompt: researchPrompt,
+    prompt: `
+Read “Step 2: Research” in the review skill. Gather the research brief or validate
+usable earlier research through its re-review gate. Return the brief, sources,
+search coverage and gaps. A separate researchCheck worker verifies it next.
+`,
   });
 }
 
@@ -178,7 +169,13 @@ export function checkResearch(args: ReviewStepInput) {
     ...args,
     label: "researchCheck",
     outputSchema: ReviewEvidenceSchema,
-    prompt: researchCheckPrompt,
+    prompt: `
+Read “Step 2: Research” in the review skill, including its completion checklist.
+Independently check the supplied research brief against the important cited
+sources, pinned comparison and current CI. Correct unsupported claims, verify
+reused evidence and preserve gaps. Return a self-contained corrected brief;
+reading the first brief alone does not verify it. Do not start assessments.
+`,
   });
 }
 
@@ -190,7 +187,10 @@ export function assessProduct(args: ReviewStepInput) {
     ...args,
     label: "product",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [assessmentRules, productPrompt].join("\n\n"),
+    prompt: `
+Read Step 3’s “Review best practices”, “Build and verify the checklist” and
+“Q: Should we build this?” in the review skill. Return the product assessment.
+`,
   });
 }
 
@@ -202,7 +202,11 @@ export function assessSystemFit(args: ReviewStepInput) {
     ...args,
     label: "systemFit",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [assessmentRules, systemFitPrompt].join("\n\n"),
+    prompt: `
+Read Step 3’s “Review best practices”, “Build and verify the checklist” and
+“Q: Does this code fit into the existing system?” in the review skill.
+Return the system fit assessment.
+`,
   });
 }
 
@@ -214,7 +218,11 @@ export function assessSimplicity(args: ReviewStepInput) {
     ...args,
     label: "simplicity",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [assessmentRules, simplicityPrompt].join("\n\n"),
+    prompt: `
+Read Step 3’s “Review best practices”, “Build and verify the checklist” and
+“Q: Is this the simplest solution?” in the review skill.
+Return the simplicity assessment.
+`,
   });
 }
 
@@ -226,7 +234,11 @@ export function assessReadability(args: ReviewStepInput) {
     ...args,
     label: "readability",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [assessmentRules, readabilityPrompt].join("\n\n"),
+    prompt: `
+Read Step 3’s “Review best practices”, “Build and verify the checklist” and
+“Q: Is this code clear and easy to maintain?” in the review skill.
+Return the dedicated readability assessment.
+`,
   });
 }
 
@@ -238,7 +250,11 @@ export function assessCorrectness(args: ReviewStepInput) {
     ...args,
     label: "correctness",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [assessmentRules, correctnessPrompt].join("\n\n"),
+    prompt: `
+Read Step 3’s “Review best practices”, “Build and verify the checklist” and
+“Q: Is this implementation correct?” in the review skill.
+Return the correctness assessment.
+`,
   });
 }
 
@@ -301,7 +317,12 @@ export function checkRules(args: ReviewStepInput) {
         }
       }
     },
-    prompt: rulesPrompt,
+    prompt: `
+Read “Step 4: Check review rules” in the review skill and the supplied main and
+wrapper rule indexes. Work through rules sequentially in this worker.
+Return exactly one rules row per setup.rulePaths entry, including skipped rules
+with reasons. Consolidation checks this evidence after the rule pass.
+`,
   });
 }
 
@@ -313,7 +334,12 @@ export function consolidateReview(args: ReviewStepInput) {
     ...args,
     label: "consolidation",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [reportingRules, consolidationPrompt].join("\n\n"),
+    prompt: `
+Read Step 5’s “Rules for a good report” and “Create the report”, items 1–5,
+in the review skill. Verify claims, resolve disagreements and merge findings
+from the accepted research, all five assessments and the rules. Return the
+consolidated evidence and conclusions. Drafting and editing happen later.
+`,
   });
 }
 
@@ -325,7 +351,11 @@ export function draftReport(args: ReviewStepInput) {
     ...args,
     label: "draft",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [reportingRules, draftPrompt, reportTemplate].join("\n\n"),
+    prompt: `
+Read Step 5’s “Rules for a good report” and “Create the report”, item 6,
+in the review skill, plus templates/review-report.md. Write the full report
+from accepted consolidation. Editorial reduction and acceptance happen later.
+`,
   });
 }
 
@@ -338,7 +368,13 @@ export function editReport(args: ReviewStepInput) {
     results: { draft: args.results.draft },
     label: "editorial",
     outputSchema: ReviewEvidenceSchema,
-    prompt: [reportingRules, editorialPrompt, reportTemplate].join("\n\n"),
+    prompt: `
+Read Step 5’s “Rules for a good report” and “Create the report”, item 7,
+in the review skill, plus templates/review-report.md. Perform only the editorial
+role: shorten the supplied draft while preserving its findings, evidence,
+counts, individual check outcomes and uncertainty. Return the whole edited
+report. The next worker compares it with the original and accepts the report.
+`,
   });
 }
 
@@ -395,7 +431,15 @@ export function acceptReport(args: ReviewStepInput) {
         );
       }
     },
-    prompt: [reportingRules, reportPrompt, reportTemplate].join("\n\n"),
+    prompt: `
+Read Step 5’s “Rules for a good report”, the comparison/restoration part of
+“Create the report”, item 7, and its completion checklist in the review skill.
+Read templates/review-report.md. Compare draft and editorial versions, restore
+lost evidence and return the accepted self-contained report in markdown.
+Account for every input finding exactly once in decisions using
+sourceId = '<stage>:<finding id>'. Explain retained, merged, excluded and open
+findings, keeping retained report IDs visible in markdown. Do not save files.
+`,
   });
 }
 
@@ -407,7 +451,12 @@ export function planSplit(args: ReviewStepInput) {
     ...args,
     label: "splitPlan",
     outputSchema: ReviewEvidenceSchema,
-    prompt: splitPlanPrompt,
+    prompt: `
+Read Step 1’s “Choose the review depth” in the review skill and the sibling
+split-pr/SKILL.md. Return useful smaller review boundaries, their ordering and
+verification limits. This is split-only: do not perform the five assessments,
+rule pass or full report, and do not imply those reviews were completed.
+`,
   });
 }
 
@@ -571,7 +620,24 @@ export function decideReview(args: ReviewStepInput) {
         }
       }
     },
-    prompt: decisionPrompt,
+    prompt: `
+Read Step 6’s “What to do”, items 1–3 only, in the review skill. Assess the
+accepted report without publishing. Return the approval object through
+StructuredOutput instead of saving approval.json. Honour input.publication:
+local-only and comment-only cannot approve; use not_submitted when all checks
+pass but submission is disallowed. For split-only output use outcome split,
+checks null and no inline findings. Do not introduce new findings.
+
+Read templates/github-review.md and the sibling writing-voice/SKILL.md.
+Return summaryMarkdown using the template’s assessment-first layout, including
+research and alternatives folds. Use exactly “#### Findings” and
+“#### Opportunities” for those sections when needed. Omit Next steps, Full report,
+the reviewed-commit heading and approval checks; delivery adds them from the
+accepted result. Do not use the skill’s Python publication helpers.
+
+Return inlineComments only for verified new bugs with valid pinned diff anchors.
+Each inline id must exactly match a retained report ID whose source is a new bug.
+`,
   });
 }
 
@@ -597,7 +663,23 @@ function reviewAgent<Result extends z.infer<typeof ReviewEvidenceSchema>>({
     outputSchema,
     maxAttempts: MAX_ATTEMPTS,
     prompt: [
-      sharedRules,
+      `
+Perform only the assigned task. Read the “Goals” and “Rules” sections of the
+review skill at ${input.skillRoot}/SKILL.md, then locate and read the sections
+named in your assignment. Resolve its relative resource links from
+${input.skillRoot}; sibling skills are under its parent directory.
+
+The coordinator owns orchestration and delivery. Do not invoke the whole skill,
+run another workflow, delegate, save artefacts, publish or notify, even when the
+skill describes those parent responsibilities. Return all evidence and report
+text through StructuredOutput using the supplied schema. Text outside that
+call is discarded. Record missing guidance as a gap rather than inventing it.
+
+Before source inspection, confirm checkout HEAD matches input.head and the
+checkout is clean. Record a mismatch as blocked; read other revisions through
+pinned Git objects. Use the accepted researchCheck brief over research where
+they disagree. Future workflow steps are not missing evidence.
+`,
       `Wrapper guidance: ${JSON.stringify(input.wrapperSkillRoots.map((root) => `${root}/SKILL.md`))}.`,
       `Read supplied scope and requirements files: ${JSON.stringify(input.contextFiles)}. Record unavailable external context rather than inventing sources.`,
       `Pinned inputs: ${JSON.stringify(input)}`,

@@ -150,6 +150,50 @@ export function githubReviewRequest({
 }
 
 /**
+ * Keep actions before the summary's findings and detailed evidence collapsed.
+ * The decision prompt reserves these headings for its trailing summary sections.
+ */
+export function githubReviewBody({
+  summaryMarkdown,
+  approval,
+  report,
+}: Pick<ReviewResults["decision"], "summaryMarkdown" | "approval"> & {
+  report: string;
+}): string {
+  const trailingSection = summaryMarkdown.search(
+    /^#### (?:Findings|Opportunities)[ \t]*$/m,
+  );
+  const boundary =
+    trailingSection === -1 ? summaryMarkdown.length : trailingSection;
+  const nextSteps = approval.next_steps.length
+    ? [
+        "#### Next steps",
+        approval.next_steps.map((step) => `- ${step}`).join("\n"),
+      ].join("\n\n")
+    : "";
+
+  return [
+    summaryMarkdown.slice(0, boundary).trimEnd(),
+    nextSteps,
+    summaryMarkdown.slice(boundary).trimStart(),
+    "<details>\n<summary>Full report</summary>",
+    `${approval.outcome}: ${approval.reason}`,
+    approval.checks
+      ? [
+          "### Approval checks",
+          ...Object.entries(approval.checks).map(
+            ([name, check]) => `- ${name}: ${check.result}. ${check.reason}`,
+          ),
+        ].join("\n\n")
+      : "",
+    report,
+    "</details>",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
  * Subscribe to review events. Comment identity stays in memory; completion
  * submits the accepted report and findings together in one GitHub review.
  */
@@ -231,16 +275,11 @@ export const createGithubComment: WorkflowPlugin<
     }
 
     // All publication content comes from accepted evidence, without another review.
-    const body = [
-      decision.summaryMarkdown,
-      report.markdown,
-      "### Approval assessment",
-      `${decision.approval.outcome}: ${decision.approval.reason}`,
-      ...Object.entries(decision.approval.checks ?? {}).map(
-        ([name, check]) => `- ${name}: ${check.result}. ${check.reason}`,
-      ),
-      ...decision.approval.next_steps.map((step) => `- Next step: ${step}`),
-    ].join("\n\n");
+    const body = githubReviewBody({
+      summaryMarkdown: decision.summaryMarkdown,
+      approval: decision.approval,
+      report: report.markdown,
+    });
     let request: GithubReviewRequest;
     try {
       request = githubReviewRequest({
