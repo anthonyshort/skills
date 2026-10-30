@@ -80,8 +80,11 @@ await expect(readInvoice("missing")).rejects.toBeInstanceOf(InvoiceNotFoundError
 
 ## Keep cases readable and reliable
 
-- **Name the scenario and result**: Prefer “keeps zoom when equivalent bounds arrive” over “works”. One case should describe one behaviour. Several assertions may establish that result.
-- **Keep important details visible**: Show the branch-driving inputs, action and assertions in the case. Extract only repeated mechanical setup. Prefer explicit fixture overrides to boolean helper switches or giant shared fixtures.
+These naming and structure guidelines apply to Vitest, Jest, Playwright and other tests. Use the framework’s own grouping and test syntax.
+
+- **Use simple test names**: Say what the user or caller should see. Prefer short `it("should …")` names over technical stories about internal steps. Read the name with its surrounding groups. One case should describe one behaviour, which may need several assertions.
+- **Group and order by behaviour**: Use `describe` for the module, then nested groups for related features or situations when useful. Put basic behaviour before nearby variations, failures and edge cases. Make the file easy to scan and a new case easy to place. Tests must still run independently.
+- **Keep bodies easy to follow**: Show the important inputs, action and assertions. Use named builders and helpers to hide shared setup or distracting wiring. Keep case-specific details visible. Prefer explicit fixture values to boolean helper switches or giant shared fixtures. Some duplication is clearer than another helper.
 - **Choose assertions deliberately**: Prefer concrete expected fields. Use snapshots when the complete stable output matters and can be reviewed. Avoid broad UI or request snapshots that lock down incidental details.
 - **Use tables for one rule**: Parameterise cases with the same behaviour and assertion structure. Keep unrelated scenarios separate.
 - **Control async work**: Use controlled promises and scheduling APIs. Use fake clocks for timers. Await promise assertions. Do not hide flakiness with sleeps or larger timeouts.

@@ -52,6 +52,8 @@ Link the skill locally or update your managed skills installation. To make it a 
 
 ## Local authoring
 
+[`add-review-rule`](skills/add-review-rule/SKILL.md) turns review feedback and code examples into focused rules. It checks for overlap, chooses the general or repository-specific collection, writes comparable examples and exceptions, and updates the rule index.
+
 ```sh
 git clone git@github.com:anthonyshort/skills.git ~/dev/anthonyshort/skills
 cd ~/dev/anthonyshort/skills

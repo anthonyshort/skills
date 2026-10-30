@@ -9,6 +9,8 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Update state when its data changes](reconcile-state-when-its-source-changes.md) | A selected record, query, data object or store can change while the app still holds selections, saved results or work started from the old data. |
 | [Keep shared operations independent of mounted UI](keep-domain-operations-independent-of-ui.md) | A shared operation requires a component, editor or UI object. |
 | [Use consistent cleanup contracts for similar resources](make-cleanup-contracts-consistent.md) | Callers manage resources with different cleanup shapes, or subscriptions and cancellable work gain or change an owner. |
+| [Reuse established concepts and vocabulary](reuse-established-concepts-and-vocabulary.md) | A change introduces or renames an abstraction, type, operation or state view where the code already represents the same or a related concept. |
+| [Keep tests easy to read](keep-tests-easy-to-read.md) | A change adds tests or changes their names, grouping, order or setup helpers. |
 | [Remove interaction steps the task does not need](remove-unnecessary-interaction-steps.md) | A UI introduces selection, confirmation or other intermediate states. |
 | [Make function calls clear and direct](make-function-calls-clear.md) | A function API changes, its positional argument list grows, or callers supply misleading flags or placeholder values. |
 | [Use the app’s locale when formatting values](localise-user-facing-values.md) | The change formats money, dates, times, numbers, percentages or other values whose display depends on the user’s language and region. |
