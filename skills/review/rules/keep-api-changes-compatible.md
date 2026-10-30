@@ -2,7 +2,7 @@
 
 ## When to check
 
-The change modifies a function, event or HTTP contract used by other code or supported clients.
+The change affects a function, event, HTTP API or log output that other code, monitors or alerts rely on.
 
 ## What to check
 
@@ -10,6 +10,7 @@ The change modifies a function, event or HTTP contract used by other code or sup
 - For HTTP changes, compare methods, statuses, response shapes and machine-readable error codes.
 - Check that callers still handle success and can distinguish failures they react to, such as validation errors, conflicts and rate limits.
 - Check ordering, cancellation and cleanup when callers depend on them.
+- Find the monitors, dashboards, filters and alerts that read the changed logs. Check which log levels, error names, tags and fields they use before changing them or wrapping an error. Keep those values working for the readers, or update the readers in the same change.
 - Identify callers that need migration. Follow the supported migration or versioning approach where clients cannot all move together.
 - Support the result with actual calls, response handling and focused checks. Show before-and-after caller code for proposed changes.
 
@@ -19,7 +20,7 @@ A change can work in isolation while breaking caller behaviour or sending a fail
 
 ## Exceptions
 
-An intentional breaking change can be valid when affected callers move together or have a supported migration. Do not add versioning or compatibility layers for hypothetical clients. Report callers you cannot inspect as a coverage limit.
+An intentional breaking change can be valid when affected callers move together or have a supported migration. Reducing noisy logs is valid when the effect on existing alerts is understood. Do not add versioning or monitors for possible future callers or every debug log. Say which callers or monitors you could not check.
 
 ## Good and bad examples
 
@@ -45,3 +46,5 @@ return Response.json({ code: "INVOICE_NOT_FOUND" }, { status: 404 });
 ```
 
 If the new code is intentional, migrate the caller and test its recovery branch. Preserving the old code is not the only valid solution.
+
+A monitor filtering `level:error` may stop detecting a failure if its log moves to warning, even when the message stays the same. Update the monitor’s query when that level change is intended. When wrapping an error, keep the error name and fields that existing filters read.

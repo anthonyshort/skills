@@ -2,13 +2,15 @@
 
 ## When to check
 
-Code mixes decisions with effects, combines distinct phases or abstraction levels in one body, or splits small operations into helpers.
+A file or component combines separate tasks, code mixes decisions with effects or distinct phases, or small operations are split into helpers.
 
 ## What to check
 
 Check whether extracting a meaningful operation removes hidden state, exposes the main flow or supports another caller or useful test. Identify the phases and local state a reader must track together. Look for orchestration buried in protocol details, validation, mapping or independent state machines.
 
 Readability can justify a helper with one caller. It earns its place when it hides incidental detail, gives a phase a clear contract or reduces the state a reader must track. Reuse and independent testing are additional benefits, not prerequisites. Name the proposed operations and show how they simplify the caller rather than recommending smaller functions in general.
+
+For a file or component doing several jobs, name concrete parts that could stand on their own, such as a results header, selection controls or a request hook. Check whether each part can own its inputs and state without passing the same large context through every layer. File length alone is not a reason to split it.
 
 Compare the total concepts and caller code. Preserve batching, cursor ownership, validation and state invariants. Keep transaction checks at the effect boundary.
 

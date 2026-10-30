@@ -12,6 +12,7 @@ The change affects an operation with side effects and a realistic retry or dupli
 - Check what happens when the same key is reused with different inputs. Verify conflicting reuse is handled according to the contract.
 - Inspect the effect boundary and any transaction or deduplication guarantees. A caller precheck alone does not prevent concurrent duplicates.
 - Use a code trace or focused reproduction to explain the effect, conditions and limits. Do not claim a retry was exercised when only source code was inspected.
+- Establish which requests the API allows callers to repeat and why. Do not infer safety only from an HTTP method or a retry option. Keep the same operation and input when retrying a known request, and stop for an outcome that cannot safely be repeated without checking what happened.
 
 ## Why it matters
 

@@ -10,6 +10,7 @@ Default against broad test suites for simple product components. Rendering label
 
 - **Failure caught:** Name a plausible mistake and the assertion that would fail. “It renders” and coverage percentages are weak reasons.
 - **Right layer:** Test calculations in functions and domain rules in stores or clients. Use hook tests for React subscriptions and lifecycle behaviour. Keep component tests for interactions, focus, wiring or rendered states those tests cannot prove.
+- **What is mocked:** If a test claims to check how a client sends requests, saves data or handles failure, do not mock that client. Use the real client with fake responses from the service it calls. Logic implemented entirely in the frontend can be tested without a network request.
 - **Extra protection:** Check existing tests. Explain what the component test catches that they miss.
 - **Reach and impact:** Find actual consumers and explain what a failure would break. Shared components often justify more coverage, but product interactions can also be important.
 - **Cost:** Inspect providers, fixtures, mocks, timing controls and assertions tied to internal details. Use runtime or flake history when available. Do not assume a long test is expensive or a short one is useful.

@@ -2,11 +2,13 @@
 
 ## When to check
 
-A function API changes or callers supply misleading flags or placeholder values.
+A function API changes, its positional argument list grows, or callers supply misleading flags or placeholder values.
 
 ## What to check
 
 Inspect real calls. Look for unnecessary inputs, fake values and caller bookkeeping. Show before-and-after usage, including output handling. Preserve errors and supported capabilities. Check that callers can understand returned values, errors, cancellation and resource cleanup without knowing internal implementation details.
+
+When positional arguments grow, compare real calls with named options. Would names make nearby booleans, optional values or repeated types easier to distinguish? Recommend options when they remove a specific ambiguity, not after a fixed number of arguments. Keep an established positional API when its calls are already clear.
 
 ## Why it matters
 
@@ -18,7 +20,7 @@ Keep pagination and other real capabilities. Do not add options objects or build
 
 ## Good and bad examples
 
-This comparison illustrates the trade-off. Check the actual requirements and callers before recommending a change.
+These declarations show proposed API shapes, not implementations. Check the actual requirements and callers before recommending a change.
 
 When names and fake positional values obscure the task, compare the actual call.
 

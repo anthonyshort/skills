@@ -2,7 +2,7 @@
 
 ## When to check
 
-Several interactions update related state, or a change adds another caller that must preserve the same invariant.
+Several interactions update related state, a change adds another caller that must preserve the same invariant, or one operation changes several related fields or records.
 
 ## What to check
 
@@ -10,6 +10,8 @@ Several interactions update related state, or a change adds another caller that 
 - Trace all callers that perform the operation. Check whether each repeats the same coordination or can leave invalid state.
 - Put the shared rule in an action owned by the domain or store. Let callers describe the operation instead of coordinating its fields.
 - Preserve legitimate differences between operations. Check intermediate observations, async boundaries and failure handling. A shared function alone does not guarantee atomic updates.
+- When several changes must succeed together, inspect the actual transaction or rollback steps. Check what happens if a later step fails after an earlier one succeeds. Do not report the whole operation complete after only its first step.
+- If some changes cannot be undone, make the partial result visible and define what can safely be tried again. A helper named `moveAll` or `saveTogether` does not prove that all changes happen together.
 
 ## Why it matters
 
