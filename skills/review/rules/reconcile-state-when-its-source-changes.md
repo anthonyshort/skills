@@ -10,6 +10,7 @@ A selected record, query, data object or store can change while the app still ho
 - Follow replacements, deletion, reloads, undo/redo and updates from other users where they apply. Update selections, subscriptions and stored results in the code that handles the data change. Remove members that were included only by the old query when they no longer belong.
 - Check requests that are still running when the data changes. Apply a result only if its record and version still match, or save it under the correct older version. Cancelling a request does not prove that its result cannot still arrive.
 - Check that applying results or replacing data does not overwrite unsaved edits. Show an actual change that would otherwise leave old state behind, lose edits or overwrite newer results.
+- Keep form drafts and useful view state after a failed submit. Reset submitted edits only after confirmed success, and do not reset newer edits made while the request was running. Capture the submitted draft or its edit version so the completion handler can tell which edits succeeded.
 
 ## Why it matters
 
@@ -17,7 +18,7 @@ A selection or request result can remain after the data it came from has changed
 
 ## Exceptions
 
-Historical snapshots and cached results can keep older data when they are clearly tied to the right record and version. State that does not depend on an edit need not reset because of it. Do not rebuild everything after every change.
+Historical snapshots and cached results can keep older data when they are clearly tied to the right record and version. State that does not depend on an edit need not reset because of it. Explicit discard or reset actions may clear drafts when that is the user’s intent. Do not rebuild everything after every change.
 
 ## Good and bad examples
 

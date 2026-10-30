@@ -2,7 +2,7 @@
 
 ## When to check
 
-The change copies types, schemas, enum members, policy lists, error fields or defaults defined elsewhere.
+The change copies types, schemas, enum members, flags, policy lists, error fields or defaults defined elsewhere.
 
 ## What to check
 
