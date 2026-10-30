@@ -22,3 +22,4 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Bind query values and restrict dynamic identifiers](bind-query-values.md) | External values or dynamic identifiers enter database query construction. |
 | [Keep file access within allowed paths](keep-file-access-within-allowed-paths.md) | External input controls paths or a directory containment check changes. |
 | [Keep shared state rules in shared actions](keep-shared-state-rules-in-shared-actions.md) | Several interactions coordinate related state or a new caller must preserve the same invariant. |
+| [Make React component tests earn their cost](justify-react-component-tests.md) | A change adds or expands component tests, puts substantial logic in a component, or prompts a request for UI coverage. |
