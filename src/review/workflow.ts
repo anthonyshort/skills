@@ -3,13 +3,12 @@
  */
 import { createWorkflow } from "../workflow/create.js";
 import type { WorkflowSnapshot, WorkflowSteps } from "../workflow/run.js";
-import { parseReviewInput } from "./schemas.js";
-import type {
-  ReviewResults,
-  ReviewOutput,
-  ReviewResult,
-  StageResults,
-} from "./schemas.js";
+import { parseReviewInput } from "./input.js";
+import type { ReviewInput } from "./input.js";
+import type { WorkflowEvent } from "../workflow/run.js";
+import type { WorkflowCompleted } from "../workflow/create.js";
+import type { PublicationResult } from "./plugins/github/index.js";
+import type { Notification } from "./plugins/notifications/index.js";
 import { createGithubComment } from "./plugins/github/index.js";
 import { createNotifications } from "./plugins/notifications/index.js";
 import {
@@ -29,7 +28,38 @@ import {
   planSplit,
   decideReview,
 } from "./steps.js";
-import type { ReviewContext } from "./steps.js";
+import type {
+  ReviewContext,
+  ReviewResults,
+  StageResults,
+  StageName,
+} from "./steps.js";
+
+/**
+ * Computed review output. Worker and transport responses are parsed at their
+ * boundaries; this object contains the values already accepted by the workflow.
+ */
+export type ReviewResult = {
+  input: ReviewInput;
+  status: "complete" | "split" | "incomplete";
+  stages: StageResults;
+  failures: { stage: StageName; reason: string }[];
+  attempts: ReviewContext["attempts"];
+  report: string | null;
+  approval: ReviewResults["decision"]["approval"] | null;
+};
+export type ReviewPluginResults = {
+  github: { readonly publication: PublicationResult };
+  notifications: { readonly receipts: Notification[] };
+};
+export type ReviewOutput = ReviewResult & {
+  notifications: Notification[];
+  publication: PublicationResult;
+};
+
+export type ReviewEvent =
+  | WorkflowEvent<ReviewResults>
+  | WorkflowCompleted<ReviewResult, ReviewPluginResults>;
 
 /**
  * Official Pi workflow metadata. The build copies this literal into the generated

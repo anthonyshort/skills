@@ -23,27 +23,89 @@ import sharedRules from "./prompts/common.md";
 import assessmentRules from "./prompts/assessment.md";
 import reportingRules from "./prompts/reporting.md";
 import reportTemplate from "../../skills/review/templates/review-report.md";
-import {
-  ReviewEvidenceSchema,
-  InlineCommentSchema,
-  FindingSchema,
-  text,
-} from "./schemas.js";
-import type {
-  ReviewInput,
-  ReviewResults,
-  ReviewRun,
-  StageName,
-} from "./schemas.js";
+import type { ReviewInput } from "./input.js";
+
+const text = z.string().min(1);
+const strings = z.array(text).max(10_000);
+
+/**
+ * Shared worker evidence. Check statuses are descriptive; finding kinds and
+ * dispositions stay constrained because they affect publication and approval.
+ */
+const ReviewEvidenceSchema = z.object({
+  base: z.string(),
+  head: z.string(),
+  markdown: text,
+  checks: z
+    .array(
+      z.object({
+        guidance: text,
+        item: text,
+        method: text,
+        result: text,
+        evidence: strings,
+        reason: text,
+      }),
+    )
+    .min(1)
+    .max(10_000),
+  findings: z
+    .array(
+      z.object({
+        id: text,
+        kind: z.enum([
+          "bug",
+          "readability",
+          "question",
+          "convention",
+          "preference",
+          "opportunity",
+        ]),
+        disposition: z.enum(["required", "optional", "open"]),
+        title: text,
+        location: text,
+        trigger: text,
+        effect: text,
+        action: text,
+        evidence: strings.min(1),
+        existingThread: z.string().nullable(),
+      }),
+    )
+    .max(10_000),
+  gaps: strings,
+});
 
 const MAX_ATTEMPTS = 2;
+
+/**
+ * Accepted answers are keyed by task name; worker payloads do not repeat it.
+ */
+export type ReviewResults = {
+  setup: Awaited<ReturnType<typeof setupReview>>;
+  research: Awaited<ReturnType<typeof researchReview>>;
+  researchCheck: Awaited<ReturnType<typeof checkResearch>>;
+  product: Awaited<ReturnType<typeof assessProduct>>;
+  systemFit: Awaited<ReturnType<typeof assessSystemFit>>;
+  simplicity: Awaited<ReturnType<typeof assessSimplicity>>;
+  readability: Awaited<ReturnType<typeof assessReadability>>;
+  correctness: Awaited<ReturnType<typeof assessCorrectness>>;
+  rules: Awaited<ReturnType<typeof checkRules>>;
+  consolidation: Awaited<ReturnType<typeof consolidateReview>>;
+  draft: Awaited<ReturnType<typeof draftReport>>;
+  editorial: Awaited<ReturnType<typeof editReport>>;
+  report: Awaited<ReturnType<typeof acceptReport>>;
+  splitPlan: Awaited<ReturnType<typeof planSplit>>;
+  decision: Awaited<ReturnType<typeof decideReview>>;
+};
+export type StageResults = Partial<ReviewResults>;
+export type StageName = keyof ReviewResults;
 
 /**
  * Review input, diagnostics and optional agent caller shared by this run's workers.
  */
 export type ReviewContext = {
   review: ReviewInput;
-  attempts: ReviewRun["attempts"];
+  attempts: { stage: StageName; attempt: number; reason: string }[];
   call?: typeof agent;
 };
 type ReviewStepInput = StepInput<ReviewContext, ReviewResults>;
@@ -56,7 +118,6 @@ export function setupReview(args: ReviewStepInput) {
     ...args,
     label: "setup",
     outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("setup"),
       mode: z.enum(["full", "split"]),
       addedLines: z.number().int().nonnegative(),
       deletedLines: z.number().int().nonnegative(),
@@ -88,7 +149,7 @@ export function researchReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "research",
-    outputSchema: ReviewEvidenceSchema.extend({ stage: z.literal("research") }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: researchPrompt,
   });
 }
@@ -100,9 +161,7 @@ export function checkResearch(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "researchCheck",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("researchCheck"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: researchCheckPrompt,
   });
 }
@@ -114,7 +173,7 @@ export function assessProduct(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "product",
-    outputSchema: ReviewEvidenceSchema.extend({ stage: z.literal("product") }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [assessmentRules, productPrompt].join("\n\n"),
   });
 }
@@ -126,9 +185,7 @@ export function assessSystemFit(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "systemFit",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("systemFit"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [assessmentRules, systemFitPrompt].join("\n\n"),
   });
 }
@@ -140,9 +197,7 @@ export function assessSimplicity(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "simplicity",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("simplicity"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [assessmentRules, simplicityPrompt].join("\n\n"),
   });
 }
@@ -154,9 +209,7 @@ export function assessReadability(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "readability",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("readability"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [assessmentRules, readabilityPrompt].join("\n\n"),
   });
 }
@@ -168,9 +221,7 @@ export function assessCorrectness(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "correctness",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("correctness"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [assessmentRules, correctnessPrompt].join("\n\n"),
   });
 }
@@ -187,10 +238,9 @@ export function checkRules(args: ReviewStepInput) {
     ...args,
     label: "rules",
     outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("rules"),
       rules: z
         .array(
-          z.strictObject({
+          z.object({
             path: text,
             selection: z.enum(["selected", "skipped"]),
             result: z.enum([
@@ -241,9 +291,7 @@ export function consolidateReview(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "consolidation",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("consolidation"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [reportingRules, consolidationPrompt].join("\n\n"),
   });
 }
@@ -255,7 +303,7 @@ export function draftReport(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "draft",
-    outputSchema: ReviewEvidenceSchema.extend({ stage: z.literal("draft") }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [reportingRules, draftPrompt, reportTemplate].join("\n\n"),
   });
 }
@@ -268,9 +316,7 @@ export function editReport(args: ReviewStepInput) {
     ...args,
     results: { draft: args.results.draft },
     label: "editorial",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("editorial"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: [reportingRules, editorialPrompt, reportTemplate].join("\n\n"),
   });
 }
@@ -283,10 +329,9 @@ export function acceptReport(args: ReviewStepInput) {
     ...args,
     label: "report",
     outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("report"),
       decisions: z
         .array(
-          z.strictObject({
+          z.object({
             sourceId: text,
             disposition: z.enum(["retained", "merged", "excluded", "open"]),
             reportId: z.string().nullable(),
@@ -335,9 +380,7 @@ export function planSplit(args: ReviewStepInput) {
   return reviewAgent({
     ...args,
     label: "splitPlan",
-    outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("splitPlan"),
-    }),
+    outputSchema: ReviewEvidenceSchema,
     prompt: splitPlanPrompt,
   });
 }
@@ -350,7 +393,7 @@ export function decideReview(args: ReviewStepInput) {
   if (!setup) {
     throw new Error("Approval requires accepted setup");
   }
-  const approvalCheck = z.strictObject({
+  const approvalCheck = z.object({
     result: z.enum(["Pass", "Fail", "Not verified"]),
     reason: text,
   });
@@ -358,9 +401,8 @@ export function decideReview(args: ReviewStepInput) {
     ...args,
     label: "decision",
     outputSchema: ReviewEvidenceSchema.extend({
-      stage: z.literal("decision"),
-      findings: z.array(FindingSchema).max(0),
-      approval: z.strictObject({
+      findings: ReviewEvidenceSchema.shape.findings.max(0),
+      approval: z.object({
         outcome: z.enum([
           "split",
           "human_review",
@@ -386,7 +428,17 @@ export function decideReview(args: ReviewStepInput) {
         next_steps: z.array(text).max(10_000),
       }),
       summaryMarkdown: z.string().min(1),
-      inlineComments: z.array(InlineCommentSchema).max(100),
+      inlineComments: z
+        .array(
+          z.object({
+            id: text,
+            path: text,
+            line: z.number().int().positive(),
+            side: z.enum(["LEFT", "RIGHT"]),
+            body: text,
+          }),
+        )
+        .max(100),
     }),
     validate: (decision) => {
       const { approval, inlineComments } = decision;
@@ -395,92 +447,19 @@ export function decideReview(args: ReviewStepInput) {
         throw new Error("Approval changed_lines must match the complete diff");
       }
       const checks = approval.checks;
-      const reasons = [
-        approval.reason,
-        ...approval.next_steps,
-        ...Object.values(checks ?? {}).map((check) => check.reason),
-      ];
-      if (reasons.some((reason) => /[\r\n]/.test(reason))) {
-        throw new Error(
-          "Approval reasons and next steps must be single-line strings",
-        );
-      }
       if (approval.outcome !== "approve" && !approval.next_steps.length) {
         throw new Error(
           "Withheld approval requires a concrete next step and owner",
         );
-      }
-      if (approval.outcome === "split") {
-        if (checks !== null) {
-          throw new Error("Split approval must use checks null");
-        }
-        // Continue to the scope check below before accepting a split outcome.
-      } else {
-        if (!checks) {
-          throw new Error("Full review requires all seven approval checks");
-        }
-        const allPass = Object.values(checks).every(
-          (check) => check.result === "Pass",
-        );
-        switch (approval.outcome) {
-          case "approve":
-          case "not_submitted":
-            if (!allPass) {
-              throw new Error(
-                "Passing approval requires every checklist item to pass",
-              );
-            }
-            break;
-          case "incomplete":
-            if (checks.complete_review.result === "Pass") {
-              throw new Error("Incomplete review cannot pass complete_review");
-            }
-            break;
-          case "waiting_checks":
-            if (
-              checks.verification.result !== "Not verified" ||
-              Object.entries(checks).some(
-                ([name, check]) =>
-                  name !== "verification" && check.result !== "Pass",
-              )
-            ) {
-              throw new Error(
-                "Waiting for checks requires all other items to pass",
-              );
-            }
-            break;
-          case "changes_needed":
-            if (
-              allPass ||
-              [
-                checks.focused,
-                checks.low_risk,
-                checks.no_sensitive_changes,
-                checks.complete_review,
-              ].some((check) => check.result !== "Pass")
-            ) {
-              throw new Error(
-                "Changes needed requires a completed focused low-risk review and a remaining blocker",
-              );
-            }
-            break;
-        }
-        if (
-          approval.outcome !== "human_review" &&
-          [checks.low_risk, checks.no_sensitive_changes].some(
-            (check) => check.result === "Fail",
-          )
-        ) {
-          throw new Error(
-            "Known risk or sensitive behaviour failures require human review",
-          );
-        }
       }
       if (setup.mode === "split") {
         if (approval.outcome !== "split" || inlineComments.length > 0) {
           throw new Error(
             "Split-only output must not claim implementation approval or inline findings",
           );
+        }
+        if (checks !== null) {
+          throw new Error("Split approval must use checks null");
         }
         return;
       }
@@ -489,6 +468,14 @@ export function decideReview(args: ReviewStepInput) {
       }
       if (!report) {
         throw new Error("Approval requires an accepted report");
+      }
+      if (
+        ["approve", "not_submitted"].includes(approval.outcome) &&
+        Object.values(checks).some((check) => check.result !== "Pass")
+      ) {
+        throw new Error(
+          "Passing approval requires every checklist item to pass",
+        );
       }
       const sources = Object.entries(args.results).flatMap(([stage, result]) =>
         result.findings.map((finding) => ({
@@ -583,22 +570,6 @@ function reviewAgent<Result extends z.infer<typeof ReviewEvidenceSchema>>({
     validate: (result) => {
       if (result.base !== input.base || result.head !== input.head) {
         throw new Error("Assessment revisions differ from pinned inputs");
-      }
-      if (
-        result.checks.some(
-          (check) =>
-            !check.evidence.length &&
-            ![
-              "Blocked",
-              "Not run",
-              "N/A",
-              "CI pending",
-              "CI skipped",
-              "CI cancelled",
-            ].includes(check.result),
-        )
-      ) {
-        throw new Error("Verified checks require evidence");
       }
       if (
         new Set(result.findings.map((finding) => finding.id)).size !==

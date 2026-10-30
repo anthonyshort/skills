@@ -50,7 +50,7 @@ Install this package and `@tintinweb/pi-subagents@0.22.0` in Pi, enable package 
 
 Use a clean checkout at the pinned head. `local-only` suppresses external updates. To enable them, use `publication: "publish"` and supply `github: { "repository": "owner/app", "pr": 42 }`. Host notifications use the configured host tools and default to the key `review:RUN_ID`; pass `notification: null` to disable them. `comment-only` submits a comment review without approving. `publish` may approve only when the assessment allows it and the publishing agent verifies the current head, CI and discussion. `publication.review.state` records the confirmed submission state; the assessment alone does not confirm approval. These freshness checks are agent instructions; the Picco tool pins the commit but does not enforce them.
 
-Start at `src/review/workflow.ts` for the sequence and delivery wiring. Named workers in `src/review/steps.ts` own their inline schemas, validation callbacks and embedded Markdown prompts. `schemas.ts` contains review inputs, shared evidence fields and result types derived from the workers.
+Start at `src/review/workflow.ts` for the sequence and delivery wiring. Named workers in `src/review/steps.ts` own their inline schemas, validation callbacks and embedded Markdown prompts. `input.ts` owns caller configuration and defaults. Worker evidence and result types stay with the steps; public results, plugin outcomes and lifecycle event types stay with the workflow. There is no central schema or type collection.
 
 GitHub and notification plugins live under `src/review/plugins/<name>/index.ts`, with schemas beside their consumers. The plugins share progress derivation in `plugins/progress.ts`; GitHub renders its own checklist, and report coverage rendering stays private to review finalisation.
 
@@ -59,6 +59,8 @@ GitHub and notification plugins live under `src/review/plugins/<name>/index.ts`,
 The [workflow helper README](src/workflow/README.md) documents the exported APIs, `WorkflowPlugin` type, examples, failure handling and snapshot ownership.
 
 The underlying `createWorkflowRun<Input, Results>` in `src/workflow/run.ts` runs arrays of `{ name, execute }` tasks against one prior-results snapshot; singleton arrays preserve the sequence. Tasks receive `{ input, results }`, and names determine accepted result keys. The runner emits awaited `tasksStarted` and `tasksFinished` events. `src/workflow/agent.ts` provides structured-output validation and bounded agent retries through an explicit agent-call dependency. The runner does not retry tasks or delivery.
+
+Worker output schemas focus on reporting and publication data. Result-map keys identify steps; answers do not repeat a stage field. Descriptive check statuses remain text, local parsing ignores extra fields, and multiline reasons are accepted. Finding kinds and dispositions remain constrained because they affect publication. Revision pins, unique finding IDs, rule and finding accounting, seven-check approval eligibility and accepted-new-bug inline sources remain enforced. Per-check evidence sufficiency, prose formatting and withheld-approval classifications remain worker guidance.
 
 Run `npm install`, then `npm run build` to rebuild the JavaScript Pi loads. `npm test` checks types, oxfmt, generated-output freshness and colocated unit tests. These checks do not validate live model behaviour or real delivery.
 

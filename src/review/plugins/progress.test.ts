@@ -3,8 +3,8 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseReviewInput } from "../schemas.js";
-import type { StageResults } from "../schemas.js";
+import { parseReviewInput } from "../input.js";
+import type { StageResults } from "../steps.js";
 import { reviewEventProgress } from "./progress.js";
 
 const evidence = {
@@ -18,7 +18,6 @@ const evidence = {
 const stages: StageResults = {
   setup: {
     ...evidence,
-    stage: "setup",
     mode: "full",
     addedLines: 1,
     deletedLines: 0,
@@ -45,7 +44,7 @@ test("a failed batch keeps accepted siblings complete in progress", () => {
     type: "tasksFinished",
     names: ["product", "correctness"],
     snapshot: {
-      results: { ...stages, product: { ...evidence, stage: "product" } },
+      results: { ...stages, product: { ...evidence } },
       failures: [{ name: "correctness", reason: "Attempts exhausted." }],
     },
   });

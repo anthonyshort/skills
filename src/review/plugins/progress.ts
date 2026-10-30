@@ -1,18 +1,18 @@
 /**
  * Derive the shared progress view consumed by GitHub and host notifications.
  */
-import { stageNames } from "../schemas.js";
-import type { ReviewEvent, ReviewRun, StageName } from "../schemas.js";
+import type { ReviewEvent, ReviewResult } from "../workflow.js";
+import type { StageName } from "../steps.js";
 import type { PublicationResult } from "./github/index.js";
 
 type ProgressStep = StageName | "publication" | "review";
 type ProgressStatus =
-  | ReviewRun["status"]
+  | ReviewResult["status"]
   | PublicationResult["status"]
   | "running"
   | "blocked";
 export type ProgressStatuses = Partial<Record<ProgressStep, ProgressStatus>>;
-type ReviewSnapshot = Pick<ReviewRun, "stages" | "failures">;
+type ReviewSnapshot = Pick<ReviewResult, "stages" | "failures">;
 
 /**
  * Derive progress without retaining state. workflowCompleted carries plugin
@@ -95,14 +95,11 @@ export function reviewProgress({
   stages,
   failures,
 }: ReviewSnapshot): ProgressStatuses {
-  const statuses: ProgressStatuses = {};
-  for (const stage of stageNames) {
-    if (stages[stage]) {
-      statuses[stage] = "complete";
-    }
-    if (failures.some((failure) => failure.stage === stage)) {
-      statuses[stage] = "blocked";
-    }
+  const statuses: ProgressStatuses = Object.fromEntries(
+    Object.keys(stages).map((name) => [name, "complete"] as const),
+  );
+  for (const { stage } of failures) {
+    statuses[stage] = "blocked";
   }
   return statuses;
 }

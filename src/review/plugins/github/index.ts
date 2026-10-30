@@ -7,15 +7,13 @@ import type { WorkflowPlugin } from "../../../workflow/create.js";
 import type { ReviewContext } from "../../steps.js";
 import { errorMessage } from "../../../workflow/run.js";
 import type { ProgressStatuses } from "../progress.js";
-import { InlineCommentSchema } from "../../schemas.js";
+import type { ReviewInput } from "../../input.js";
+import type { ReviewResults } from "../../steps.js";
 import type {
-  ReviewInput,
-  ReviewRun,
   ReviewEvent,
   ReviewResult,
   ReviewPluginResults,
-  ReviewResults,
-} from "../../schemas.js";
+} from "../../workflow.js";
 import { reviewProgress, reviewEventProgress } from "../progress.js";
 
 const text = z
@@ -68,8 +66,10 @@ const GithubReviewRequestSchema = GithubCommentRequestSchema.omit({
   commitId: z.string().regex(/^[a-f0-9]{40}$/i),
   comments: z
     .array(
-      InlineCommentSchema.omit({ id: true }).extend({
+      z.strictObject({
         path: text.max(1000),
+        line: z.number().int().positive(),
+        side: z.enum(["LEFT", "RIGHT"]),
         body: text.max(65_536),
       }),
     )
@@ -161,7 +161,7 @@ export const createGithubComment: WorkflowPlugin<
   async function publishToGithub({
     review,
   }: {
-    review: ReviewRun;
+    review: ReviewResult;
   }): Promise<PublicationResult> {
     if (!enabled || !target) {
       return publication;

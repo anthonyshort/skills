@@ -3,8 +3,8 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseReviewInput } from "./schemas.js";
-import type { ReviewResults } from "./schemas.js";
+import { parseReviewInput } from "./input.js";
+import type { ReviewResults } from "./steps.js";
 import { researchReview, checkRules, decideReview } from "./steps.js";
 import type { ReviewContext } from "./steps.js";
 
@@ -27,7 +27,6 @@ const evidence = {
 };
 const setup: ReviewResults["setup"] = {
   ...evidence,
-  stage: "setup",
   mode: "full",
   addedLines: 1,
   deletedLines: 0,
@@ -61,7 +60,6 @@ function context(answer: unknown): ReviewContext {
 test("worker evidence must match the pinned revisions", async () => {
   const input = context({
     ...evidence,
-    stage: "research",
     head: "c".repeat(40),
   });
   await assert.rejects(
@@ -71,8 +69,23 @@ test("worker evidence must match the pinned revisions", async () => {
   assert.equal(input.attempts.length, 2);
 });
 
+test("descriptive check statuses and unused metadata do not trigger retries", async () => {
+  const input = context({
+    ...evidence,
+    stage: "research",
+    checks: [
+      { ...evidence.checks[0], result: "Source inspected", evidence: [] },
+    ],
+    gaps: ["The worker explains its evidence gap in the report."],
+  });
+  const answer = await researchReview({ input, results: {} });
+  assert.equal(answer.checks[0].result, "Source inspected");
+  assert.equal("stage" in answer, false);
+  assert.deepEqual(input.attempts, []);
+});
+
 test("rule coverage rejects a silently omitted rule", async () => {
-  const input = context({ ...evidence, stage: "rules", rules: [checkedRule] });
+  const input = context({ ...evidence, rules: [checkedRule] });
   await assert.rejects(
     checkRules({
       input,
@@ -96,7 +109,7 @@ test("an explicitly skipped rule still counts as accounted for", async () => {
     reason: "No relevant asynchronous operation changed.",
     evidence: [],
   };
-  const input = context({ ...evidence, stage: "rules", rules: [skipped] });
+  const input = context({ ...evidence, rules: [skipped] });
   const answer = await checkRules({ input, results: { setup } });
   assert.deepEqual(answer.rules, [skipped]);
   assert.deepEqual(input.attempts, []);
@@ -104,7 +117,6 @@ test("an explicitly skipped rule still counts as accounted for", async () => {
 
 const splitDecision: ReviewResults["decision"] = {
   ...evidence,
-  stage: "decision",
   approval: {
     outcome: "split",
     changed_lines: 1,
@@ -137,14 +149,53 @@ test("split reviews cannot include inline findings", async () => {
   );
 });
 
-test("a split assessment completes without a full-review report", async () => {
-  const input = context(splitDecision);
+test("a split assessment accepts multiline reasons without a full-review report", async () => {
+  const reason = "Split the change.\nKeep each review focused.";
+  const input = context({
+    ...splitDecision,
+    approval: { ...splitDecision.approval, reason },
+  });
   const answer = await decideReview({
     input,
     results: { setup: { ...setup, mode: "split" } },
   });
   assert.equal(answer.approval.outcome, "split");
+  assert.equal(answer.approval.reason, reason);
   assert.deepEqual(input.attempts, []);
+});
+
+test("approval still requires every checklist item to pass", async () => {
+  const pass = { result: "Pass", reason: "Inspected." };
+  const checks = {
+    focused: pass,
+    low_risk: pass,
+    no_sensitive_changes: pass,
+    clean_review: pass,
+    complete_review: pass,
+    verification: pass,
+    concerns_resolved: pass,
+  };
+  for (const result of ["Pass", "Fail", "Not verified"]) {
+    const input = context({
+      ...splitDecision,
+      approval: {
+        outcome: "approve",
+        changed_lines: 1,
+        checks: { ...checks, verification: { ...pass, result } },
+        reason: "Ready for review.",
+        next_steps: [],
+      },
+    });
+    const answer = decideReview({
+      input,
+      results: { setup, report: { ...evidence, decisions: [] } },
+    });
+    if (result === "Pass") {
+      assert.equal((await answer).approval.outcome, "approve");
+    } else {
+      await assert.rejects(answer, /every checklist item to pass/);
+    }
+  }
 });
 
 test("inline findings must resolve to an accepted new bug", async () => {
@@ -178,7 +229,7 @@ test("inline findings must resolve to an accepted new bug", async () => {
       input,
       results: {
         setup,
-        report: { ...evidence, stage: "report", decisions: [] },
+        report: { ...evidence, decisions: [] },
       },
     }),
     /Inline findings must reference an accepted new bug/,

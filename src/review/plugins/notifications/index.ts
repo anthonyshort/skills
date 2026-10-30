@@ -7,7 +7,7 @@ import type {
   ReviewEvent,
   ReviewResult,
   ReviewPluginResults,
-} from "../../schemas.js";
+} from "../../workflow.js";
 import type { ReviewContext } from "../../steps.js";
 import { errorMessage } from "../../../workflow/run.js";
 import { reviewEventProgress } from "../progress.js";
