@@ -21,12 +21,48 @@ skills/
   ...
 package.json
 scripts/link.py
+src/review/
+workflows/review.js  # generated from TypeScript
 ```
 
-There are no runtime dependencies or agent-specific copies. The small `pi` manifest
-exports `./skills` as a Pi package. The review workflow uses equivalent agents or
-its documented fallback when its named agents are unavailable. The personal GitHub
-review attribution remains `Sent with Pi` on all agents.
+The `pi` manifest exports the skills and an opt-in review workflow. The ordinary review skill uses equivalent agents or its documented fallback when named agents are unavailable. The personal GitHub review attribution remains `Sent with Pi` on all agents.
+
+## Review workflow for Pi
+
+The experimental named `review` workflow runs the required assessments in an existing Pi session and returns the report, approval assessment and accepted evidence in memory. GitHub publication requires the separate [Picco GitHub plugin](https://github.com/anthonyshort/picco/tree/main/packages/plugin-github/src) to expose `github_comment` for progress and `github_review` for the final report and inline findings. Missing tools are reported as publication failures while the accepted report remains available. The original review skill remains unchanged.
+
+Install this package and `@tintinweb/pi-subagents@0.22.0` in Pi, enable package workflow discovery and reload. Invoke `SubagentWorkflow` with:
+
+```json
+{
+  "name": "review",
+  "args": {
+    "packageRoot": "/home/me/dev/skills",
+    "repository": "/home/me/dev/app",
+    "target": "owner/app PR #42",
+    "base": "FULL_BASE_COMMIT_SHA",
+    "head": "FULL_HEAD_COMMIT_SHA",
+    "runId": "app-pr42-review",
+    "publication": "local-only"
+  }
+}
+```
+
+Use a clean checkout at the pinned head. `local-only` suppresses external updates. To enable them, use `publication: "publish"` and supply `github: { "repository": "owner/app", "pr": 42 }`. Host notifications use the configured host tools and default to the key `review:RUN_ID`; pass `notification: null` to disable them. `comment-only` submits a comment review without approving. `publish` may approve only when the assessment allows it and the publishing agent verifies the current head, CI and discussion. `publication.review.state` records the confirmed submission state; the assessment alone does not confirm approval. These freshness checks are agent instructions; the Picco tool pins the commit but does not enforce them.
+
+Start at `src/review/workflow.ts` for the sequence and delivery wiring. Named workers in `src/review/steps.ts` own their inline schemas, validation callbacks and short assignments pointing to sections in the original review skill. Workers read those sections and templates from `skillRoot` at runtime; the complete skill collection must be accessible inside the worker’s filesystem. The workflow does not copy the skill instructions or execute its file-saving and Python publication steps. `input.ts` owns caller configuration and defaults. Worker evidence and result types stay with the steps; public results, plugin outcomes and lifecycle event types stay with the workflow. There is no central schema or type collection.
+
+GitHub and notification plugins live under `src/review/plugins/<name>/index.ts`, with schemas beside their consumers. The plugins share progress derivation in `plugins/progress.ts`; GitHub renders its own checklist, and the report’s assessment and rule evidence appendix is rendered privately during review finalisation.
+
+`createWorkflow` in `src/workflow/create.ts` composes an input parser, named plugin functions, an explicit `execute` sequence and a domain-specific `finalize` function. Each `run(args)` parses before plugin setup and creates fresh input, events, plugin state and task results. Plugins receive `{ input, events }` and return `{ state, complete? }`; events are subscribe-only and asynchronous setup finishes before execution. Task failures retain partial results for finalisation, while unexpected errors propagate. After finalisation, the factory awaits every plugin completion hook, then emits `workflowCompleted` with the result and plugin states. Final notifications read the resolved GitHub publication state from this standard event, independently of plugin registration order. The factory awaits final observers before returning `{ result, plugins }`; the review definition infers its type parameters from typed functions.
+
+The [workflow helper README](src/workflow/README.md) documents the exported APIs, `WorkflowPlugin` type, examples, failure handling and snapshot ownership.
+
+The underlying `createWorkflowRun<Input, Results>` in `src/workflow/run.ts` runs arrays of `{ name, execute }` tasks against one prior-results snapshot; singleton arrays preserve the sequence. Tasks receive `{ input, results }`, and names determine accepted result keys. The runner emits awaited `tasksStarted` and `tasksFinished` events. `src/workflow/agent.ts` provides structured-output validation and bounded agent retries through an explicit agent-call dependency. The runner does not retry tasks or delivery.
+
+Worker output schemas focus on reporting and publication data. Result-map keys identify steps; answers do not repeat a stage field. Descriptive check statuses remain text, local parsing ignores extra fields, and multiline reasons are accepted. Finding kinds and dispositions remain constrained because they affect publication. Revision pins, unique finding IDs, rule and finding accounting, seven-check approval eligibility and accepted-new-bug inline sources remain enforced. Per-check evidence sufficiency, prose formatting and withheld-approval classifications remain worker guidance.
+
+Run `npm install`, then `npm run build` to rebuild the JavaScript Pi loads. `npm test` checks types, oxfmt, generated-output freshness and colocated unit tests. Factory tests run sequential and parallel tasks through `createWorkflow`, including asynchronous plugins, finalisation and partial failures. Review-step tests inject answers at the agent-call boundary. These checks do not validate live model behaviour, runtime access to skill files or real delivery.
 
 ## Communication style
 
