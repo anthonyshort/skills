@@ -70,7 +70,7 @@ await expect(readInvoice("missing")).rejects.toBeInstanceOf(InvoiceNotFoundError
 
 ## Set useful test boundaries
 
-- **Keep the claim real**: Do not mock the operation whose behaviour you claim to test. Keep domain collaborators real when they are part of that claim. For client request, persistence or recovery behaviour, exercise the real client with a controlled external boundary. A frontend-owned permission calculation can be tested directly without a network request.
+- **Keep the claim real**: Do not mock the operation whose behaviour you claim to test. Keep domain collaborators real when they are part of that claim. To check how a client sends requests, saves data or handles failure, use the real client with fake responses from the service it calls. A permission calculation implemented entirely in the frontend can be tested directly without a network request.
 - **Inject dependencies through supported APIs**: Use constructors, factories or providers. Avoid replacing modules or reaching into private implementation details.
 - **Mock external effects**: Use a boundary handler, such as the project's MSW setup, for network calls. Assert caller-visible results and meaningful wire fields rather than internal helper calls.
 - **Reuse test infrastructure**: Share the supported server and lifecycle. If none exists, configure one through the runner. Avoid duplicate interceptors. Keep unavoidable browser/runtime stand-ins in shared setup.

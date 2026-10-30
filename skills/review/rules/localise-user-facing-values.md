@@ -1,28 +1,28 @@
-# Localise values shown to users
+# Use the app’s locale when formatting values
 
 ## When to check
 
-Changed code displays or formats currency, dates, times, numbers, percentages or other locale-sensitive values.
+The change formats money, dates, times, numbers, percentages or other values whose display depends on the user’s language and region.
 
 ## What to check
 
-- Trace the displayed value from its caller to the formatter and the active application locale. Inspect hardcoded locale strings, implicit runtime defaults, `Intl` calls and custom formatting helpers as leads, not proof of a violation.
-- Use the existing locale-aware component or formatter. If a pure helper cannot accept locale, add that capability and pass the active locale from the UI boundary. Do not call a React hook from a plain formatter or module-level column definition.
-- Preserve the value's currency code, precision, units and domain timezone. Locale changes presentation, not which currency an amount represents or when a deadline occurs.
-- Compare meaningful output in different supported locales. Check date boundaries when timezone or calendar-date semantics matter. Do not require migrating unrelated callers to fix the changed presentation.
-- Treat verified failures to follow the active application locale as required corrections, not optional style suggestions. Explain the affected output and supported correction. Severity depends on impact, and unavailable locale evidence remains a coverage gap.
+- Find where the app gets the user’s language and region preferences, called its locale. Follow the displayed value to the formatter and check that it uses this locale. A fixed locale, the runtime’s default or a custom formatter is a reason to inspect the caller, not proof of a problem.
+- Use an existing component or formatter that uses the app’s locale. If a plain helper cannot use it, add a locale argument and pass it from the UI. Call React hooks from a component or columns hook, not from a plain function or a column definition at module level.
+- Keep the amount’s currency, decimal places and units unchanged. Keep the timezone chosen for the feature. Locale controls how a value is written, not which currency it is in or when a deadline falls.
+- Compare the output in different supported locales. For dates, check times near midnight when changing timezone could change the day shown. Limit the fix to the changed display and callers it affects.
+- When the output uses the wrong locale, require a fix rather than calling it an optional style change. Show the affected output and how to correct it with an available API. Set priority from the impact. If the expected locale cannot be established, say what is unknown.
 
 ## Why it matters
 
-Fixed or machine-default formatting can show unfamiliar separators, currency placement or dates that disagree with the rest of the application. Formatting changes can also accidentally alter financial precision or calendar-day meaning.
+A fixed locale or server default can show separators, currency symbols or dates differently from the rest of the app. A formatting fix can also accidentally round an amount differently or show the wrong day.
 
 ## Exceptions
 
-Machine-readable serialisation, identifiers, protocol formats and explicitly fixed scientific or domain displays may require a stable format. An intentional UTC calendar date can still use the viewer's locale. Preserve an established technical display mode rather than assuming every number should use locale grouping.
+Data sent between systems, identifiers and protocol messages may need a fixed format. Scientific displays or formats required by a feature can also stay fixed. A date that must be shown in UTC can still use the viewer’s locale. Keep the chosen scientific or technical number format when changing it would change its meaning.
 
 ## Good and bad examples
 
-Assume the caller has the active locale, amounts are in whole currency units, and this display requires two decimal places. The currency comes from the record, not from locale. A real caller must retain its own precision policy.
+In this example, the caller has the app’s locale. Amounts are already in whole currency units, and this display requires two decimal places. The currency comes from the record. Other callers should keep the number of decimal places their feature requires.
 
 ```typescript
 // Bad: ignores the active locale.
@@ -35,7 +35,7 @@ function formatAmountBefore(amount: number, currency: string): string {
   }).format(amount);
 }
 
-// Good: the UI supplies locale while the amount's contract stays the same.
+// Good: use the app's locale without changing the amount or currency.
 function formatAmount(amount: number, currency: string, locale: string): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
@@ -46,9 +46,9 @@ function formatAmount(amount: number, currency: string, locale: string): string 
 }
 ```
 
-For `1234.5` USD, compare `en-GB` with `de-DE`: grouping, decimal separators and currency placement should follow locale while USD and two decimal places remain unchanged.
+For `1234.5` USD, compare `en-GB` with `de-DE`. Grouping, decimal separators and currency placement should change. The currency should still be USD, with two decimal places.
 
-An intentionally UTC date is a valid exception to viewer-timezone conversion, not to localisation:
+If a billing date must stay in UTC, pass the locale without changing that timezone:
 
 ```typescript
 function formatBillingDay(day: Date, locale: string): string {

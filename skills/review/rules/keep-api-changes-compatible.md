@@ -2,7 +2,7 @@
 
 ## When to check
 
-The change modifies a function, event, HTTP or operational logging contract used by supported consumers.
+The change affects a function, event, HTTP API or log output that other code, monitors or alerts rely on.
 
 ## What to check
 
@@ -10,7 +10,7 @@ The change modifies a function, event, HTTP or operational logging contract used
 - For HTTP changes, compare methods, statuses, response shapes and machine-readable error codes.
 - Check that callers still handle success and can distinguish failures they react to, such as validation errors, conflicts and rate limits.
 - Check ordering, cancellation and cleanup when callers depend on them.
-- Treat monitors, dashboards, filters and alert routing as consumers of log levels, error names, tags and structured fields. Inspect those consumers before changing classification, wrapping errors or moving fields. Preserve the contract or migrate its operational consumers together.
+- Find the monitors, dashboards, filters and alerts that read the changed logs. Check which log levels, error names, tags and fields they use before changing them or wrapping an error. Keep those values working for the readers, or update the readers in the same change.
 - Identify callers that need migration. Follow the supported migration or versioning approach where clients cannot all move together.
 - Support the result with actual calls, response handling and focused checks. Show before-and-after caller code for proposed changes.
 
@@ -20,7 +20,7 @@ A change can work in isolation while breaking caller behaviour or sending a fail
 
 ## Exceptions
 
-An intentional breaking change can be valid when affected callers move together or have a supported migration. Intentional log-noise reduction is valid when its effect on existing alerts is understood. Do not add versioning or monitoring for hypothetical consumers or every debug log. Report consumers you cannot inspect as a coverage limit.
+An intentional breaking change can be valid when affected callers move together or have a supported migration. Reducing noisy logs is valid when the effect on existing alerts is understood. Do not add versioning or monitors for possible future callers or every debug log. Say which callers or monitors you could not check.
 
 ## Good and bad examples
 
@@ -47,4 +47,4 @@ return Response.json({ code: "INVOICE_NOT_FOUND" }, { status: 404 });
 
 If the new code is intentional, migrate the caller and test its recovery branch. Preserving the old code is not the only valid solution.
 
-A monitor filtering `level:error` is another caller. Moving the relevant event to warning can remove coverage even if its message stays the same. Update that query when the level change is intentional. Likewise, check that a wrapped error retains the stable error name and structured fields its consumers use.
+A monitor filtering `level:error` may stop detecting a failure if its log moves to warning, even when the message stays the same. Update the monitor’s query when that level change is intended. When wrapping an error, keep the error name and fields that existing filters read.

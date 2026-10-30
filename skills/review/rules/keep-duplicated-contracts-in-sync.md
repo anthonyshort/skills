@@ -1,44 +1,44 @@
-# Give duplicated contracts an explicit source
+# Keep copied types and values in sync
 
 ## When to check
 
-Changed code recreates externally or jointly owned types, schemas, enum members, policy lists, error shapes or defaults.
+The change copies types, schemas, enum members, policy lists, error fields or defaults defined elsewhere.
 
 ## What to check
 
-- Find the canonical owner and trace the actual consumers of both representations. Similar names alone do not establish that they have the same contract.
-- Reuse shared or generated definitions when available. For an intentional local representation, identify its upstream source, maintenance owner and synchronisation mechanism, such as a generation step or representative compatibility check.
-- For a provisional integration, establish which boundary will be replaced when the real contract is available. Do not treat a vendor model as a generated server contract without checking.
-- Support a concern with a demonstrated mismatch or a concrete drift path. Recommend the smallest correction that keeps the consumers compatible.
+- Find the code that defines the original type or value, then find where each copy is used. Check that the copies are meant to describe the same thing. Similar names alone do not prove this.
+- Use an existing shared definition or generated type where possible. If a copy is needed, identify where it comes from, who updates it and how the copies stay in sync. This could be a generation step or a check that compares the values the two systems exchange.
+- For a temporary frontend type, explain what will replace it when the backend is ready. Check whether it describes the backend API or a separate vendor API before recommending generated types.
+- Show a mismatch or explain a change that could make the copies disagree. Suggest the smallest fix that keeps the code using them working together.
 
 ## Why it matters
 
-Two locally valid definitions can diverge silently. Type checking each copy does not prove that the systems exchanging those values agree.
+Two copies can disagree even when each passes type checking. One system might then send a value that the other does not accept.
 
 ## Exceptions
 
-Vendor boundaries, independently versioned systems and temporary integrations can need local representations. A small accepted duplication can be maintained explicitly. Do not demand a code-generation system or unavailable backend types merely to remove a few repeated fields.
+A vendor API, a separately released system or an unfinished integration may need a local type. A small copy can stay when there is an agreed way to update it. Do not require a generation system or backend types that do not yet exist just to remove a few repeated fields.
 
 ## Good and bad examples
 
-Assume both consumers must accept the same document kinds and can import the shared module. These are module-shape examples, not APIs guaranteed to exist in a reviewed repository.
+Assume both parts of the app must accept the same document kinds and can import the shared file. These examples show the proposed files, not APIs assumed to exist in the reviewed code.
 
 ```typescript
-// shared/document-kinds.ts: the canonical contract.
+// shared/document-kinds.ts defines the supported kinds.
 export const documentKinds = ["note", "image"] as const;
 export type DocumentKind = (typeof documentKinds)[number];
 ```
 
 ```typescript
-// Bad: a second maintained copy has already missed one supported kind.
+// Bad: this copy has missed one supported kind.
 const acceptedKinds = ["note"];
 ```
 
 ```typescript
-// Good: both consumers use the owning module.
+// Good: use the file that defines the supported kinds.
 import { documentKinds } from "./shared/document-kinds";
 
 const acceptedKinds = documentKinds;
 ```
 
-An independently deployed consumer may not be able to import this module. Keep its local representation when necessary, with an explicit supported version and a check that detects incompatible changes.
+A separately released app may be unable to import this file. It can keep a copy if the supported version is clear and a check catches changes that would make the two apps disagree.
