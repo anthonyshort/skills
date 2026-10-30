@@ -33,7 +33,7 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Display expressions accurately](display-expressions-accurately.md) | The change renders a formula, condition, query or other expression, or substitutes display names and bindings into one. |
 | [Explain why code works this way](explain-why-code-works-this-way.md) | The change introduces unclear names, unusual ordering, a workaround, or comments that no longer describe the code. |
 | [Handle only the error you mean to handle](handle-only-the-intended-error.md) | The change adds a retry, fallback, broad catch or optional request whose failure can affect other content. |
-| [Handle the supported data shapes](handle-supported-data-shapes.md) | The change adds an enum or union case, branches several times on the same enum, union or state value, changes runtime validation, or reads saved data that may come from another supported version. |
+| [Handle the supported data shapes](handle-supported-data-shapes.md) | The change adds an enum or union case, changes runtime validation, or reads saved data that may come from another supported version. |
 | [Keep API pages within the requested data](keep-api-pages-scoped-and-bounded.md) | The change adds or changes paginated reads, page sizes or page tokens. |
 | [Keep controls accessible](keep-controls-accessible.md) | The change adds or changes controls, keyboard interactions, focus handling, accessibility attributes or wrappers around rich content. |
 | [Keep logs useful without exposing private data](keep-logs-useful-and-safe.md) | The change adds or changes logs, error summaries, error wrapping or fields sent to monitoring tools. |
@@ -45,3 +45,4 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Show the actual loading and result state](show-loading-and-error-states.md) | The change displays asynchronous results, progress, success messages or actions that can become unavailable. |
 | [Test the real behaviour](test-the-real-behaviour.md) | The change adds or updates tests, changes behaviour covered by tests, or claims that a client, store, provider or interaction is protected by a test. |
 | [Use stable IDs and predictable ordering](use-stable-ids-and-ordering.md) | The change identifies selected items, stores references to them, or sorts and pages results. |
+| [Use switches for related cases](use-switches-for-related-cases.md) | The change branches several times on the same enum, union or state value. |
