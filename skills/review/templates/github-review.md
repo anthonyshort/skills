@@ -39,9 +39,9 @@ Use the [live comment’s assessment-first layout](github-progress.md#final-summ
 
 - **{{ Finding ID }} — {{ Action-led title }}:** {{ Supported issue and useful action. Mark existing concerns. }}
 
-#### Opportunities
+#### Recommendations and decisions
 
-{{ Clearly optional improvements without invented severity. Keep the same finding IDs. Avoid repeating alternatives from the approach fold. Omit empty sections. }}
+{{ Visible non-bug recommendations and decisions from the assessments and rule checks. State the concrete change, reason, required/recommended/optional status and useful proposed snippet. Reuse finding IDs and existing thread links. Supporting rationale can remain folded, but actionable content must be understandable here. Omit empty sections. }}
 
 <details>
 <summary>Full report</summary>
@@ -55,10 +55,11 @@ Group supported defects by P0, P1 and P2, omitting empty groups. The excerpt sho
 
 ## Findings and evidence
 
-- Explain what happens, why it matters and what should change in short conversational prose. Use action-led titles and concrete language. No forced Trigger/Effect/Action fields or attribution footer.
+- Explain what happens, why it matters and what should change in conversational prose. Include the essential source evidence and useful current/proposed snippets so the author can assess and act without expanding Full report. Use action-led titles and concrete language. No forced Trigger/Effect/Action fields, fixed sentence limit or attribution footer.
 - Preserve shared finding IDs across the summary, full report and inline comments. Link existing concerns instead of presenting them as new. Separate required fixes, optional suggestions, questions and nits.
 - Keep priorities tied to supported impact and likelihood. Missing evidence alone is not a prioritised defect. Never invent blockers or severity for optional work.
-- Use a short code example when it clarifies the issue or alternative. Pin current excerpts to the reviewed revision and label proposed code. Put long traces in the report.
+- Use a short code example when it clarifies the issue or alternative. Pin current excerpts to the reviewed revision and label proposed code. Do not replace an actionable example with a vague instruction to simplify or extract. Put long traces in the report.
+- Check visible action coverage against the canonical report. Preserve substantive non-bug assessment recommendations, existing concerns, decisions and verification actions as well as defects. Connect concern rules to those actions rather than reporting only counts. Merge overlaps instead of dropping recommendations into folds or generic Next steps.
 - New line-specific bugs go inline when valid anchors exist. Include the consequence, requested correction and concise evidence. Keep unanchored findings in the body. Do not duplicate published inline comments.
 - Explain human-review recommendations in plain English. Keep wrapper names, publication mechanics and routine gaps inside Full report. Concise actionable CI blockers may appear in the summary or Next steps. No general CI rollup or CI status inline.
 - Preserve all detailed research, individual checks, guidance references, methods, evidence and uncertainty in the [canonical report](review-report.md). Distinguish source inspection, CI and manual checks. Do not imply tests passed merely because they were read.
