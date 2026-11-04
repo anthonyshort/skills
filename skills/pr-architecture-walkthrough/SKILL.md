@@ -9,22 +9,21 @@ Help the reviewer understand the relevant system and how the change reshapes it 
 
 ## Write for a busy reviewer
 
-- Assume the reader reviews many PRs each day. Help them get up to speed with little effort.
-- Lead with the problem and the design change in everyday English. Explain what happens before naming the mechanism.
-- Prefer short sentences and short bullets. Give each bullet one point. Avoid dense paragraphs, long table cells and lists of technical terms.
+- Assume the reader reviews many PRs each day and can read code, but does not know this part of the system. Start with a concrete action and its result, then explain the code that makes it happen.
+- Explain each chunk in everyday English before introducing its types, functions or files. Use code names to help the reader find the implementation, not as substitutes for explaining it.
+- Keep the connections that explain the system. Simpler English means explaining who calls a function, what goes in and where the result appears, rather than removing that context or listing symbols.
 - Use a concrete example and small diagrams to carry the explanation. Keep diagram labels short and readable without studying the code.
 - Default to roughly 500–800 words for the main brief. Treat this as a guide, not a quota. A small change needs less. Add detail only when it changes the reader’s understanding.
-- Keep the main path prominent. Include exceptions and trade-offs when they affect the design. When useful, group selected changed files by what they do together, with links and a short explanation. Omit inventories of every changed consumer or test.
+- Organise the report into chunks that each explain one meaningful change. Explain why the files in a chunk work together, with links to the important parts. Keep the main path prominent and omit inventories of every changed consumer or test.
 - Point the reader to the few source locations that best explain the design. Suggest a reading order when useful. Work these pointers into the explanation or give them their own section, whichever reads better.
 - Keep source links beside the relevant point, but avoid long evidence lists. Put full commit IDs, preparation metadata and verification notes at the end. Put an essential missing dependency near the top.
 - Explain each fact once. A diagram and nearby prose should help each other, rather than repeat the same steps.
-- Before finishing, reread the opening as a tired reviewer. Can they explain the problem and new design without decoding terms or following links? Simplify until they can.
 
 ## Scope and delivery
 
 - Read source code and available context. Generate the brief locally. Do not modify implementation code, submit reviews, post comments or configure automation unless separately requested.
 - Use the supplied PR, branch or stack. Assignment events and scheduling belong to the calling automation. This skill does not discover an ongoing queue or run a watcher.
-- Work without requiring a conversation. Resolve routine choices from the available evidence. If essential source or scope is unavailable, save a clearly labelled partial brief explaining the gap and what is needed to complete it. Do not fill gaps with plausible architecture.
+- Deliver one complete report that the reader can read at their own pace. Do not pause between chunks unless asked. Resolve routine choices from the available evidence. If essential source or scope is unavailable, save a clearly labelled partial brief explaining the gap and what is needed to complete it. Do not fill gaps with plausible architecture.
 - Save to the caller’s requested path. Otherwise use `~/.cache/pi/pr-architecture-walkthrough/<owner>/<repo>/pr-<number>/walkthrough.md`, or a similarly named directory for a local branch or stack. If unavailable, use a temporary directory and return its path.
 - Record the repository, PR links, preparation time and exact compared revisions in the brief. State whether it is complete or partial. Completion means the explanation covers the identified scope, not that the change is correct.
 - Choose the headings, order and shape of the brief to suit the change. There is no prescribed outline or section checklist. Keep the first screen useful to someone about to review.
@@ -42,12 +41,14 @@ Help the reviewer understand the relevant system and how the change reshapes it 
 - Begin with the action or product behaviour the change concerns. Explain the domain terms needed to follow it.
 - Read the baseline implementation, including unchanged callers, dependencies and wiring. A patch alone rarely explains the system.
 - Identify the important components, their responsibilities, who owns relevant state and how data or control crosses their boundaries. Explain resource lifetime, asynchronous work or failure handling where they determine the behaviour.
-- Trace one representative scenario from trigger to observable result. Expand to another scenario only when it reveals a materially different mechanism.
+- Trace one representative scenario from trigger to observable result. Reuse the same example or value across chunks and the before/after explanation so the reader can follow it through the system. Add another scenario only when it reveals a materially different mechanism.
+- For an important type or state change, follow the value from where it is created through its updates and consumers. Explain where it appears on screen, gets saved or crosses an API boundary when those paths exist. For React, connect the state owner, handlers, requests and affected components where relevant. Read unchanged code to establish these connections and identify any boundary you cannot trace.
 - Keep the scope to the subsystem and relationships needed to understand the change. Group code by responsibility rather than describing files in diff order.
 
 ## Explain the new design
 
 - Follow the same scenario through the head revision. Explain which responsibilities, interfaces, dependencies, state or transformations change and which important guarantees remain.
+- Distinguish what this PR adds or changes from existing behaviour it reuses. Make that distinction clear in the chunks and diagrams, especially when unchanged code is needed to explain the flow.
 - Follow callers, registration, flags and side effects to establish whether the new path is active. Distinguish introduced code from code that is actually used.
 - Explain the problem and design constraints from available evidence. Attribute author-stated intent and label inferred rationale. Do not invent rejected alternatives or future plans.
 - Describe trade-offs that help the reader understand the chosen design. Avoid turning the brief into a verdict, speculative redesign or catalogue of possible bugs. Put unresolved architectural questions beside the relevant explanation.
@@ -76,4 +77,15 @@ For a stack, show the cumulative design and explain what each PR contributes. Id
 - Check Mermaid syntax with an existing renderer when available. Do not install tooling just to render the brief. If rendering was not checked, say so in the preparation note without presenting source inspection as a render check.
 - Confirm source links and comparison ranges. Recheck the remote PR heads before finishing when available. If they moved, identify the prepared revision and newer unexamined revision instead of claiming freshness.
 - On a later run, read the prior brief and compare its revisions with the current scope. Reuse still-valid context, refresh changed paths and related evidence, and rewrite stale explanations. A matching head alone does not prove that the base, dependencies or relevant discussion are unchanged.
-- Return the brief’s path, the scope covered and any material gap. Leave judgement and review submission to the reviewer.
+
+## Simplify the finished brief
+
+After drafting and checking the explanation against the source, apply [communication](../communication/SKILL.md) in a separate final editing pass. Simplify the prose and diagram labels while preserving technical meaning, source links, uncertainty and the connections needed to understand the change.
+
+Read the result as a tired reviewer unfamiliar with this code. Can they follow what happens without repeatedly opening files or translating terminology? Rewrite the parts that still require that effort. Check that the rewrite still agrees with the source and diagrams.
+
+Return the brief’s path, the scope covered and any material gap. Leave judgement and review submission to the reviewer.
+
+## Answer follow-up questions
+
+Use the report’s source snapshot when answering questions about a chunk, type or selected code. Inspect more source when needed and answer the question directly without repeating the report. If newer code is relevant, distinguish it from the version the report explains. Refresh the report when requested.
