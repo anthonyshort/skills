@@ -37,7 +37,7 @@ The helper adds the exact structured assessment inside the published Full report
 
 ## Findings
 
-{{ Lead with this table. Distinguish new findings from concerns already raised in the PR. Link existing threads. State explicitly if no supported findings were found. }}
+{{ Lead with this table. Distinguish new findings from concerns already raised in the PR. Link existing threads. State explicitly if no supported findings were found. Account for every actionable conclusion from the assessments and rule checks once here or in Design and direction opportunities, Nits or Verification summary. Use stable finding IDs or existing thread links so the published result can preserve those actions without duplication. }}
 
 | ID | Type / severity | Finding and impact | New or already reported | Recommended action |
 | --- | --- | --- | --- | --- |
@@ -47,7 +47,7 @@ The helper adds the exact structured assessment inside the published Full report
 
 {{ Include substantive readability improvements even without a runtime defect. Explain the reading difficulty and concrete alternative. Keep optional taste in Nits and avoid assigning bug severity to preferences. }}
 
-{{ For each finding, show its location, trigger, effect and recommendation in short bullets. Keep confirmed bugs distinct from questions. Include exact revisions and valid source locations even outside the diff. Link related evidence instead of repeating it. Do not draft duplicate comments for existing concerns. }}
+{{ For each finding, show its location, trigger, effect and recommendation in short bullets. Include the essential code trace or short current/proposed snippet when it makes the evidence or suggested change clearer. Keep confirmed bugs distinct from questions. Include exact revisions and valid source locations even outside the diff. Longer traces can stay folded. Do not draft duplicate comments for existing concerns. }}
 
 ### {{ finding ID }} — {{ short title }}
 
@@ -66,7 +66,7 @@ The helper adds the exact structured assessment inside the published Full report
 
 ## Design and direction opportunities
 
-{{ Use short bullets or a table for supported alternatives. Include current friction, the proposed change, preserved behaviour, complexity removed, affected consumers, migration cost and a practical first step. Show before-and-after caller code for API changes. Label each PR-scoped improvement or broader opportunity. Mark New or Already reported and link existing discussion. Do not make future direction a blocker without a current consequence. }}
+{{ Use short bullets or a table for supported alternatives. Include current friction, the proposed change, preserved behaviour, complexity removed, affected consumers, migration cost and a practical first step. Show before-and-after caller code for API changes. Label each PR-scoped improvement or broader opportunity. Mark New or Already reported and link existing discussion. Distinguish recommendations from decisions still needed. These actions must remain visible in the published result, even when supporting rationale is folded. Do not make future direction a blocker without a current consequence. }}
 
 ## Nits
 

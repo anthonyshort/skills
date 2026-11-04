@@ -421,10 +421,11 @@ The parent agent combines the research report, all Step 3 assessments and the St
 2. **Check the agents' claims**: Check the code, requirements and CI evidence. Compare checklists with their guidance. Follow up on missing checks or weak evidence. Refresh CI status before writing.
 3. **Merge duplicate findings**: Combine findings about the same issue. Keep the evidence and any different effects. Link issues already raised in PR comments instead of drafting duplicate comments.
    - Check readability coverage explicitly. Keep useful readability improvements visible even when no bugs are found. Merge overlaps with simplicity, system fit and extraction rules without losing the reading difficulty or concrete recommendation. Missing readability assessment or body-level evidence is a coverage gap.
+   - Account for actionable conclusions from every assessment and rule check. Give each distinct recommendation one home in the report, including non-bug changes, decisions and verification actions. Reuse finding IDs or existing thread links when concerns overlap.
 4. **Resolve disagreements**: Use evidence to decide between conflicting conclusions. If you cannot resolve a disagreement, record it as an open question or a gap in the review.
 5. **Reach an overall conclusion**: Explain whether the change meets its goal, fits the system and works. Revisit the production risk level and coverage gaps. Summarise rule results from the complete coverage table, keeping concerns, unverified checks and skipped rules distinct from satisfied rules. Recommend keeping, simplifying or splitting it and explain supported alternatives. Separate fixes from optional work.
 6. **Write the report**: Use [the review report template](templates/review-report.md). Save the report to `<review artefact directory>/review-report.md` and return its path.
-7. **Reduce prose**: Ask an editorial subagent to shorten the completed report. Preserve findings, evidence, tables, counts, individual check outcomes and uncertainty. Do not introduce conclusions or change priorities. The parent compares the edit with the original, restores lost detail and saves the accepted version as the canonical report.
+7. **Reduce prose**: Ask an editorial subagent to shorten the completed report. Preserve actionable recommendations, supporting evidence, useful current/proposed snippets, tables, counts, individual check outcomes and uncertainty. Do not introduce conclusions or change priorities. The parent compares the edit with the original, restores lost detail and saves the accepted version as the canonical report.
 
 #### Deliverable
 
@@ -487,7 +488,9 @@ Publish PR reviews by default, respecting local-only, staged, comment-only and w
    - Count additions plus deletions across the whole PR. Use single-line reasons and actions. `next_steps` must contain an action unless the outcome is `approve`.
 
 4. **Publish with the helper's `finish --approval`.** Supply the decision, summary and canonical report.
-   - Follow [the comment template](templates/github-progress.md) and [writing-voice](../writing-voice/SKILL.md). Supply the compact high-level assessment and research/approach folds before grouped findings. Derive them from the completed report, including validated reused research. The helper inserts Next steps after the assessment folds and keeps the seven approval checks inside Full report.
+   - Follow [the comment template](templates/github-progress.md) and [writing-voice](../writing-voice/SKILL.md). Keep the opening assessment compact, then publish actionable findings and recommendations outside folds. Detailed evidence, research and full check coverage can remain folded. The helper inserts Next steps before the first trailing section and keeps the seven approval checks inside Full report.
+   - Compare the visible result against the canonical report before publishing. Preserve each distinct actionable assessment or rule conclusion, including existing concerns, design/readability recommendations, decisions and verification actions. Merge overlaps rather than dropping non-bug work. Counts, generic Next steps or a link to Full report do not replace a concrete recommendation.
+   - Keep findings useful without expanding Full report. Retain the source evidence and suggested change needed to judge and act on each finding, including short current/proposed snippets when they clarify it. Shortening prose must not remove the reasoning or example that makes the recommendation understandable.
    - Submit verified new bugs inline as a COMMENT review, using the report's finding IDs and valid anchors. Link existing concerns. Keep unanchored findings in the summary.
    - For separately requested formal reviews, use [the GitHub review template](templates/github-review.md) and requested status instead. Reuse published findings. Staging leaves the review pending.
    - Before retrying, refresh discussion and CI. Reuse the saved state and unchanged inputs only while the assessment holds. If facts change, inspect this run's existing submission before starting a new assessment. Do not duplicate submitted reviews or edit frozen inputs.
@@ -500,4 +503,5 @@ Return the comment URL, report path, approval outcome and any incomplete publica
 
 - [ ] The report, decision and supported inline findings are published, or publication gaps are reported.
 - [ ] Existing concerns are linked without duplication.
+- [ ] The visible result preserves actionable assessment/rule conclusions and enough evidence and suggested changes for the author to act without opening Full report.
 - [ ] The comment URL, report path and confirmed approval outcome or submission blocker are returned.
