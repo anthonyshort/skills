@@ -22,6 +22,7 @@ Use this index to select rules for Step 4 of the review skill. One subagent work
 | [Extract decisions only when it helps](extract-decisions-only-when-useful.md) | A file or component combines separate tasks, code mixes decisions with effects or distinct phases, or small operations are split into helpers. |
 | [Keep shared code independent of its consumers](keep-shared-code-independent.md) | The change adds shared-code dependencies or moves behaviour between shared and feature modules. |
 | [Keep API changes compatible with callers](keep-api-changes-compatible.md) | The change affects a function, event, HTTP API or log output that other code, monitors or alerts rely on. |
+| [Use named interfaces for complex object shapes](name-complex-object-shapes.md) | A TypeScript change embeds a multi-field or nested object type inside a container, generic argument or larger type annotation, such as `Record<string, { ... }>`. |
 | [Keep copied types and values in sync](keep-duplicated-contracts-in-sync.md) | The change copies types, schemas, enum members, flags, policy lists, error fields or defaults defined elsewhere. |
 | [Do not allow access when permission is unknown](keep-unknown-permissions-distinct-from-allowed.md) | The change affects permission checks, defaults that allow access, saved permission results, which records a user can access or when tokens expire. |
 | [Check retries for repeated side effects](check-retries-for-repeated-effects.md) | A changed operation has side effects and a realistic retry or duplicate-request path. |
