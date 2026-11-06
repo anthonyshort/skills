@@ -9,8 +9,8 @@ Turn the user’s concern into one focused question a reviewer can investigate. 
 
 ## Find the right home
 
-- Use the requested skills repository. Read its applicable authoring instructions, the review workflow and the target rule index.
-- Start with [the general rule index](../review/rules/README.md). Read related rules and extend an existing rule when it already owns the concern.
+- Use the repository that owns the target collection and read its applicable authoring instructions. General review checks now belong to review-agent under `src/workflows/review/stages/rules/checks/`; read that service checkout's index and related rules before extending a concern. See [the review-agent workflow](https://github.com/anthonyshort/review-agent/tree/main/src/workflows/review).
+- The [old general rule index](../review/rules/README.md) remains for compatibility and historical references. Do not add new service checks to that retained copy.
 - Put broadly applicable checks in the general review rules. Use a repository-specific collection only when the rule depends on that repository’s contracts or architecture. For Galaxy, inspect [its rule index](../review-nominal-galaxy/rules/README.md).
 - Keep implementation guidance, review orchestration and report formatting in their existing homes. Do not add a rule to compensate for a missing workflow step.
 
@@ -40,6 +40,6 @@ Add the rule to the target index so the existing rule-checking pass will discove
 
 - Read the rule against the original concern and a legitimate exception. Check that it would catch the concern without rejecting the exception.
 - Check for overlap with neighbouring rules, working links and unfinished example placeholders.
-- Run `git diff --check`. Validate the owning skill with the available skill-creator validator. For a new workflow skill or discovery change, also follow the repository’s installation checks in a temporary home.
+- Run `git diff --check` and the owning repository’s required checks. Validate a changed skill with the skill-creator validator; ordinary service rule Markdown is not a skill. For a skill discovery change, follow installation checks in a temporary home.
 - Use a realistic isolated evaluation when the change substantially alters review behaviour. A focused rule addition usually needs a source-level comparison, not a full PR review or live publication.
 - Report the rule path, index update, intended check and verification performed. Preserve unrelated edits. Do not commit, publish or change live installation links unless requested.

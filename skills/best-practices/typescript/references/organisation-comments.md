@@ -34,4 +34,3 @@
 
 - Document complex algorithms with multi-line JSDoc explaining their invariants and flow. Add an ASCII illustration for very complex algorithms.
 - Use `//` comments for non-obvious phases, ordering constraints or state transitions that the code does not reveal. Name the actual constraint; function length alone does not require comments.
-- Treat formatting as non-blocking unless project instructions require it.

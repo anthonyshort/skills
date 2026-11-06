@@ -8,14 +8,17 @@ Read the scoped `AGENTS.md` in the area you are editing.
 | Content | Location |
 | --- | --- |
 | General implementation guidance for a technology | `best-practices/<topic>/` |
-| Review workflow, delegation and verification | `review/SKILL.md` |
-| General checks assigned to focused rule agents | `review/rules/` |
-| Saved report and GitHub review formats | `review/templates/` |
+| Requesting reviews through MCP | `review/SKILL.md` |
+| Review stages, contracts, verification, general rules and publication | `anthonyshort/review-agent`, under `src/workflows/review/` |
+| Retained general-check compatibility copy | `review/rules/` |
+| Retained legacy report/publication resources | `review/templates/` and `review/scripts/` |
 | Galaxy additions to the main workflow | `review-nominal-galaxy/SKILL.md` |
 | Galaxy APIs, patterns and implementation guidance | `review-nominal-galaxy/best-practices/` |
 | Galaxy-specific review rules | `review-nominal-galaxy/rules/` |
 
-Best-practice skills help with writing, refactoring and reviewing code. Review rules give a focused agent one concrete question to investigate. Keep orchestration in the review workflow.
+Best-practice skills help with writing, refactoring and reviewing code. The review service reads relevant technical skills and owns the procedure for checking them. Keep stage assignments, output contracts, severity/approval policy and publishing in review-agent.
+
+Repository-specific wrapper, skill and rule locations are unchanged. Retained general rules/templates/scripts support existing references and consumers during migration; they are not a second procedure for the MCP client. Do not remove them without checking remaining callers.
 
 ## Write concise guidance
 
