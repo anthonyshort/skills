@@ -27,7 +27,7 @@ Keep tRPC access, validation, failure behaviour, and client cache recovery consi
   ```
 
 - Derive types from canonical schemas and bound input arrays. Parse external responses before code relies on their declared shape.
-- Check output enforcement when an external or legacy producer is unchecked, a transformation can violate the declared shape, or the project requires runtime validation. Verify an output schema or another enforcing boundary. Record N/A only when a validated producer and the construction path already enforce the contract.
+- Check output enforcement when an external or legacy producer is unchecked, a transformation can violate the declared shape, or the project requires runtime validation. Verify an output schema or another enforcing boundary. A validated producer and construction path can already enforce the contract without another output schema.
 
 - Throw `TRPCError` or established typed errors mapped by middleware. Preserve meaningful codes and causes; keep internal diagnostics out of client messages.
 

@@ -40,7 +40,6 @@ Track checks in task notes, not here. Mark done only after verifying; explain N/
 - [ ] **Unresolved findings** - State what still needs checking.
 - [ ] **Supported judgement** - Approve, agree, or defer only when the assessment supports it.
 - [ ] **Own-work notes** - Use brief factual wording.
-- [ ] **GitHub review attribution** - Use `🤖 Reviewed {commit}` for the review header. Do not append attribution footers to review bodies, comments or replies.
 
 **Drafting boundary**
 

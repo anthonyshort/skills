@@ -1,8 +1,8 @@
 # Skills
 
-Personal agent skills for Codex, Pi and Claude Code. The initial collection contains
-15 code-quality skills and `writing-voice`, extracted from `anthonyshort/pi-config`,
-plus the `review-nominal-galaxy` profile migrated from pi-config.
+Personal agent skills for Codex, Pi and Claude Code. The collection includes
+shared technical guidance, writing skills and a client for the review-agent MCP service.
+Repository-specific Galaxy guidance remains in its existing collection.
 
 ## Layout
 
@@ -14,8 +14,8 @@ skills use relative links; install the whole collection to retain those links.
 ```text
 skills/
   review/SKILL.md
-  review/references/
-  review/templates/
+  review/rules/                 # retained compatibility resources
+  review/templates/             # retained legacy formats
   best-practices/react/SKILL.md
   writing-voice/SKILL.md
   ...
@@ -23,10 +23,22 @@ package.json
 scripts/link.py
 ```
 
-There are no runtime dependencies or agent-specific copies. The small `pi` manifest
-exports `./skills` as a Pi package. The review workflow uses equivalent agents or
-its documented fallback when its named agents are unavailable. The personal GitHub
-review attribution remains `Sent with Pi` on all agents.
+The small `pi` manifest exports `./skills` as a Pi package without agent-specific
+copies. Technical skills can be used independently. The `review` skill requires a
+connected review-agent MCP service; it does not run a second local review workflow.
+
+## Review service
+
+[`review`](skills/review/SKILL.md) submits a GitHub PR review through MCP and retrieves
+the complete saved report. Manual reviews default to local-only; publishing follows
+the user’s authorised delivery choice. The service owns stage instructions,
+checklists, output contracts, decision policy and GitHub delivery. See
+[review-agent](https://github.com/anthonyshort/review-agent) for its workflow and
+[MCP connection documentation](https://github.com/anthonyshort/review-agent/blob/main/docs/mcp-reviews.md).
+
+The old generic rules, templates and Python publisher remain for compatibility
+and historical references during migration. The MCP client does not load them.
+New general review checks belong in review-agent; do not update both copies.
 
 ## Communication style
 
@@ -52,7 +64,7 @@ Link the skill locally or update your managed skills installation. To make it a 
 
 ## Local authoring
 
-[`add-review-rule`](skills/add-review-rule/SKILL.md) turns review feedback and code examples into focused rules. It checks for overlap, chooses the general or repository-specific collection, writes comparable examples and exceptions, and updates the rule index.
+[`add-review-rule`](skills/add-review-rule/SKILL.md) turns review feedback and code examples into focused rules. It checks for overlap, chooses the service-owned general collection or an existing repository-specific collection, writes comparable examples and exceptions, and updates the owning index.
 
 ```sh
 git clone git@github.com:anthonyshort/skills.git ~/dev/anthonyshort/skills
@@ -109,9 +121,12 @@ skill path so the profile can be installed outside the original home directory.
 
 ## Galaxy review
 
-`review-nominal-galaxy` runs the main review workflow with Galaxy-specific skills
-and rules. It uses the main report templates and submits comments only when
-requested. Approval remains a human decision.
+The `review-nominal-galaxy` wrapper, six technical skills and repository-specific
+rules remain at their existing paths. When entering through that wrapper, the MCP
+client passes its name to the service rather than repeating the review locally.
+The wrapper’s stage headings are compatibility guidance for the service; the
+service owns current execution and publication policy. Repository-specific
+reorganisation is deferred.
 
 Galaxy guidance lives under `skills/review-nominal-galaxy/`. The old
 `skills/galaxy-review` path has been removed. Re-run the linking script when adding

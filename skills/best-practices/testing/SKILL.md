@@ -37,7 +37,6 @@ feature/
 ```
 
 - **Respect runner constraints**: Follow supported browser or integration test locations. Keep framework-discovered routes thin if their folders cannot contain tests. Do not change suffixes just to select a mock setup.
-- **Make review requests specific**: Name the unprotected behaviour and the cheapest useful test. Do not request a test for every React file or unrelated legacy coverage.
 
 ## Check that tests prove the right thing
 
